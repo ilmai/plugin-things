@@ -1,0 +1,60 @@
+import { VerticalBox } from "std-widgets.slint";
+
+export component ParameterSlider inherits Rectangle {
+    in-out property<float> maximum: 100.0;
+    in-out property<float> minimum: 0.0;
+    in-out property<float> value;
+
+    property <bool> changing;
+
+    callback start-change();
+    callback changed(float);
+    callback end-change();
+
+    min-height: 24px;
+    min-width: 100px;
+    horizontal-stretch: 1;
+    vertical-stretch: 0;
+
+    border-radius: root.height/2;
+    background: touch.pressed ? #eee: #ddd;
+    border-width: 1px;
+    border-color: root.background.darker(25%);
+
+    handle := Rectangle {
+        width: self.height;
+        height: parent.height;
+        border-width: 3px;
+        border-radius: self.height / 2;
+        background: touch.pressed ? #f8f: touch.has-hover ? #66f : #0000ff;
+        border-color: self.background.darker(15%);
+        x: (root.width - handle.width) * (root.value - root.minimum) / (root.maximum - root.minimum);
+    }
+    touch := TouchArea {
+        property <float> pressed-value;
+        pointer-event(event) => {            
+            if (event.button == PointerEventButton.left) {
+                if (event.kind == PointerEventKind.down) {
+                    self.pressed-value = root.value;
+                    root.start-change();
+                    root.changing = true;
+                } else if (event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) {
+                    root.end-change();
+                    root.changing = false;
+                }
+            }
+
+            if (root.changing && event.kind == PointerEventKind.cancel) {
+                root.end-change();
+                root.changing = false;
+            }
+        }
+        moved => {
+            if (self.enabled && self.pressed) {
+                root.changed(max(root.minimum, min(root.maximum,
+                    self.pressed-value + (touch.mouse-x - touch.pressed-x) * (root.maximum - root.minimum) / (root.width - handle.width)
+                )));
+            }
+        }
+    }
+}

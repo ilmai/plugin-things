@@ -1,0 +1,56 @@
+[package]
+name = "plugin-canvas"
+version = "0.0.0"
+edition = "2021"
+
+authors = ["Jussi Viiri <jussi@viiri-audio.com>"]
+readme = "README.md"
+repository = "https://github.com/ilmai/plugin-things"
+license = "MIT"
+
+[dependencies]
+lazy_static = "1.4"
+raw-window-handle.workspace = true
+uuid = { version = "1.4", features = ["fast-rng", "v4"] }
+
+[target.'cfg(target_os="linux")'.dependencies]
+nix = { version = "0.27", features = ["poll"] }
+xcb = { version = "1.2", features = ["as-raw-xcb-connection", "xlib_xcb"] }
+xkbcommon = { version = "0.6", features = ["x11"] }
+
+[target.'cfg(target_os="macos")'.dependencies]
+objc2 = { version = "0.4", features = ["verify"] }
+
+[target.'cfg(target_os="macos")'.dependencies.icrate]
+version = "0.0"
+features = [
+    "AppKit",
+    "AppKit_NSCursor",
+    "AppKit_NSEvent",
+    "AppKit_NSTrackingArea",
+    "AppKit_NSView",
+    "AppKit_NSWindow",
+    "Foundation_NSAttributedString",
+    "Foundation_NSInvocationOperation",
+    "Foundation_NSOperationQueue",
+]
+
+[target.'cfg(target_os="windows")'.dependencies]
+libloading = "0.8"
+
+[target.'cfg(target_os="windows")'.dependencies.windows]
+version = "0.51"
+features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Dwm",
+    "Win32_Graphics_Dxgi",
+    "Win32_Graphics_Dxgi_Common",
+    "Win32_Graphics_Gdi",
+    "Win32_System_SystemInformation",
+    "Win32_System_SystemServices",
+    "Win32_System_Threading",
+    "Win32_UI_Controls",
+    "Win32_UI_HiDpi",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_WindowsAndMessaging",
+]

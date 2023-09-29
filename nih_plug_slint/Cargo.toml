@@ -1,0 +1,19 @@
+[package]
+name = "nih_plug_slint"
+version = "0.0.0"
+edition = "2021"
+
+authors = ["Jussi Viiri <jussi@viiri-audio.com>"]
+readme = "README.md"
+repository = "https://github.com/ilmai/plugin-things"
+license = "MIT"
+
+[dependencies]
+i-slint-core.workspace = true
+i-slint-renderer-skia.workspace = true
+nih_plug.workspace = true
+plugin-canvas.workspace = true
+raw-window-handle.workspace = true
+raw-window-handle-0-4 = { version = "0.4", package = "raw-window-handle" }
+slint.workspace = true
+slint-interpreter.workspace = true
