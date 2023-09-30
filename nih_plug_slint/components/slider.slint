@@ -42,7 +42,7 @@ export component ParameterSlider inherits Rectangle {
     }
 
     value-field := Rectangle {
-        width: 50px;
+        width: 60px;
         height: 20px;
         x: handle.x + handle.width / 2 - self.width / 2;
         y: handle.y + handle.height + 10px;
@@ -50,7 +50,7 @@ export component ParameterSlider inherits Rectangle {
         border-radius: 5px;
 
         Text {
-            text: Math.round(root.parameter.value * 100) / 100;
+            text: root.parameter.display-value;
             font-size: 15px;
             color: black;
             horizontal-alignment: center;
