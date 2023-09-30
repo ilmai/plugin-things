@@ -112,6 +112,23 @@ impl PluginCanvasWindowAdapter {
             Value::Void
         }).unwrap();
 
+        let param_map = context.param_map.clone();
+        let gui_context = context.gui_context.clone();
+        context.component.set_global_callback("PluginParameters", "set-string", move |values| {
+            if let (Value::String(name), Value::String(string)) = (&values[0], &values[1]) {
+                let param_ptr = param_map.get(name.as_str()).unwrap();
+                unsafe {
+                    if let Some(value) = param_ptr.string_to_normalized_value(string) {
+                        gui_context.raw_begin_set_parameter(param_ptr.clone());
+                        gui_context.raw_set_parameter_normalized(param_ptr.clone(), value);
+                        gui_context.raw_end_set_parameter(param_ptr.clone());
+                    }
+                }
+            }
+
+            Value::Void
+        }).unwrap();
+
         // Set default values for parameters
         if let Some(ui_plugin_parameters) = context.component_definition.global_properties("PluginParameters") {
             for (name, _) in ui_plugin_parameters {

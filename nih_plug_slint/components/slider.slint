@@ -11,6 +11,7 @@ export component ParameterSlider inherits Rectangle {
     callback start-change();
     callback changed(float);
     callback end-change();
+    callback set-string(string);
 
     min-height: 24px;
     min-width: 100px;
@@ -21,6 +22,13 @@ export component ParameterSlider inherits Rectangle {
     background: touch.pressed ? #eee: #ddd;
     border-width: 1px;
     border-color: root.background.darker(25%);
+
+    function start-editing() {
+        edit-field.visible = true;
+        edit-text-field.text = root.parameter.display-value;
+        edit-text-field.focus();
+        edit-text-field.select-all();
+    }
 
     modulation := Rectangle {
         width: self.height;
@@ -46,16 +54,37 @@ export component ParameterSlider inherits Rectangle {
         height: 20px;
         x: handle.x + handle.width / 2 - self.width / 2;
         y: handle.y + handle.height + 10px;
-        background: white.transparentize(20%);
+        background: white.transparentize(25%);
         border-radius: 5px;
 
         Text {
             text: root.parameter.display-value;
             font-size: 15px;
-            color: black;
             horizontal-alignment: center;
             vertical-alignment: center;
-        }    
+        }
+
+        TouchArea {
+            clicked => { start-editing(); }
+        }
+
+        edit-field := Rectangle {
+            background: white;
+            border-radius: 5px;
+            visible: false;
+
+            edit-text-field := TextInput {
+                font-size: 15px;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                single-line: true;
+
+                accepted() => {
+                    edit-field.visible = false;
+                    root.set-string(self.text);
+                }
+            }
+        } 
     }
 
     touch := TouchArea {
@@ -76,8 +105,8 @@ export component ParameterSlider inherits Rectangle {
                     }
                     self.last-click-time = animation-tick();
 
-                    if (event.modifiers.control) {
-                        root.changed(root.parameter.default-value);
+                    if (event.modifiers.control || event.modifiers.meta) {
+                        start-editing();
                     }
                 } else if (event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) {
                     root.end-change();

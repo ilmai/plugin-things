@@ -7,6 +7,7 @@ export global PluginParameters {
     callback start-change(string);
     callback changed(string, float);
     callback end-change(string);
+    callback set-string(string, string);
 }
 
 export component PluginWindow {
@@ -53,6 +54,7 @@ export component PluginWindow {
                 start-change => { PluginParameters.start-change("gain"); }
                 changed(value) => { PluginParameters.changed("gain", value); }
                 end-change => { PluginParameters.end-change("gain"); }
+                set-string(string) => { PluginParameters.set-string("gain", string); }
             }
         }
     }
