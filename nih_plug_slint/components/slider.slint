@@ -75,6 +75,10 @@ export component ParameterSlider inherits Rectangle {
                         root.changed(root.parameter.default-value);
                     }
                     self.last-click-time = animation-tick();
+
+                    if (event.modifiers.control) {
+                        root.changed(root.parameter.default-value);
+                    }
                 } else if (event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) {
                     root.end-change();
                     root.changing = false;
