@@ -115,16 +115,6 @@ impl PluginCanvasWindowAdapter {
         *self.context.borrow_mut() = Some(context);
     }
 
-    // pub fn set_param_map(&self, param_map: Vec<(String, ParamPtr, String)>) {
-    //     let param_map = param_map.iter()
-    //         .map(|(name, param_ptr, _)| {
-    //             (name.clone(), *param_ptr)
-    //         })
-    //         .collect();
-
-    //     *self.param_map.borrow_mut() = Some(Rc::new(param_map));
-    // }
-
     pub fn on_event(&self, event: plugin_canvas::Event) {
         match event {
             plugin_canvas::Event::Draw => {
