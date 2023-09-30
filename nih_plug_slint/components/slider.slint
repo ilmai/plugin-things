@@ -22,6 +22,15 @@ export component ParameterSlider inherits Rectangle {
     border-width: 1px;
     border-color: root.background.darker(25%);
 
+    modulation := Rectangle {
+        width: self.height;
+        height: parent.height;
+        border-radius: self.height / 2;
+        background: handle.background.with-alpha(25%);
+        border-color: self.background.darker(15%);
+        x: (root.width - self.width) * (root.parameter.value + root.parameter.modulation - root.minimum) / (root.maximum - root.minimum);
+    }
+
     handle := Rectangle {
         width: self.height;
         height: parent.height;
@@ -29,8 +38,9 @@ export component ParameterSlider inherits Rectangle {
         border-radius: self.height / 2;
         background: touch.pressed ? #f8f: touch.has-hover ? #66f : #0000ff;
         border-color: self.background.darker(15%);
-        x: (root.width - handle.width) * (root.parameter.value - root.minimum) / (root.maximum - root.minimum);
+        x: (root.width - self.width) * (root.parameter.value - root.minimum) / (root.maximum - root.minimum);
     }
+
     touch := TouchArea {
         property <float> pressed-value;
         property <duration> last-click-time;

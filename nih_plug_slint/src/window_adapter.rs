@@ -139,10 +139,12 @@ impl PluginCanvasWindowAdapter {
                 if let Some(ui_plugin_parameters) = context.component_definition.global_properties("PluginParameters") {
                     for (name, _) in ui_plugin_parameters {
                         if let Some(param_ptr) = context.param_map.get(&name) {
-                            let value = unsafe { param_ptr.unmodulated_normalized_value() };
-
                             if let Ok(Value::Struct(mut plugin_parameter)) = context.component.get_global_property("PluginParameters", &name) {
+                                let value = unsafe { param_ptr.unmodulated_normalized_value() };
+                                let modulation = unsafe { param_ptr.modulated_normalized_value() - value };
+
                                 plugin_parameter.set_field("value".into(), Value::Number(value as f64));
+                                plugin_parameter.set_field("modulation".into(), Value::Number(modulation as f64));
                                 context.component.set_global_property("PluginParameters", &name, Value::Struct(plugin_parameter)).unwrap();
                             }
                         }
