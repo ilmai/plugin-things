@@ -1,7 +1,9 @@
 import { ParameterSlider } from "slider.slint";
+import { PluginParameter } from "parameter.slint";
 
 export global PluginParameters {
-    in-out property<float> gain;
+    in-out property<PluginParameter> gain;
+
     callback start-change(string);
     callback changed(string, float);
     callback end-change(string);
@@ -46,7 +48,7 @@ export component PluginWindow {
             ParameterSlider {
                 height: 25px;
                 maximum: 1.0;
-                value: PluginParameters.gain;
+                parameter: PluginParameters.gain;
 
                 // FIXME: Callbacks need to be mapped manually
                 start-change => { PluginParameters.start-change("gain"); }

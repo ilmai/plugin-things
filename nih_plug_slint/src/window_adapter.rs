@@ -112,6 +112,20 @@ impl PluginCanvasWindowAdapter {
             Value::Void
         }).unwrap();
 
+        // Set default values for parameters
+        if let Some(ui_plugin_parameters) = context.component_definition.global_properties("PluginParameters") {
+            for (name, _) in ui_plugin_parameters {
+                if let Some(param_ptr) = context.param_map.get(&name) {
+                    let default_value = unsafe { param_ptr.default_normalized_value() };
+
+                    if let Ok(Value::Struct(mut plugin_parameter)) = context.component.get_global_property("PluginParameters", &name) {
+                        plugin_parameter.set_field("default-value".into(), Value::Number(default_value as f64));
+                        context.component.set_global_property("PluginParameters", &name, Value::Struct(plugin_parameter)).unwrap();
+                    }
+                }
+            }
+        }
+
         *self.context.borrow_mut() = Some(context);
     }
 
@@ -126,7 +140,11 @@ impl PluginCanvasWindowAdapter {
                     for (name, _) in ui_plugin_parameters {
                         if let Some(param_ptr) = context.param_map.get(&name) {
                             let value = unsafe { param_ptr.unmodulated_normalized_value() };
-                            context.component.set_global_property("PluginParameters", &name, Value::Number(value as f64)).unwrap();
+
+                            if let Ok(Value::Struct(mut plugin_parameter)) = context.component.get_global_property("PluginParameters", &name) {
+                                plugin_parameter.set_field("value".into(), Value::Number(value as f64));
+                                context.component.set_global_property("PluginParameters", &name, Value::Struct(plugin_parameter)).unwrap();
+                            }
                         }
                     }
                 }

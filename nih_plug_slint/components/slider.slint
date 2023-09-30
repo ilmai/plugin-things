@@ -1,9 +1,10 @@
 import { VerticalBox } from "std-widgets.slint";
+import { PluginParameter } from "parameter.slint";
 
 export component ParameterSlider inherits Rectangle {
     in-out property<float> maximum: 100.0;
     in-out property<float> minimum: 0.0;
-    in-out property<float> value;
+    in-out property<PluginParameter> parameter;
 
     property <bool> changing;
 
@@ -28,16 +29,25 @@ export component ParameterSlider inherits Rectangle {
         border-radius: self.height / 2;
         background: touch.pressed ? #f8f: touch.has-hover ? #66f : #0000ff;
         border-color: self.background.darker(15%);
-        x: (root.width - handle.width) * (root.value - root.minimum) / (root.maximum - root.minimum);
+        x: (root.width - handle.width) * (root.parameter.value - root.minimum) / (root.maximum - root.minimum);
     }
     touch := TouchArea {
         property <float> pressed-value;
-        pointer-event(event) => {            
+        property <duration> last-click-time;
+
+        pointer-event(event) => {
             if (event.button == PointerEventButton.left) {
                 if (event.kind == PointerEventKind.down) {
-                    self.pressed-value = root.value;
+                    self.pressed-value = root.parameter.value;
                     root.start-change();
                     root.changing = true;
+
+                    // Double click sets to default
+                    // TODO: Don't hardcode duration
+                    if (animation-tick() - last-click-time < 500ms) {
+                        root.changed(root.parameter.default-value);
+                    }
+                    self.last-click-time = animation-tick();
                 } else if (event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel) {
                     root.end-change();
                     root.changing = false;
