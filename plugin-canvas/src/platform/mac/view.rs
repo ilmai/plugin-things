@@ -52,9 +52,14 @@ declare_class! {
                 self.interpretKeyEvents(&events);
             }
 
+            let mut text = self.key_event_text(event);
+            if text == "\r" {
+                text = "\u{000a}".to_string();
+            }
+
             self.window().send_event(
                 Event::KeyDown {
-                    text: self.key_event_text(event),
+                    text,
                 }
             );
 
