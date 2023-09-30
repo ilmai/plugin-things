@@ -1,0 +1,58 @@
+import { ParameterSlider } from "slider.slint";
+
+export global PluginParameters {
+    in-out property<float> gain;
+    callback start-change(string);
+    callback changed(string, float);
+    callback end-change(string);
+}
+
+export component PluginWindow {
+    Rectangle {
+        background: gold;
+
+        // FIXME: Workaround for taking focus off TextInput by clicking outside it
+        TouchArea {
+            mouse-cursor: pointer;
+
+            FocusScope {
+                enabled: true;
+            }
+        }
+
+        Rectangle {
+            background: red;
+            width: 100px;
+            height: 100px;
+
+            x: 350px + sin(mod(animation-tick(), 5s) / 5s * 360deg) * 350px;
+            y: 100px;
+        }
+
+        VerticalLayout {
+            width: 200px;
+            height: 50px;
+            spacing: 25px;
+
+            Rectangle {
+                height: 25px;
+                background: white;
+
+                TextInput {
+                    font-size: 20px;
+                }
+            }
+
+            ParameterSlider {
+                height: 25px;
+                maximum: 1.0;
+                value: PluginParameters.gain;
+
+                // FIXME: Callbacks need to be mapped manually
+                start-change => { PluginParameters.start-change("gain"); }
+                changed(value) => { PluginParameters.changed("gain", value); }
+                end-change => { PluginParameters.end-change("gain"); }
+            }
+        }
+    }
+}

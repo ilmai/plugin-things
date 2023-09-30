@@ -1,0 +1,14 @@
+[package]
+name = "demo"
+version = "0.0.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+futures = { version = "0.3", features = ["executor"] }
+nih_plug.workspace = true
+nih_plug_slint.workspace = true
+plugin-canvas.workspace = true
+slint-interpreter.workspace = true

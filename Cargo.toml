@@ -1,8 +1,10 @@
 [workspace]
 resolver = "2"
 members = [
+    "examples/demo",
     "nih_plug_slint",
     "plugin-canvas",
+    "xtask",
 ]
 
 [workspace.dependencies]
