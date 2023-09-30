@@ -1,6 +1,6 @@
-use std::sync::atomic::{Ordering, AtomicU8};
+use std::sync::atomic::{Ordering, AtomicU8, AtomicUsize};
 
-use icrate::{AppKit::{NSView, NSEvent, NSResponder, NSTextInputClient}, Foundation::{NSRect, NSArray, NSRange, NSRangePointer, NSPoint, NSAttributedStringKey, NSAttributedString, CGPoint, CGSize}};
+use icrate::{AppKit::{NSView, NSEvent, NSResponder, NSTextInputClient, NSEventModifierFlagShift, NSEventModifierFlagCommand, NSEventModifierFlagControl, NSEventModifierFlagOption}, Foundation::{NSRect, NSArray, NSRange, NSRangePointer, NSPoint, NSAttributedStringKey, NSAttributedString, CGPoint, CGSize}};
 use objc2::{declare_class, mutability, ClassType,  msg_send, declare::IvarEncode, runtime::{AnyObject, Sel, NSObject, NSObjectProtocol}, ffi::NSUInteger, rc::Id};
 
 use crate::{Event, MouseButton, LogicalPosition};
@@ -12,6 +12,7 @@ declare_class! {
         pub(super) os_window_ptr: IvarEncode<AtomicVoidPtr, "_os_window_ptr">,
         // AtomicBool isn't Encode, so let's use AtomicU8 instead
         input_focus: IvarEncode<AtomicU8, "_input_focus">,
+        modifier_flags: IvarEncode<AtomicUsize, "_modifier_flags">,
     }
     
     mod ivars;
@@ -73,6 +74,11 @@ declare_class! {
             if !self.has_input_focus() {
                 unsafe { msg_send![super(self), keyUp: event] }
             }
+        }
+
+        #[method(flagsChanged:)]
+        fn flags_changed(&self, event: *const NSEvent) {
+            self.handle_modifier_event(event);
         }
 
         #[method(mouseMoved:)]
@@ -265,6 +271,28 @@ impl OsWindowView {
         }
     }
 
+    fn handle_modifier_event(&self, event: *const NSEvent) {        
+        let old_flags = self.modifier_flags.load(Ordering::Relaxed);
+        let event_flags = unsafe { (*event).modifierFlags() };
+        self.modifier_flags.store(event_flags, Ordering::Relaxed);
+
+        for (modifier, text) in [
+            (NSEventModifierFlagCommand, "\u{0017}"),
+            (NSEventModifierFlagControl, "\u{0011}"),
+            (NSEventModifierFlagOption, "\u{0012}"),
+            (NSEventModifierFlagShift, "\u{0010}"),
+        ] {
+            let was_down = old_flags & modifier > 0;
+            let is_down = event_flags & modifier > 0;
+
+            if !was_down && is_down {
+                self.window().send_event(Event::KeyDown { text: text.to_string() });
+            } else if was_down && !is_down {
+                self.window().send_event(Event::KeyUp { text: text.to_string() });
+            }
+        }
+    }
+    
     fn handle_mouse_move_event(&self, event: *const NSEvent) {
         self.window().send_event(
             Event::MouseMoved {
