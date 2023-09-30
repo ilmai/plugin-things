@@ -41,6 +41,23 @@ export component ParameterSlider inherits Rectangle {
         x: (root.width - self.width) * (root.parameter.value - root.minimum) / (root.maximum - root.minimum);
     }
 
+    value-field := Rectangle {
+        width: 50px;
+        height: 20px;
+        x: handle.x + handle.width / 2 - self.width / 2;
+        y: handle.y + handle.height + 10px;
+        background: white.transparentize(20%);
+        border-radius: 5px;
+
+        Text {
+            text: Math.round(root.parameter.value * 100) / 100;
+            font-size: 15px;
+            color: black;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }    
+    }
+
     touch := TouchArea {
         property <float> pressed-value;
         property <duration> last-click-time;
