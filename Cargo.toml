@@ -8,11 +8,14 @@ members = [
 ]
 
 [workspace.dependencies]
-i-slint-core = "1.2"
-i-slint-renderer-skia = { version = "1.2", features = ["x11"] }
 nih_plug = { git = "https://github.com/robbert-vdh/nih-plug/" }
 nih_plug_slint = { path = "nih_plug_slint" }
 plugin-canvas = { path = "plugin-canvas" }
 raw-window-handle = "0.5"
 slint = { version = "1.2", default-features = false, features = ["accessibility", "compat-1-2", "std"] }
 slint-interpreter = { version = "1.2", default-features = false, features = ["accessibility", "compat-1-2", "std"] }
+
+# Internal slint crate versions need to be pinned
+# since they don't maintain semver compatibility
+i-slint-core = "=1.2.1"
+i-slint-renderer-skia = { version = "=1.2.1", features = ["x11"] }
