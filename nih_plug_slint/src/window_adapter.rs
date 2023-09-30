@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc, sync::{atomic::{AtomicBool, Ordering}, Arc}, collections::HashMap};
+use std::{cell::RefCell, rc::Rc, sync::{atomic::{AtomicBool, Ordering}, Arc, mpsc}, collections::{HashMap, HashSet}};
 
 use i_slint_core::{window::{WindowAdapter, WindowAdapterInternal}, renderer::Renderer, platform::{PlatformError, WindowEvent}};
 use i_slint_renderer_skia::SkiaRenderer;
@@ -12,19 +12,30 @@ thread_local! {
     pub static WINDOW_ADAPTER_FROM_SLINT: RefCell<Option<Rc<PluginCanvasWindowAdapter>>> = Default::default();
 }
 
+pub enum ParameterChange {
+    ValueChanged { id: String },
+    ModulationChanged { id: String },
+    AllValuesChanged,
+}
+
+pub type ParameterChangeSender = mpsc::Sender<ParameterChange>;
+pub type ParameterChangeReceiver = mpsc::Receiver<ParameterChange>;
+
 pub struct Context {
     pub component: ComponentInstance,
     pub component_definition: ComponentDefinition,
     pub param_map: Rc<HashMap<String, ParamPtr>>,
     pub gui_context: Arc<dyn GuiContext>,
+    pub parameter_change_receiver: ParameterChangeReceiver,
 }
 
 pub struct PluginCanvasWindowAdapter {
-    context: RefCell<Option<Context>>,
-
     plugin_canvas_window: plugin_canvas::Window,
     slint_window: slint::Window,
     renderer: SkiaRenderer,
+
+    context: RefCell<Option<Context>>,
+    ui_parameters: RefCell<HashSet<String>>,
 
     slint_size: slint::PhysicalSize,
     user_scale: Scale,
@@ -53,11 +64,12 @@ impl PluginCanvasWindowAdapter {
             let slint_window = slint::Window::new(self_weak.clone() as _);
             
             Self {
-                context: Default::default(),
-
                 plugin_canvas_window,
                 slint_window,
                 renderer,
+
+                context: Default::default(),
+                ui_parameters: Default::default(),
 
                 slint_size,
                 user_scale,
@@ -79,6 +91,14 @@ impl PluginCanvasWindowAdapter {
     }
 
     pub fn set_context(&self, context: Context) {
+        // Save parameter names that are used by the UI
+        let mut ui_parameters = self.ui_parameters.borrow_mut();
+        for (name, _) in context.component_definition.global_properties("PluginParameters").unwrap() {
+            ui_parameters.insert(name);
+        }
+        drop(ui_parameters);
+
+        // Set callbacks
         let param_map = context.param_map.clone();
         let gui_context = context.gui_context.clone();
         context.component.set_global_callback("PluginParameters", "start-change", move |values| {
@@ -144,6 +164,9 @@ impl PluginCanvasWindowAdapter {
         }
 
         *self.context.borrow_mut() = Some(context);
+
+        // Initialize parameter values
+        self.update_all_parameters();
     }
 
     pub fn on_event(&self, event: plugin_canvas::Event) {
@@ -152,21 +175,24 @@ impl PluginCanvasWindowAdapter {
                 let context = self.context.borrow();
                 let context = context.as_ref().unwrap();
 
-                // Update all property values from plugin parameters
-                if let Some(ui_plugin_parameters) = context.component_definition.global_properties("PluginParameters") {
-                    for (name, _) in ui_plugin_parameters {
-                        if let Some(param_ptr) = context.param_map.get(&name) {
-                            if let Ok(Value::Struct(mut plugin_parameter)) = context.component.get_global_property("PluginParameters", &name) {
-                                let value = unsafe { param_ptr.unmodulated_normalized_value() };
-                                let modulation = unsafe { param_ptr.modulated_normalized_value() - value };
-                                let display_value = unsafe { param_ptr.normalized_value_to_string(value, true) };
-
-                                plugin_parameter.set_field("value".into(), Value::Number(value as f64));
-                                plugin_parameter.set_field("display-value".into(), Value::String(display_value.into()));
-                                plugin_parameter.set_field("modulation".into(), Value::Number(modulation as f64));
-                                context.component.set_global_property("PluginParameters", &name, Value::Struct(plugin_parameter)).unwrap();
+                // Update property values for all changed plugin parameters
+                while let Ok(parameter_change) = context.parameter_change_receiver.try_recv() {
+                    match parameter_change {
+                        ParameterChange::ValueChanged { id } => {
+                            if self.ui_parameters.borrow().contains(&id) {
+                                self.update_parameter(&id, true, false);
                             }
                         }
+
+                        ParameterChange::ModulationChanged { id } => {
+                            if self.ui_parameters.borrow().contains(&id) {
+                                self.update_parameter(&id, false, true);
+                            }
+                        }
+
+                        ParameterChange::AllValuesChanged => {
+                            self.update_all_parameters();
+                        },
                     }
                 }
 
@@ -235,6 +261,36 @@ impl PluginCanvasWindowAdapter {
         slint::LogicalPosition {
             x: (position.x / *self.user_scale) as f32,
             y: (position.y / *self.user_scale) as f32,
+        }
+    }
+
+    fn update_parameter(&self, id: &str, update_value: bool, update_modulation: bool) {
+        let context = self.context.borrow();
+        let context = context.as_ref().unwrap();
+
+        if let Some(param_ptr) = context.param_map.get(id) {
+            if let Ok(Value::Struct(mut plugin_parameter)) = context.component.get_global_property("PluginParameters", &id) {
+                let value = unsafe { param_ptr.unmodulated_normalized_value() };
+                let modulation = unsafe { param_ptr.modulated_normalized_value() - value };
+
+                if update_value {
+                    let display_value = unsafe { param_ptr.normalized_value_to_string(value, true) };
+
+                    plugin_parameter.set_field("value".into(), Value::Number(value as f64));
+                    plugin_parameter.set_field("display-value".into(), Value::String(display_value.into()));    
+                    plugin_parameter.set_field("modulation".into(), Value::Number(modulation as f64));
+                } else if update_modulation {
+                    plugin_parameter.set_field("modulation".into(), Value::Number(modulation as f64));
+                }
+
+                context.component.set_global_property("PluginParameters", id, Value::Struct(plugin_parameter)).unwrap();
+            }
+        }
+    }
+
+    fn update_all_parameters(&self) {
+        for id in self.ui_parameters.borrow().iter() {
+            self.update_parameter(id, true, true);
         }
     }
 }

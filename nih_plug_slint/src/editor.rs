@@ -1,7 +1,8 @@
+use std::cell::RefCell;
 use std::sync::atomic::{AtomicPtr, Ordering};
 use std::thread::ThreadId;
 use std::{sync::Arc, any::Any, rc::Rc};
-use std::sync::{Mutex, RwLock, Weak};
+use std::sync::{Mutex, RwLock, Weak, mpsc};
 
 use i_slint_core::window::WindowAdapter;
 use nih_plug::prelude::*;
@@ -9,7 +10,7 @@ use plugin_canvas::{window::WindowAttributes, Event};
 use raw_window_handle_0_4::HasRawWindowHandle;
 use slint_interpreter::{ComponentHandle, ComponentInstance};
 
-use crate::window_adapter::Context;
+use crate::window_adapter::{Context, ParameterChangeSender, ParameterChange};
 use crate::{platform::PluginCanvasPlatform, window_adapter::{WINDOW_TO_SLINT, WINDOW_ADAPTER_FROM_SLINT, PluginCanvasWindowAdapter}, raw_window_handle_adapter::RawWindowHandleAdapter};
 
 pub struct SlintEditor<F>
@@ -21,6 +22,7 @@ where
     component_builder: F,
     editor_handle: Mutex<Option<Weak<EditorHandle>>>,
     param_map: Vec<(String, ParamPtr, String)>,
+    parameter_change_sender: RefCell<Option<ParameterChangeSender>>,
 }
 
 impl<F> SlintEditor<F>
@@ -34,6 +36,7 @@ where
             component_builder,
             editor_handle: Default::default(),
             param_map: params.param_map(),
+            parameter_change_sender: Default::default(),
         }
     }
 }
@@ -47,6 +50,9 @@ where
         let raw_window_handle_adapter = RawWindowHandleAdapter::from(parent.raw_window_handle());
         let mut window_attributes = self.window_attributes.clone();
         window_attributes.scale *= *self.os_scale_factor.read().unwrap() as f64;
+
+        let (parameter_change_sender, parameter_change_receiver) = mpsc::channel();
+        *self.parameter_change_sender.borrow_mut() = Some(parameter_change_sender);
 
         plugin_canvas::Window::open(
             raw_window_handle_adapter,
@@ -86,12 +92,13 @@ where
                         component_definition,
                         param_map: Rc::new(param_map),
                         gui_context,
+                        parameter_change_receiver,
                     };
 
                     let window_adapter = WINDOW_ADAPTER_FROM_SLINT.with(|window_adapter| window_adapter.take().unwrap());
                     window_adapter.set_context(context);
 
-                    editor_handle.set_window_adapter(window_adapter);            
+                    editor_handle.set_window_adapter(window_adapter);
                 })
             }
         ).unwrap();
@@ -111,19 +118,30 @@ where
         true
     }
 
-    fn param_value_changed(&self, _id: &str, _normalized_value: f32) {
+    fn param_value_changed(&self, id: &str, _normalized_value: f32) {
+        let parameter_change_sender = self.parameter_change_sender.borrow();
+        let id = id.to_string();
+
+        parameter_change_sender.as_ref().unwrap().send(ParameterChange::ValueChanged { id }).unwrap();
     }
 
-    fn param_modulation_changed(&self, _id: &str, _modulation_offset: f32) {
+    fn param_modulation_changed(&self, id: &str, _modulation_offset: f32) {
+        let parameter_change_sender = self.parameter_change_sender.borrow();
+        let id = id.to_string();
+
+        parameter_change_sender.as_ref().unwrap().send(ParameterChange::ModulationChanged { id }).unwrap();
     }
 
     fn param_values_changed(&self) {
+        let parameter_change_sender = self.parameter_change_sender.borrow();
+        parameter_change_sender.as_ref().unwrap().send(ParameterChange::AllValuesChanged).unwrap();
     }
 }
 
 struct EditorHandle {
     window_adapter_thread: Mutex<Option<ThreadId>>,
     window_adapter_ptr: AtomicPtr<PluginCanvasWindowAdapter>,
+
     _gui_context: Arc<dyn GuiContext>,
 }
 
