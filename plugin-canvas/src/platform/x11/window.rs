@@ -24,6 +24,7 @@ pub struct OsWindow {
     cursor_arrow: x::Cursor,
     cursor_pointer: x::Cursor,
     new_cursor: Arc<Mutex<Option<x::Cursor>>>,
+    set_input_focus: Arc<Mutex<Option<bool>>>,
 }
 
 impl OsWindow {
@@ -35,8 +36,9 @@ impl OsWindow {
         build_window: OsWindowBuilder,
     ) {
         let new_cursor: Arc<Mutex<Option<x::Cursor>>> = Default::default();
+        let set_input_focus: Arc<Mutex<Option<bool>>> = Default::default();
 
-        let (connection, window_id, xkb_state) = match Self::create_window(parent_window_id, window_attributes.clone(), build_window, new_cursor.clone()) {
+        let (connection, window_id, xkb_state) = match Self::create_window(parent_window_id, window_attributes.clone(), build_window, new_cursor.clone(), set_input_focus.clone()) {
             Ok(connection) => connection,
             Err(error) => {
                 window_event_sender.send(OsWindowEvent::Error(error)).unwrap();
@@ -67,6 +69,20 @@ impl OsWindow {
                 }).unwrap();
             }
 
+            // if let Some(set_input_focus) = set_input_focus.lock().unwrap().take() {
+            //     let event_mask = if set_input_focus {
+            //         x::EventMask::KEY_PRESS | x::EventMask::KEY_RELEASE
+            //     } else {
+            //         x::EventMask::empty()
+            //     };
+
+            //     // TODO: Error handling
+            //     context.connection.send_and_check_request(&x::ChangeWindowAttributes {
+            //         window: window_id,
+            //         value_list: &[x::Cw::DontPropagate(event_mask)],
+            //     }).unwrap();
+            // }
+
             // Handle events before drawing to get up to date state
             Self::handle_events(&mut context);
 
@@ -95,6 +111,7 @@ impl OsWindow {
         window_attributes: WindowAttributes,
         build_window: OsWindowBuilder,
         new_cursor: Arc<Mutex<Option<x::Cursor>>>,
+        set_input_focus: Arc<Mutex<Option<bool>>>,
     ) -> Result<(xcb::Connection, x::Window, xkb::State), Error> {
         let parent_window_id = unsafe { x::Window::new(parent_window_id) };
         let size = Size::with_logical_size(window_attributes.size, window_attributes.scale);
@@ -126,7 +143,12 @@ impl OsWindow {
                 x::EventMask::KEY_RELEASE | 
                 x::EventMask::LEAVE_WINDOW | 
                 x::EventMask::POINTER_MOTION
-            )],
+            ),
+            x::Cw::DontPropagate(
+                x::EventMask::KEY_PRESS | 
+                x::EventMask::KEY_RELEASE
+            ),
+            ],
         })?;
 
         // Init xkbcommon
@@ -167,9 +189,9 @@ impl OsWindow {
             fore_red: 0,
             fore_green: 0,
             fore_blue: 0,
-            back_red: 0,
-            back_green: 0,
-            back_blue: 0,
+            back_red: u16::MAX,
+            back_green: u16::MAX,
+            back_blue: u16::MAX,
         })?;
         connection.send_and_check_request(&x::CreateGlyphCursor {
             cid: cursor_pointer,
@@ -192,6 +214,7 @@ impl OsWindow {
             cursor_arrow,
             cursor_pointer,
             new_cursor,
+            set_input_focus,
         });
     
         let os_window_handle = OsWindowHandle::new(raw_window_handle, raw_display_handle, window);
@@ -339,8 +362,8 @@ impl OsWindowInterface for OsWindow {
         *self.new_cursor.lock().unwrap() = Some(cursor);
     }
 
-    fn set_input_focus(&self, _focus: bool) {
-        // TODO
+    fn set_input_focus(&self, focus: bool) {
+        *self.set_input_focus.lock().unwrap() = Some(focus);
     }
 }
 
