@@ -1,5 +1,6 @@
 import { ParameterSlider } from "slider.slint";
 import { PluginParameter } from "parameter.slint";
+import { ParameterKnob } from "../../nih_plug_slint/components/knob.slint";
 
 export global PluginParameters {
     in-out property<PluginParameter> gain;
@@ -32,21 +33,12 @@ export component PluginWindow {
             y: 100px;
         }
 
-        VerticalLayout {
-            width: 200px;
-            height: 50px;
+        HorizontalLayout {
+            width: 300px;
+            height: 100px;
             spacing: 25px;
 
-            Rectangle {
-                height: 25px;
-                background: white;
-
-                TextInput {
-                    font-size: 20px;
-                }
-            }
-
-            ParameterSlider {
+            ParameterKnob {
                 height: 25px;
                 parameter: PluginParameters.gain;
 
@@ -56,6 +48,32 @@ export component PluginWindow {
                 end-change => { PluginParameters.end-change("gain"); }
                 set-string(string) => { PluginParameters.set-string("gain", string); }
             }
+
+            VerticalLayout {
+                width: 200px;
+                height: 50px;
+                spacing: 25px;
+    
+                Rectangle {
+                    height: 25px;
+                    background: white;
+    
+                    TextInput {
+                        font-size: 20px;
+                    }
+                }
+    
+                ParameterSlider {
+                    height: 25px;
+                    parameter: PluginParameters.gain;
+    
+                    // FIXME: Callbacks need to be mapped manually
+                    start-change => { PluginParameters.start-change("gain"); }
+                    changed(value) => { PluginParameters.changed("gain", value); }
+                    end-change => { PluginParameters.end-change("gain"); }
+                    set-string(string) => { PluginParameters.set-string("gain", string); }
+                }
+            }    
         }
     }
 }
