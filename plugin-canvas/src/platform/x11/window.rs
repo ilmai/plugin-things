@@ -167,9 +167,9 @@ impl OsWindow {
             fore_red: 0,
             fore_green: 0,
             fore_blue: 0,
-            back_red: 0,
-            back_green: 0,
-            back_blue: 0,
+            back_red: u16::MAX,
+            back_green: u16::MAX,
+            back_blue: u16::MAX,
         })?;
         connection.send_and_check_request(&x::CreateGlyphCursor {
             cid: cursor_pointer,
