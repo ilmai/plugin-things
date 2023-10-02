@@ -2,7 +2,7 @@ use std::{rc::Rc, sync::{mpsc::{self, Sender}, Arc, Mutex}, os::fd::{AsRawFd, Bo
 
 use nix::poll::{poll, PollFd, PollFlags};
 use raw_window_handle::{RawWindowHandle, HasRawWindowHandle, HasRawDisplayHandle, RawDisplayHandle, XlibWindowHandle, XlibDisplayHandle};
-use xcb::{x, XidNew, Xid};
+use xcb::{x::{self, GrabStatus}, XidNew, Xid};
 use xkbcommon::xkb;
 
 use crate::{window::WindowAttributes, event::EventCallback, error::Error, platform::interface::{OsWindowInterface, OsWindowHandle, OsWindowBuilder}, dimensions::Size, Event, MouseButton, LogicalPosition, cursor::Cursor};
@@ -24,6 +24,7 @@ pub struct OsWindow {
     cursor_arrow: x::Cursor,
     cursor_pointer: x::Cursor,
     new_cursor: Arc<Mutex<Option<x::Cursor>>>,
+    set_input_focus: Arc<Mutex<Option<bool>>>,
 }
 
 impl OsWindow {
@@ -35,8 +36,9 @@ impl OsWindow {
         build_window: OsWindowBuilder,
     ) {
         let new_cursor: Arc<Mutex<Option<x::Cursor>>> = Default::default();
+        let set_input_focus: Arc<Mutex<Option<bool>>> = Default::default();
 
-        let (connection, window_id, xkb_state) = match Self::create_window(parent_window_id, window_attributes.clone(), build_window, new_cursor.clone()) {
+        let (connection, window_id, xkb_state) = match Self::create_window(parent_window_id, window_attributes.clone(), build_window, new_cursor.clone(), set_input_focus.clone()) {
             Ok(connection) => connection,
             Err(error) => {
                 window_event_sender.send(OsWindowEvent::Error(error)).unwrap();
@@ -67,6 +69,25 @@ impl OsWindow {
                 }).unwrap();
             }
 
+            if let Some(set_input_focus) = set_input_focus.lock().unwrap().take() {
+                // TODO: Error handling
+                if set_input_focus {
+                    let cookie = context.connection.send_request(&x::GrabKeyboard {
+                        owner_events: false,
+                        grab_window: window_id,
+                        time: x::CURRENT_TIME,
+                        pointer_mode: x::GrabMode::Async,
+                        keyboard_mode: x::GrabMode::Async,
+                    });
+                    let reply = context.connection.wait_for_reply(cookie).unwrap();
+                    assert_eq!(reply.status(), GrabStatus::Success);
+                } else {
+                    context.connection.send_and_check_request(&x::UngrabKeyboard {
+                        time: x::CURRENT_TIME,
+                    }).unwrap();
+                }
+            }
+
             // Handle events before drawing to get up to date state
             Self::handle_events(&mut context);
 
@@ -95,6 +116,7 @@ impl OsWindow {
         window_attributes: WindowAttributes,
         build_window: OsWindowBuilder,
         new_cursor: Arc<Mutex<Option<x::Cursor>>>,
+        set_input_focus: Arc<Mutex<Option<bool>>>,
     ) -> Result<(xcb::Connection, x::Window, xkb::State), Error> {
         let parent_window_id = unsafe { x::Window::new(parent_window_id) };
         let size = Size::with_logical_size(window_attributes.size, window_attributes.scale);
@@ -192,6 +214,7 @@ impl OsWindow {
             cursor_arrow,
             cursor_pointer,
             new_cursor,
+            set_input_focus,
         });
     
         let os_window_handle = OsWindowHandle::new(raw_window_handle, raw_display_handle, window);
@@ -339,8 +362,8 @@ impl OsWindowInterface for OsWindow {
         *self.new_cursor.lock().unwrap() = Some(cursor);
     }
 
-    fn set_input_focus(&self, _focus: bool) {
-        // TODO
+    fn set_input_focus(&self, focus: bool) {
+        *self.set_input_focus.lock().unwrap() = Some(focus);
     }
 }
 
