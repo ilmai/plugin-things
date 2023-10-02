@@ -1,7 +1,8 @@
-use std::{rc::Rc, sync::{mpsc::{self, Sender}, Arc, Mutex}, os::fd::{AsRawFd, BorrowedFd}, time::{Instant, Duration}};
+use std::{rc::Rc, sync::{mpsc::{self, Sender}, Arc, Mutex}, os::fd::{AsRawFd, BorrowedFd}, time::{Instant, Duration}, ffi::OsStr};
 
 use nix::poll::{poll, PollFd, PollFlags};
 use raw_window_handle::{RawWindowHandle, HasRawWindowHandle, HasRawDisplayHandle, RawDisplayHandle, XlibWindowHandle, XlibDisplayHandle};
+use sys_locale::get_locale;
 use xcb::{x::{self, GrabStatus}, XidNew, Xid};
 use xkbcommon::xkb;
 
@@ -15,6 +16,7 @@ struct Context {
     event_callback: Box<EventCallback>,
     connection: xcb::Connection,
     xkb_state: xkb::State,
+    xkb_compose_state: xkb::compose::State,
 }
 
 pub struct OsWindow {
@@ -38,7 +40,7 @@ impl OsWindow {
         let new_cursor: Arc<Mutex<Option<x::Cursor>>> = Default::default();
         let set_input_focus: Arc<Mutex<Option<bool>>> = Default::default();
 
-        let (connection, window_id, xkb_state) = match Self::create_window(parent_window_id, window_attributes.clone(), build_window, new_cursor.clone(), set_input_focus.clone()) {
+        let (connection, window_id, xkb_state, xkb_compose_state) = match Self::create_window(parent_window_id, window_attributes.clone(), build_window, new_cursor.clone(), set_input_focus.clone()) {
             Ok(connection) => connection,
             Err(error) => {
                 window_event_sender.send(OsWindowEvent::Error(error)).unwrap();
@@ -51,6 +53,7 @@ impl OsWindow {
             event_callback,
             connection,
             xkb_state,
+            xkb_compose_state,
         };
 
         let connection_fd = unsafe { BorrowedFd::borrow_raw(context.connection.as_raw_fd()) };
@@ -117,7 +120,7 @@ impl OsWindow {
         build_window: OsWindowBuilder,
         new_cursor: Arc<Mutex<Option<x::Cursor>>>,
         set_input_focus: Arc<Mutex<Option<bool>>>,
-    ) -> Result<(xcb::Connection, x::Window, xkb::State), Error> {
+    ) -> Result<(xcb::Connection, x::Window, xkb::State, xkb::compose::State), Error> {
         let parent_window_id = unsafe { x::Window::new(parent_window_id) };
         let size = Size::with_logical_size(window_attributes.size, window_attributes.scale);
     
@@ -157,6 +160,10 @@ impl OsWindow {
         let keymap = xkb::x11::keymap_new_from_device(&xkb_context, &connection, keyboard_device, 0);
         let xkb_state = xkb::x11::state_new_from_device(&keymap, &connection, keyboard_device);
 
+        let locale = get_locale().unwrap_or_else(|| String::from("en-US"));
+        let compose_table = xkb::compose::Table::new_from_locale(&xkb_context, OsStr::new(&locale), 0).unwrap();
+        let xkb_compose_state = xkb::compose::State::new(&compose_table, 0);
+        
         // Show window
         connection.send_and_check_request(&x::MapWindow { window: window_id })?;
     
@@ -220,7 +227,7 @@ impl OsWindow {
         let os_window_handle = OsWindowHandle::new(raw_window_handle, raw_display_handle, window);
         build_window(os_window_handle);
     
-        Ok((connection, window_id, xkb_state))
+        Ok((connection, window_id, xkb_state, xkb_compose_state))
     }
 
     fn handle_events(context: &mut Context) {
@@ -274,9 +281,22 @@ impl OsWindow {
 
             xcb::Event::X(x::Event::KeyPress(event)) => {
                 let keycode = xkb::Keycode::new(event.detail() as u32);
-                let text = context.xkb_state.key_get_utf8(keycode);
+                let mut text = String::new();
+
+                for keysym in context.xkb_state.key_get_syms(keycode) {
+                    context.xkb_compose_state.feed(*keysym);
+                    if context.xkb_compose_state.status() == xkb::Status::Composed {
+                        // We're assuming here that a single key press can only generate one piece of text, is this true?
+                        text = context.xkb_compose_state.utf8().unwrap();
+                    }
+                }
+
+                if text.is_empty() {
+                    text = context.xkb_state.key_get_utf8(keycode);
+                }
+
                 context.xkb_state.update_key(keycode, xkb::KeyDirection::Down);
-                
+
                 if !text.is_empty() {
                     (context.event_callback)(Event::KeyDown { text });
                 }
