@@ -283,6 +283,17 @@ impl OsWindow {
                 let keycode = xkb::Keycode::new(event.detail() as u32);
                 let mut text = String::new();
 
+                if let Some(text) = match context.xkb_state.get_keymap().key_get_name(keycode) {
+                    Some("UP") => Some("\u{f700}"),
+                    Some("DOWN") => Some("\u{f701}"),
+                    Some("LEFT") => Some("\u{f702}"),
+                    Some("RGHT") => Some("\u{f703}"),
+                    _ => None,
+                } {
+                    let text = text.to_string();
+                    (context.event_callback)(Event::KeyDown { text });
+                }
+
                 for keysym in context.xkb_state.key_get_syms(keycode) {
                     context.xkb_compose_state.feed(*keysym);
                     if context.xkb_compose_state.status() == xkb::Status::Composed {
