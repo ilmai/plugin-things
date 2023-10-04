@@ -1,7 +1,7 @@
 use std::{ptr::null, mem};
 
 use uuid::Uuid;
-use windows::{Win32::{UI::{WindowsAndMessaging::{WNDCLASSW, CS_OWNDC, DefWindowProcW, HICON, HCURSOR, RegisterClassW, CreateWindowExW, WS_EX_NOACTIVATE, HMENU, GetMessageW, TranslateMessage, DispatchMessageW, WM_CHAR, PostMessageW, SetWindowLongPtrW, GWLP_USERDATA, GetWindowLongPtrW, DestroyWindow, UnregisterClassW, WS_CHILD, WM_KEYDOWN}, Input::KeyboardAndMouse::{SetFocus, VK_LEFT, VK_DELETE, VIRTUAL_KEY, VK_UP, VK_DOWN, VK_RIGHT}}, Graphics::Gdi::HBRUSH, Foundation::{HWND, WPARAM, LPARAM, LRESULT, BOOL}}, core::PCWSTR};
+use windows::{Win32::{UI::{WindowsAndMessaging::{WNDCLASSW, CS_OWNDC, DefWindowProcW, HICON, HCURSOR, RegisterClassW, CreateWindowExW, WS_EX_NOACTIVATE, HMENU, GetMessageW, TranslateMessage, DispatchMessageW, WM_CHAR, PostMessageW, SetWindowLongPtrW, GWLP_USERDATA, GetWindowLongPtrW, DestroyWindow, UnregisterClassW, WS_CHILD, WM_KEYDOWN}, Input::KeyboardAndMouse::{SetFocus, VK_LEFT, VK_DELETE, VIRTUAL_KEY, VK_UP, VK_DOWN, VK_RIGHT, VK_RETURN}}, Graphics::Gdi::HBRUSH, Foundation::{HWND, WPARAM, LPARAM, LRESULT, BOOL}}, core::PCWSTR};
 
 use crate::error::Error;
 
@@ -115,6 +115,7 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
         WM_KEYDOWN => {
             if let Some(character) = match VIRTUAL_KEY(wparam.0 as u16) {
                 VK_DELETE   => Some(0x7f),
+                VK_RETURN   => Some(0xa),
                 VK_UP       => Some(0xf700),
                 VK_DOWN     => Some(0xf701),
                 VK_LEFT     => Some(0xf702),
