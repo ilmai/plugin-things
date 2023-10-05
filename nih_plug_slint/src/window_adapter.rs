@@ -45,7 +45,7 @@ pub struct PluginCanvasWindowAdapter {
 
 impl PluginCanvasWindowAdapter {
     pub fn new() -> Result<Rc<dyn WindowAdapter>, PlatformError> {
-        let plugin_canvas_window = *WINDOW_TO_SLINT.with(|window| window.borrow_mut().take().unwrap());
+        let plugin_canvas_window = *WINDOW_TO_SLINT.take().unwrap();
         let window_handle = plugin_canvas_window.window_handle().unwrap();
         let display_handle = plugin_canvas_window.display_handle().unwrap();
         
@@ -82,10 +82,7 @@ impl PluginCanvasWindowAdapter {
             WindowEvent::ScaleFactorChanged { scale_factor: *user_scale as f32 }
         );
 
-        WINDOW_ADAPTER_FROM_SLINT.with({
-            let self_rc = self_rc.clone();
-            move |window_adapter| *window_adapter.borrow_mut() = Some(self_rc)
-        });
+        WINDOW_ADAPTER_FROM_SLINT.set(Some(self_rc.clone()));
 
         Ok(self_rc as _)
     }

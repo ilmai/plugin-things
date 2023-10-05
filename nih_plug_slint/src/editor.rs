@@ -75,7 +75,7 @@ where
                     // It's ok if this fails as it just means it has already been set
                     slint::platform::set_platform(Box::new(PluginCanvasPlatform)).ok();
 
-                    WINDOW_TO_SLINT.with(move |next_window| { *next_window.borrow_mut() = Some(Box::new(window)); });
+                    WINDOW_TO_SLINT.set(Some(Box::new(window)));
 
                     let component = component_builder();
                     let component_definition = component.definition();
@@ -95,7 +95,7 @@ where
                         parameter_change_receiver,
                     };
 
-                    let window_adapter = WINDOW_ADAPTER_FROM_SLINT.with(|window_adapter| window_adapter.take().unwrap());
+                    let window_adapter = WINDOW_ADAPTER_FROM_SLINT.take().unwrap();
                     window_adapter.set_context(context);
 
                     editor_handle.set_window_adapter(window_adapter);
