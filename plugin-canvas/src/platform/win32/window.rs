@@ -2,7 +2,7 @@ use std::{ptr::null, ffi::{OsString, c_void}, os::windows::prelude::OsStringExt,
 
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle, WindowsDisplayHandle, RawDisplayHandle, Win32WindowHandle, HasRawDisplayHandle};
 use uuid::Uuid;
-use windows::{Win32::{UI::{WindowsAndMessaging::{WNDCLASSW, RegisterClassW, HICON, LoadCursorW, IDC_ARROW, CS_OWNDC, CreateWindowExW, WS_EX_ACCEPTFILES, WS_CHILD, WS_VISIBLE, HMENU, DefWindowProcW, PostMessageW, SetWindowLongPtrW, GWLP_USERDATA, GetWindowLongPtrW, UnregisterClassW, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOVE, DestroyWindow, SetCursor, WM_MOUSEMOVE, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_RBUTTONDOWN, WM_RBUTTONUP, SetWindowsHookExW, WH_MOUSE, CallNextHookEx, HHOOK, WM_MOUSEWHEEL, MOUSEHOOKSTRUCTEX, UnhookWindowsHookEx}, Input::KeyboardAndMouse::{SetCapture, TRACKMOUSEEVENT, TME_LEAVE, TrackMouseEvent}, Controls::WM_MOUSELEAVE}, Foundation::{HWND, WPARAM, LPARAM, LRESULT, HINSTANCE, ERROR_INVALID_WINDOW_HANDLE, POINT}, Graphics::{Gdi::{HBRUSH, MonitorFromWindow, MONITOR_DEFAULTTOPRIMARY, ScreenToClient}, Dxgi::{CreateDXGIFactory, IDXGIFactory, DXGI_OUTPUT_DESC, IDXGIOutput}, Dwm::{DwmIsCompositionEnabled, DwmFlush}}, System::Threading::GetCurrentThreadId}, core::PCWSTR};
+use windows::{Win32::{UI::{WindowsAndMessaging::{WNDCLASSW, RegisterClassW, HICON, LoadCursorW, IDC_ARROW, CS_OWNDC, CreateWindowExW, WS_EX_ACCEPTFILES, WS_CHILD, WS_VISIBLE, HMENU, DefWindowProcW, PostMessageW, SetWindowLongPtrW, GWLP_USERDATA, GetWindowLongPtrW, UnregisterClassW, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOVE, DestroyWindow, SetCursor, WM_MOUSEMOVE, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_RBUTTONDOWN, WM_RBUTTONUP, SetWindowsHookExW, WH_MOUSE, CallNextHookEx, HHOOK, WM_MOUSEWHEEL, MOUSEHOOKSTRUCTEX, UnhookWindowsHookEx, ShowCursor}, Input::KeyboardAndMouse::{SetCapture, TRACKMOUSEEVENT, TME_LEAVE, TrackMouseEvent}, Controls::WM_MOUSELEAVE}, Foundation::{HWND, WPARAM, LPARAM, LRESULT, HINSTANCE, ERROR_INVALID_WINDOW_HANDLE, POINT}, Graphics::{Gdi::{HBRUSH, MonitorFromWindow, MONITOR_DEFAULTTOPRIMARY, ScreenToClient}, Dxgi::{CreateDXGIFactory, IDXGIFactory, DXGI_OUTPUT_DESC, IDXGIOutput}, Dwm::{DwmIsCompositionEnabled, DwmFlush}}, System::Threading::GetCurrentThreadId}, core::PCWSTR};
 
 use crate::{error::Error, platform::interface::{OsWindowInterface, OsWindowHandle, OsWindowBuilder}, event::{Event, MouseButton, EventCallback}, window::WindowAttributes, dimensions::Size, cursor::Cursor, LogicalPosition};
 
@@ -171,11 +171,41 @@ impl OsWindowInterface for OsWindow {
 
     fn set_cursor(&self, cursor: Cursor) {
         let cursor = match cursor {
+            Cursor::None => {
+                unsafe { ShowCursor(false); }
+                return;
+            }
+
             Cursor::Arrow => self.cursors.arrow,
+            Cursor::Crosshair => self.cursors.cross,
+            Cursor::Help => self.cursors.help,
+            Cursor::Move => self.cursors.move_,
+            Cursor::NoDrop => self.cursors.no,
+            Cursor::NotAllowed => self.cursors.no,
             Cursor::Pointer => self.cursors.hand,
+            Cursor::Progress => self.cursors.appstarting,
+            Cursor::Text => self.cursors.ibeam,
+            Cursor::Wait => self.cursors.wait,
+            Cursor::ResizeNorth => self.cursors.size_ns,
+            Cursor::ResizeNorthEast => self.cursors.size_nesw,
+            Cursor::ResizeEast => self.cursors.size_we,
+            Cursor::ResizeSouthEast => self.cursors.size_nwse,
+            Cursor::ResizeSouth => self.cursors.size_ns,
+            Cursor::ResizeSouthWest => self.cursors.size_nesw,
+            Cursor::ResizeWest => self.cursors.size_we,
+            Cursor::ResizeNorthWest => self.cursors.size_nwse,
+            Cursor::ResizeEastWest => self.cursors.size_we,
+            Cursor::ResizeNorthSouth => self.cursors.size_ns,
+            Cursor::ResizeNorthEastSouthWest => self.cursors.size_nesw,
+            Cursor::ResizeNorthWestSouthEast => self.cursors.size_nwse,
+
+            _ => self.cursors.arrow,
         };
 
-        unsafe { SetCursor(cursor); }
+        unsafe {
+            ShowCursor(true);
+            SetCursor(cursor);
+        }
     }
 
     fn set_input_focus(&self, focus: bool) {
