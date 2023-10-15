@@ -2,7 +2,7 @@ use std::{ptr::null, ffi::{OsString, c_void}, os::windows::prelude::OsStringExt,
 
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle, WindowsDisplayHandle, RawDisplayHandle, Win32WindowHandle, HasRawDisplayHandle};
 use uuid::Uuid;
-use windows::{Win32::{UI::{WindowsAndMessaging::{WNDCLASSW, RegisterClassW, HICON, LoadCursorW, IDC_ARROW, CS_OWNDC, CreateWindowExW, WS_EX_ACCEPTFILES, WS_CHILD, WS_VISIBLE, HMENU, DefWindowProcW, PostMessageW, SetWindowLongPtrW, GWLP_USERDATA, GetWindowLongPtrW, UnregisterClassW, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOVE, DestroyWindow, SetCursor, WM_MOUSEMOVE, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_RBUTTONDOWN, WM_RBUTTONUP, SetWindowsHookExW, WH_MOUSE, CallNextHookEx, HHOOK, WM_MOUSEWHEEL, MOUSEHOOKSTRUCTEX, UnhookWindowsHookEx, ShowCursor}, Input::KeyboardAndMouse::{SetCapture, TRACKMOUSEEVENT, TME_LEAVE, TrackMouseEvent}, Controls::WM_MOUSELEAVE}, Foundation::{HWND, WPARAM, LPARAM, LRESULT, HINSTANCE, ERROR_INVALID_WINDOW_HANDLE, POINT}, Graphics::{Gdi::{HBRUSH, MonitorFromWindow, MONITOR_DEFAULTTOPRIMARY, ScreenToClient}, Dxgi::{CreateDXGIFactory, IDXGIFactory, DXGI_OUTPUT_DESC, IDXGIOutput}, Dwm::{DwmIsCompositionEnabled, DwmFlush}}, System::Threading::GetCurrentThreadId}, core::PCWSTR};
+use windows::{Win32::{UI::{WindowsAndMessaging::{WNDCLASSW, RegisterClassW, HICON, LoadCursorW, IDC_ARROW, CS_OWNDC, CreateWindowExW, WS_CHILD, WS_VISIBLE, HMENU, DefWindowProcW, PostMessageW, SetWindowLongPtrW, GWLP_USERDATA, GetWindowLongPtrW, UnregisterClassW, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOVE, DestroyWindow, SetCursor, WM_MOUSEMOVE, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_RBUTTONDOWN, WM_RBUTTONUP, SetWindowsHookExW, WH_MOUSE, CallNextHookEx, HHOOK, WM_MOUSEWHEEL, MOUSEHOOKSTRUCTEX, UnhookWindowsHookEx, ShowCursor, WINDOW_EX_STYLE, SendMessageW}, Input::KeyboardAndMouse::{SetCapture, TRACKMOUSEEVENT, TME_LEAVE, TrackMouseEvent}, Controls::WM_MOUSELEAVE}, Foundation::{HWND, WPARAM, LPARAM, LRESULT, HINSTANCE, ERROR_INVALID_WINDOW_HANDLE, POINT}, Graphics::{Gdi::{HBRUSH, MonitorFromWindow, MONITOR_DEFAULTTOPRIMARY, ScreenToClient}, Dxgi::{CreateDXGIFactory, IDXGIFactory, DXGI_OUTPUT_DESC, IDXGIOutput}, Dwm::{DwmIsCompositionEnabled, DwmFlush}}, System::Threading::GetCurrentThreadId}, core::PCWSTR};
 
 use crate::{error::Error, platform::interface::{OsWindowInterface, OsWindowHandle, OsWindowBuilder}, event::{Event, MouseButton, EventCallback}, window::WindowAttributes, dimensions::Size, cursor::Cursor, LogicalPosition};
 
@@ -358,33 +358,18 @@ fn frame_pacing_thread(hwnd: HWND, moved: Arc<AtomicBool>) {
 
         unsafe {
             // If we're on Windows 10 or later, prefer using DXGI for frame pacing
-            // TODO: Enable again to test when we implement stable frame time as inspired by Firefox
-            let waited = false && is_windows10_or_greater() && wait_for_vblank_dxgi(hwnd, &mut maybe_output);
+            let waited = is_windows10_or_greater() && wait_for_vblank_dxgi(hwnd, &mut maybe_output);
 
-            // Fall back to DWM if available
-            // TODO: Error handling
-            let waited = if !waited && DwmIsCompositionEnabled().unwrap().as_bool() {
-                DwmFlush().unwrap();
-                true
-            } else {
-                false
-            };
+            // Fall back to DWM
+            let waited = waited || (DwmIsCompositionEnabled().unwrap_or_default().as_bool() && DwmFlush().is_ok());
 
             // Fall back to waiting
             if !waited {
-                std::thread::sleep(Duration::from_millis(16));
+                std::thread::sleep(Duration::from_millis(10));
             }
 
             // Send draw message
-            match PostMessageW(hwnd, WM_USER_FRAME_TIMER, WPARAM(0), LPARAM(0)) {
-                Ok(_) => {},
-                Err(error) if error.code() == ERROR_INVALID_WINDOW_HANDLE.into() => {
-                    // Window has closed
-                    return;
-                },
-                // TODO: Proper error handling
-                Err(error) => panic!("{}", error.to_string()),
-            }
+            SendMessageW(hwnd, WM_USER_FRAME_TIMER, WPARAM(0), LPARAM(0));
         }
     }
 }
