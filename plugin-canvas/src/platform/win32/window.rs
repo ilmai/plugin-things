@@ -70,7 +70,6 @@ impl OsWindowInterface for OsWindow {
         };
 
         let class_name = to_wstr("plugin-canvas-".to_string() + &Uuid::new_v4().simple().to_string());
-        let window_name = to_wstr(&window_attributes.title);
         let size = Size::with_logical_size(window_attributes.size, window_attributes.scale);
 
         let cursor = unsafe { LoadCursorW(HINSTANCE(0), IDC_ARROW).unwrap() };
@@ -94,9 +93,9 @@ impl OsWindowInterface for OsWindow {
         }
 
         let hwnd = unsafe { CreateWindowExW(
-            WS_EX_ACCEPTFILES,
+            WINDOW_EX_STYLE(0),
             PCWSTR(window_class as _),
-            PCWSTR(window_name.as_ptr() as _),
+            PCWSTR(null()),
             WS_CHILD | WS_VISIBLE,
             0,
             0,

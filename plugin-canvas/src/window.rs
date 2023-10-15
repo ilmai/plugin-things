@@ -6,7 +6,6 @@ pub type WindowBuilder = Box<dyn FnOnce(Window) + Send>;
 
 #[derive(Clone)]
 pub struct WindowAttributes {
-    pub title: String,
     pub size: LogicalSize,
     pub scale: Scale,
 }
