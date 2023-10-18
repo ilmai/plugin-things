@@ -1,4 +1,4 @@
-use std::{ffi::c_void, sync::atomic::Ordering, rc::Rc, cell::RefCell, ptr::null_mut};
+use std::{ffi::c_void, sync::atomic::{Ordering, AtomicBool}, rc::Rc, cell::RefCell, ptr::null_mut};
 
 use icrate::{AppKit::{NSTrackingArea, NSView, NSWindow, NSTrackingMouseEnteredAndExited, NSTrackingMouseMoved, NSTrackingActiveAlways, NSTrackingInVisibleRect, NSCursor}, Foundation::{CGPoint, CGSize, CGRect, NSInvocationOperation, NSOperationQueue}};
 use objc2::{ClassType, msg_send_id, rc::Id, sel};
@@ -13,6 +13,8 @@ pub struct OsWindow {
     window_handle: AppKitWindowHandle,
     display_link: RefCell<Option<CVDisplayLinkRef>>,
     event_callback: Box<EventCallback>,
+
+    cursor_hidden: AtomicBool,
 }
 
 impl OsWindow {
@@ -81,6 +83,8 @@ impl OsWindowInterface for OsWindow {
             window_handle,
             display_link: Default::default(),
             event_callback,
+
+            cursor_hidden: Default::default(),
         });
 
         let window_clone = window.clone();
@@ -109,11 +113,39 @@ impl OsWindowInterface for OsWindow {
     fn set_cursor(&self, cursor: Cursor) {
         unsafe {
             let cursor = match cursor {
+                Cursor::None => {
+                    if !self.cursor_hidden.swap(true, Ordering::Relaxed) {
+                        NSCursor::hide();
+                    }
+                    
+                    return;
+                },
+
                 Cursor::Arrow => NSCursor::arrowCursor(),
+                Cursor::Alias => NSCursor::dragLinkCursor(),
+                Cursor::Copy => NSCursor::dragCopyCursor(),
+                Cursor::Crosshair => NSCursor::crosshairCursor(),
+                Cursor::Grab => NSCursor::openHandCursor(),
+                Cursor::Grabbing => NSCursor::closedHandCursor(),
+                Cursor::NoDrop => NSCursor::operationNotAllowedCursor(),
+                Cursor::NotAllowed => NSCursor::operationNotAllowedCursor(),
                 Cursor::Pointer => NSCursor::pointingHandCursor(),
+                Cursor::Text => NSCursor::IBeamCursor(),
+                Cursor::ResizeNorth => NSCursor::resizeUpCursor(),
+                Cursor::ResizeEast => NSCursor::resizeRightCursor(),
+                Cursor::ResizeSouth => NSCursor::resizeDownCursor(),
+                Cursor::ResizeWest => NSCursor::resizeLeftCursor(),
+                Cursor::ResizeEastWest => NSCursor::resizeLeftRightCursor(),
+                Cursor::ResizeNorthSouth => NSCursor::resizeUpDownCursor(),
+
+                _ => NSCursor::arrowCursor(),
             };
     
-            cursor.set()    
+            cursor.set();
+
+            if self.cursor_hidden.swap(false, Ordering::Relaxed) {
+                NSCursor::unhide();
+            }
         }
     }
 
