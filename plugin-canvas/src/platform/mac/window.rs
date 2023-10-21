@@ -46,9 +46,11 @@ impl OsWindowInterface for OsWindow {
             return Err(Error::PlatformError("Not an AppKit window".into()));
         };
 
+        let physical_size = crate::PhysicalSize::from_logical(&attributes.size, attributes.scale);
+
         let view_rect = CGRect::new(
             CGPoint { x: 0.0, y: 0.0 },
-            CGSize { width: attributes.size.width, height: attributes.size.height },
+            CGSize { width: physical_size.width as f64, height: physical_size.height as f64 },
         );
 
         let (view, window_handle) = unsafe {
