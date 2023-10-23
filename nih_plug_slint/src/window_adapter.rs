@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc, sync::{atomic::{AtomicBool, Ordering}, Arc, mpsc}, collections::{HashMap, HashSet}};
+use std::{cell::RefCell, rc::Rc, sync::{atomic::{AtomicBool, Ordering, AtomicUsize}, Arc, mpsc}, collections::{HashMap, HashSet}};
 
 use i_slint_core::{window::{WindowAdapter, WindowAdapterInternal}, renderer::Renderer, platform::{PlatformError, WindowEvent}};
 use i_slint_renderer_skia::SkiaRenderer;
@@ -41,6 +41,8 @@ pub struct PluginCanvasWindowAdapter {
     user_scale: Scale,
 
     pending_draw: AtomicBool,
+    buttons_down: AtomicUsize,
+    pending_mouse_exit: AtomicBool,
 }
 
 impl PluginCanvasWindowAdapter {
@@ -75,6 +77,8 @@ impl PluginCanvasWindowAdapter {
                 user_scale,
 
                 pending_draw: AtomicBool::new(true),
+                buttons_down: Default::default(),
+                pending_mouse_exit: Default::default(),
             }
         });
 
@@ -213,6 +217,7 @@ impl PluginCanvasWindowAdapter {
             plugin_canvas::Event::MouseButtonDown { button, position } => {
                 let button = Self::convert_button(button);
                 let position = self.convert_logical_position(position);
+                self.buttons_down.fetch_add(1, Ordering::Relaxed);
 
                 self.slint_window.dispatch_event(WindowEvent::PointerPressed { position, button });
             },
@@ -220,12 +225,22 @@ impl PluginCanvasWindowAdapter {
             plugin_canvas::Event::MouseButtonUp { button, position } => {
                 let button = Self::convert_button(button);
                 let position = self.convert_logical_position(position);
+                
+                let buttons_down = self.buttons_down.fetch_sub(1, Ordering::Relaxed);
+                if buttons_down == 1 && self.pending_mouse_exit.swap(false, Ordering::Relaxed) {
+                    self.slint_window.dispatch_event(WindowEvent::PointerExited);
+                }
 
                 self.slint_window.dispatch_event(WindowEvent::PointerReleased { position, button });
             },
 
             plugin_canvas::Event::MouseExited => {
-                self.slint_window.dispatch_event(WindowEvent::PointerExited);
+                if self.buttons_down.load(Ordering::Relaxed) > 0 {
+                    // Don't report mouse exit while we're dragging with the mouse
+                    self.pending_mouse_exit.store(true, Ordering::Relaxed);
+                } else {
+                    self.slint_window.dispatch_event(WindowEvent::PointerExited);
+                }
             },
 
             plugin_canvas::Event::MouseMoved { position } => {
