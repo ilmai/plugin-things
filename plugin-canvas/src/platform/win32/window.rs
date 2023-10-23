@@ -52,8 +52,8 @@ impl OsWindow {
 
     fn logical_mouse_position(&self, lparam: LPARAM) -> LogicalPosition {
         LogicalPosition {
-            x: (lparam.0 & 0xFFFF) as f64,
-            y: ((lparam.0 >> 16) & 0xFFFF) as f64,
+            x: (lparam.0 & 0xFFFF) as i16 as f64,
+            y: ((lparam.0 >> 16) & 0xFFFF) as i16 as f64,
         }
     }
 }
