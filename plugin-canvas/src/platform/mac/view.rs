@@ -1,9 +1,9 @@
-use std::sync::atomic::{Ordering, AtomicU8, AtomicUsize};
+use std::{sync::atomic::{Ordering, AtomicU8, AtomicUsize}, path::PathBuf};
 
-use icrate::{AppKit::{NSView, NSEvent, NSResponder, NSTextInputClient, NSEventModifierFlagShift, NSEventModifierFlagCommand, NSEventModifierFlagControl, NSEventModifierFlagOption}, Foundation::{NSRect, NSArray, NSRange, NSRangePointer, NSPoint, NSAttributedStringKey, NSAttributedString, CGPoint, CGSize}};
-use objc2::{declare_class, mutability, ClassType,  msg_send, declare::IvarEncode, runtime::{AnyObject, Sel, NSObject, NSObjectProtocol}, ffi::NSUInteger, rc::Id};
+use icrate::{AppKit::{NSView, NSEvent, NSResponder, NSTextInputClient, NSEventModifierFlagShift, NSEventModifierFlagCommand, NSEventModifierFlagControl, NSEventModifierFlagOption, NSDraggingDestination, NSDraggingInfo, NSDragOperation, NSDragOperationNone, NSDragOperationCopy, NSDragOperationMove, NSPasteboardTypeFileURL}, Foundation::{NSRect, NSArray, NSRange, NSRangePointer, NSPoint, NSAttributedStringKey, NSAttributedString, CGPoint, CGSize, NSURL}};
+use objc2::{declare_class, mutability, ClassType,  msg_send, declare::IvarEncode, runtime::{AnyObject, Sel, NSObject, NSObjectProtocol, ProtocolObject}, ffi::NSUInteger, rc::Id, msg_send_id};
 
-use crate::{Event, MouseButton, LogicalPosition};
+use crate::{Event, MouseButton, LogicalPosition, drag::{DragData, DragOperation}, event::EventResponse};
 
 use super::{types::AtomicVoidPtr, window::OsWindow};
 
@@ -143,8 +143,9 @@ declare_class! {
 
         #[method(scrollWheel:)]
         fn scroll_wheel(&self, event: *const NSEvent) {
-            let x: f64 = unsafe { msg_send![event, deltaX] };
-            let y: f64 = unsafe { msg_send![event, deltaY] };
+            assert!(!event.is_null());
+            let x: f64 = unsafe { (*event).deltaX() };
+            let y: f64 = unsafe { (*event).deltaY() };
 
             self.window().send_event(
                 Event::MouseWheel {
@@ -235,6 +236,53 @@ declare_class! {
         #[method(characterIndexForPoint:)]
         unsafe fn character_index_for_point(&self, _point: NSPoint) -> NSUInteger {
             0
+        }
+    }
+
+    unsafe impl NSDraggingDestination for OsWindowView {
+        #[method(wantsPeriodicDraggingUpdates)]
+        unsafe fn wants_periodic_dragging_updates(&self) -> bool {
+            false
+        }
+
+        #[method(draggingEntered:)]
+        unsafe fn dragging_entered(&self, sender: &ProtocolObject<dyn NSDraggingInfo>) -> NSDragOperation {
+            let response = self.window().send_event(Event::DragEntered {
+                position: self.drag_event_position(sender),
+                data: self.drag_event_data(sender),
+            });
+
+            self.convert_drag_operation(response)
+        }
+
+        #[method(draggingUpdated:)]
+        unsafe fn dragging_updated(&self, sender: &ProtocolObject<dyn NSDraggingInfo>) -> NSDragOperation {
+            let response = self.window().send_event(Event::DragMoved {
+                position: self.drag_event_position(sender),
+                data: self.drag_event_data(sender),
+            });
+
+            self.convert_drag_operation(response)
+        }
+
+        #[method(draggingExited:)]
+        unsafe fn dragging_exited(&self, _sender: &ProtocolObject<dyn NSDraggingInfo>) {
+            self.window().send_event(Event::DragExited);
+        }
+
+        #[method(prepareForDragOperation:)]
+        unsafe fn prepare_for_drag_operation(&self, _sender: &ProtocolObject<dyn NSDraggingInfo>) -> bool {
+            true
+        }
+
+        #[method(performDragOperation:)]
+        unsafe fn perform_drag_operation(&self, sender: &ProtocolObject<dyn NSDraggingInfo>) -> bool {
+            let response = self.window().send_event(Event::DragDropped {
+                position: self.drag_event_position(sender),
+                data: self.drag_event_data(sender),
+            });
+
+            self.convert_drag_operation(response) != NSDragOperationNone
         }
     }
 }
@@ -341,15 +389,62 @@ impl OsWindowView {
 
     fn mouse_event_position(&self, event: *const NSEvent) -> LogicalPosition {
         assert!(!event.is_null());
+        let point = unsafe { (*event).locationInWindow() };
 
-        unsafe {
-            let position_in_window = (*event).locationInWindow();
-            let local_position = self.convertPoint_fromView(position_in_window, None);
+        self.point_to_position(point)
+    }
 
-            LogicalPosition {
-                x: local_position.x,
-                y: local_position.y,
+    fn point_to_position(&self, point_in_window: CGPoint) -> LogicalPosition {
+        let local_position = unsafe { self.convertPoint_fromView(point_in_window, None) };
+
+        LogicalPosition {
+            x: local_position.x,
+            y: local_position.y,
+        }
+    }
+
+    fn drag_event_position(&self, sender: &ProtocolObject<dyn NSDraggingInfo>) -> LogicalPosition {
+        let point = unsafe { sender.draggingLocation() };
+        self.point_to_position(point)
+    }
+
+    fn drag_event_data(&self, sender: &ProtocolObject<dyn NSDraggingInfo>) -> DragData {
+        let paths = unsafe {
+            let pasteboard = sender.draggingPasteboard();
+            let mut paths = Vec::new();
+
+            if let Some(items) = pasteboard.pasteboardItems() {
+                for i in 0..items.count() {
+                    let item = items.objectAtIndex(i);
+                    if let Some(url) = item.stringForType(&NSPasteboardTypeFileURL)
+                        .and_then(|url| NSURL::URLWithString(&url))
+                        .and_then(|url| url.path())
+                        .and_then(|url| Some(PathBuf::from(url.to_string())))
+                    {
+                        paths.push(url);
+                    }
+                }
             }
+
+            paths
+        };
+
+        if paths.is_empty() {
+            DragData::None
+        } else {
+            DragData::Files(paths)
+        }
+    }
+
+    fn convert_drag_operation(&self, response: EventResponse) -> NSDragOperation {
+        if let EventResponse::DragAccepted(operation) = response {
+            match operation {
+                DragOperation::None => NSDragOperationNone,
+                DragOperation::Copy => NSDragOperationCopy,
+                DragOperation::Move => NSDragOperationMove,
+            }
+        } else {
+            NSDragOperationNone
         }
     }
 }

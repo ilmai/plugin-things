@@ -1,10 +1,10 @@
 use std::{ffi::c_void, sync::atomic::{Ordering, AtomicBool}, rc::Rc, cell::RefCell, ptr::null_mut};
 
-use icrate::{AppKit::{NSTrackingArea, NSView, NSWindow, NSTrackingMouseEnteredAndExited, NSTrackingMouseMoved, NSTrackingActiveAlways, NSTrackingInVisibleRect, NSCursor}, Foundation::{CGPoint, CGSize, CGRect, NSInvocationOperation, NSOperationQueue}};
+use icrate::{AppKit::{NSTrackingArea, NSView, NSWindow, NSTrackingMouseEnteredAndExited, NSTrackingMouseMoved, NSTrackingActiveAlways, NSTrackingInVisibleRect, NSCursor, NSPasteboardTypeFileURL}, Foundation::{CGPoint, CGSize, CGRect, NSInvocationOperation, NSOperationQueue, NSArray}};
 use objc2::{ClassType, msg_send_id, rc::Id, sel};
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle, AppKitWindowHandle, HasRawDisplayHandle, RawDisplayHandle, AppKitDisplayHandle};
 
-use crate::{error::Error, platform::interface::{OsWindowInterface, OsWindowHandle, OsWindowBuilder}, event::EventCallback, window::WindowAttributes, Event, cursor::Cursor};
+use crate::{error::Error, platform::interface::{OsWindowInterface, OsWindowHandle, OsWindowBuilder}, event::{EventCallback, EventResponse}, window::WindowAttributes, Event, cursor::Cursor};
 
 use super::display_link::{CVDisplayLinkRef, CVTimeStamp, CVReturn, self};
 use super::view::OsWindowView;
@@ -24,8 +24,8 @@ impl OsWindow {
         unsafe { &mut *window_ptr }
     }
 
-    pub(super) fn send_event(&self, event: Event) {
-        (self.event_callback)(event);
+    pub(super) fn send_event(&self, event: Event) -> EventResponse {
+        (self.event_callback)(event)
     }
 
     fn view(&self) -> &OsWindowView {
@@ -67,6 +67,9 @@ impl OsWindowInterface for OsWindow {
                 None,
             );
             view.addTrackingArea(&tracking_area);
+
+            let dragged_types = NSArray::arrayWithObject(NSPasteboardTypeFileURL);
+            view.registerForDraggedTypes(&dragged_types);
 
             let parent_view: &mut NSView = &mut *(parent_window_handle.ns_view as *mut NSView);
             parent_view.addSubview(&view);

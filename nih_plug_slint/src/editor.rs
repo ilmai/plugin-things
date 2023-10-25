@@ -6,6 +6,7 @@ use std::sync::{Mutex, RwLock, Weak, mpsc};
 
 use i_slint_core::window::WindowAdapter;
 use nih_plug::prelude::*;
+use plugin_canvas::event::EventResponse;
 use plugin_canvas::{window::WindowAttributes, Event};
 use raw_window_handle_0_4::HasRawWindowHandle;
 use slint_interpreter::{ComponentHandle, ComponentInstance};
@@ -62,6 +63,8 @@ where
                 Box::new(move |event| {
                     if let Some(editor_handle) = editor_handle.upgrade() {
                         editor_handle.on_event(event)
+                    } else {
+                        EventResponse::Ignored
                     }
                 })
             },
@@ -160,13 +163,13 @@ impl EditorHandle {
         self.window_adapter_ptr.store(Rc::into_raw(window_adapter) as _, Ordering::Relaxed);
     }
 
-    fn on_event(&self, event: Event) {
+    fn on_event(&self, event: Event) -> EventResponse {
         let window_adapter_ptr = self.window_adapter_ptr.load(Ordering::Relaxed);
         assert!(*self.window_adapter_thread.lock().unwrap() == Some(std::thread::current().id()));
         assert!(!window_adapter_ptr.is_null());
 
         let window_adapter = unsafe { &*window_adapter_ptr };
-        window_adapter.on_event(event);
+        window_adapter.on_event(event)
     } 
 }
 

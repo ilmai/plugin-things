@@ -3,7 +3,7 @@ use std::{cell::RefCell, rc::Rc, sync::{atomic::{AtomicBool, Ordering, AtomicUsi
 use i_slint_core::{window::{WindowAdapter, WindowAdapterInternal}, renderer::Renderer, platform::{PlatformError, WindowEvent}};
 use i_slint_renderer_skia::SkiaRenderer;
 use nih_plug::prelude::{ParamPtr, GuiContext};
-use plugin_canvas::dimensions::Scale;
+use plugin_canvas::{dimensions::Scale, event::EventResponse};
 use raw_window_handle::{HasWindowHandle, HasDisplayHandle};
 use slint_interpreter::{ComponentInstance, ComponentDefinition, Value};
 
@@ -170,7 +170,7 @@ impl PluginCanvasWindowAdapter {
         self.update_all_parameters();
     }
 
-    pub fn on_event(&self, event: plugin_canvas::Event) {
+    pub fn on_event(&self, event: plugin_canvas::Event) -> EventResponse {
         match event {
             plugin_canvas::Event::Draw => {
                 let context = self.context.borrow();
@@ -202,16 +202,20 @@ impl PluginCanvasWindowAdapter {
                 if self.pending_draw.swap(false, Ordering::Relaxed) {
                     self.renderer.render().unwrap();
                 }
+
+                EventResponse::Handled
             },
 
             plugin_canvas::Event::KeyDown { text } => {
                 let text = text.into();
                 self.slint_window.dispatch_event(WindowEvent::KeyPressed { text });
+                EventResponse::Handled
             },
 
             plugin_canvas::Event::KeyUp { text } => {
                 let text = text.into();
                 self.slint_window.dispatch_event(WindowEvent::KeyReleased { text });
+                EventResponse::Handled
             },
 
             plugin_canvas::Event::MouseButtonDown { button, position } => {
@@ -220,6 +224,7 @@ impl PluginCanvasWindowAdapter {
                 self.buttons_down.fetch_add(1, Ordering::Relaxed);
 
                 self.slint_window.dispatch_event(WindowEvent::PointerPressed { position, button });
+                EventResponse::Handled
             },
 
             plugin_canvas::Event::MouseButtonUp { button, position } => {
@@ -232,6 +237,7 @@ impl PluginCanvasWindowAdapter {
                 }
 
                 self.slint_window.dispatch_event(WindowEvent::PointerReleased { position, button });
+                EventResponse::Handled
             },
 
             plugin_canvas::Event::MouseExited => {
@@ -241,11 +247,14 @@ impl PluginCanvasWindowAdapter {
                 } else {
                     self.slint_window.dispatch_event(WindowEvent::PointerExited);
                 }
+
+                EventResponse::Handled
             },
 
             plugin_canvas::Event::MouseMoved { position } => {
                 let position = self.convert_logical_position(position);
                 self.slint_window.dispatch_event(WindowEvent::PointerMoved { position });
+                EventResponse::Handled
             },
             
             plugin_canvas::Event::MouseWheel { position, delta_x, delta_y } => {
@@ -257,6 +266,23 @@ impl PluginCanvasWindowAdapter {
                         delta_y: delta_y as f32,
                     }
                 );
+                EventResponse::Handled
+            },
+            
+            plugin_canvas::Event::DragEntered { position, data } => {
+                EventResponse::Handled
+            },
+
+            plugin_canvas::Event::DragExited => {
+                EventResponse::Handled
+            },
+
+            plugin_canvas::Event::DragMoved { position, data } => {
+                EventResponse::Handled
+            },
+
+            plugin_canvas::Event::DragDropped { position, data } => {
+                EventResponse::Handled
             },
         }
     }
