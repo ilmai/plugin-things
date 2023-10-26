@@ -270,7 +270,7 @@ impl PluginCanvasWindowAdapter {
                 EventResponse::Handled
             },
             
-            plugin_canvas::Event::DragEntered { position, data } => {
+            plugin_canvas::Event::DragEntered { position: _, data: _ } => {
                 EventResponse::Handled
             },
 
@@ -278,11 +278,11 @@ impl PluginCanvasWindowAdapter {
                 EventResponse::Handled
             },
 
-            plugin_canvas::Event::DragMoved { position, data } => {
+            plugin_canvas::Event::DragMoved { position: _, data: _ } => {
                 EventResponse::Handled
             },
 
-            plugin_canvas::Event::DragDropped { position, data } => {
+            plugin_canvas::Event::DragDropped { position: _, data: _ } => {
                 EventResponse::Handled
             },
         }
