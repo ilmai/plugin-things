@@ -4,6 +4,7 @@ use lazy_static::lazy_static;
 use windows::Win32::{System::SystemServices::IMAGE_DOS_HEADER, Foundation::HINSTANCE, UI::WindowsAndMessaging::WM_USER};
 
 pub mod cursors;
+pub mod drop_target;
 pub mod message_window;
 pub mod version;
 pub mod window;

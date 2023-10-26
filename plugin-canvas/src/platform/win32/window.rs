@@ -1,18 +1,19 @@
-use std::{ptr::null, ffi::{OsString, c_void}, os::windows::prelude::OsStringExt, time::Duration, sync::{atomic::{AtomicBool, Ordering, AtomicUsize}, Arc}, rc::Rc, mem::{self, size_of}};
+use std::{ptr::null, ffi::{OsString, c_void}, os::windows::prelude::OsStringExt, time::Duration, sync::{atomic::{AtomicBool, Ordering, AtomicUsize}, Arc}, rc::Rc, mem::{self, size_of}, cell::RefCell};
 
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle, WindowsDisplayHandle, RawDisplayHandle, Win32WindowHandle, HasRawDisplayHandle};
 use uuid::Uuid;
-use windows::{Win32::{UI::{WindowsAndMessaging::{WNDCLASSW, RegisterClassW, HICON, LoadCursorW, IDC_ARROW, CS_OWNDC, CreateWindowExW, WS_CHILD, WS_VISIBLE, HMENU, DefWindowProcW, PostMessageW, SetWindowLongPtrW, GWLP_USERDATA, GetWindowLongPtrW, UnregisterClassW, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOVE, DestroyWindow, SetCursor, WM_MOUSEMOVE, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_RBUTTONDOWN, WM_RBUTTONUP, SetWindowsHookExW, WH_MOUSE, CallNextHookEx, HHOOK, WM_MOUSEWHEEL, MOUSEHOOKSTRUCTEX, UnhookWindowsHookEx, ShowCursor, WINDOW_EX_STYLE, SendMessageW}, Input::KeyboardAndMouse::{SetCapture, TRACKMOUSEEVENT, TME_LEAVE, TrackMouseEvent}, Controls::WM_MOUSELEAVE}, Foundation::{HWND, WPARAM, LPARAM, LRESULT, HINSTANCE, POINT}, Graphics::{Gdi::{HBRUSH, MonitorFromWindow, MONITOR_DEFAULTTOPRIMARY, ScreenToClient}, Dxgi::{CreateDXGIFactory, IDXGIFactory, DXGI_OUTPUT_DESC, IDXGIOutput}, Dwm::{DwmIsCompositionEnabled, DwmFlush}}, System::Threading::GetCurrentThreadId}, core::PCWSTR};
+use windows::{Win32::{UI::{WindowsAndMessaging::{WNDCLASSW, RegisterClassW, HICON, LoadCursorW, IDC_ARROW, CS_OWNDC, CreateWindowExW, WS_CHILD, WS_VISIBLE, HMENU, DefWindowProcW, PostMessageW, SetWindowLongPtrW, GWLP_USERDATA, GetWindowLongPtrW, UnregisterClassW, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOVE, DestroyWindow, SetCursor, WM_MOUSEMOVE, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_RBUTTONDOWN, WM_RBUTTONUP, SetWindowsHookExW, WH_MOUSE, CallNextHookEx, HHOOK, WM_MOUSEWHEEL, MOUSEHOOKSTRUCTEX, UnhookWindowsHookEx, ShowCursor, WINDOW_EX_STYLE, SendMessageW}, Input::KeyboardAndMouse::{SetCapture, TRACKMOUSEEVENT, TME_LEAVE, TrackMouseEvent}, Controls::WM_MOUSELEAVE}, Foundation::{HWND, WPARAM, LPARAM, LRESULT, HINSTANCE, POINT}, Graphics::{Gdi::{HBRUSH, MonitorFromWindow, MONITOR_DEFAULTTOPRIMARY, ScreenToClient}, Dxgi::{CreateDXGIFactory, IDXGIFactory, DXGI_OUTPUT_DESC, IDXGIOutput}, Dwm::{DwmIsCompositionEnabled, DwmFlush}}, System::{Threading::GetCurrentThreadId, Ole::{OleInitialize, RegisterDragDrop, IDropTarget, RevokeDragDrop}}}, core::PCWSTR};
 
-use crate::{error::Error, platform::interface::{OsWindowInterface, OsWindowHandle, OsWindowBuilder}, event::{Event, MouseButton, EventCallback}, window::WindowAttributes, dimensions::Size, cursor::Cursor, LogicalPosition};
+use crate::{error::Error, platform::interface::{OsWindowInterface, OsWindowHandle, OsWindowBuilder}, event::{Event, MouseButton, EventCallback, EventResponse}, window::WindowAttributes, dimensions::Size, cursor::Cursor, LogicalPosition};
 
-use super::{PLUGIN_HINSTANCE, to_wstr, message_window::MessageWindow, cursors::Cursors, WM_USER_CHAR, WM_USER_FRAME_TIMER, version::is_windows10_or_greater};
+use super::{PLUGIN_HINSTANCE, to_wstr, message_window::MessageWindow, cursors::Cursors, WM_USER_CHAR, WM_USER_FRAME_TIMER, version::is_windows10_or_greater, drop_target::DropTarget};
 
 pub struct OsWindow {
     window_class: u16,
     window_handle: Win32WindowHandle,
     hook_handle: HHOOK,
     event_callback: Box<EventCallback>,
+    drop_target: RefCell<Option<Box<IDropTarget>>>,
     message_window: Arc<MessageWindow>,
     
     cursors: Cursors,
@@ -22,6 +23,10 @@ pub struct OsWindow {
 }
 
 impl OsWindow {
+    pub(super) fn send_event(&self, event: Event) -> EventResponse {
+        (self.event_callback)(event)
+    }
+    
     fn hinstance(&self) -> HINSTANCE {
         HINSTANCE(self.window_handle.hinstance as isize)
     }
@@ -30,10 +35,6 @@ impl OsWindow {
         HWND(self.window_handle.hwnd as isize)
     }
 
-    fn send_event(&self, event: Event) {
-        (self.event_callback)(event);
-    }
-    
     fn button_down(&self, button: MouseButton, position: LogicalPosition) {
         if self.buttons_down.fetch_add(1, Ordering::Relaxed) == 0 {
             unsafe { SetCapture(self.hwnd()); }
@@ -150,6 +151,7 @@ impl OsWindowInterface for OsWindow {
             window_handle,
             hook_handle,
             event_callback,
+            drop_target: Default::default(),
             message_window,
 
             cursors: Cursors::new(),
@@ -157,6 +159,15 @@ impl OsWindowInterface for OsWindow {
 
             moved,
         });
+
+        let drop_target: Box<IDropTarget> = Box::new(DropTarget::new(window.clone()).into());
+
+        unsafe {
+            OleInitialize(None)?;
+            RegisterDragDrop(hwnd, drop_target.as_ref())?;
+        }
+
+        *window.drop_target.borrow_mut() = Some(drop_target);
 
         let window_ptr = Rc::into_raw(window);
         unsafe { SetWindowLongPtrW(hwnd, GWLP_USERDATA, window_ptr as _) };
@@ -215,6 +226,7 @@ impl OsWindowInterface for OsWindow {
 impl Drop for OsWindow {
     fn drop(&mut self) {
         unsafe {
+            RevokeDragDrop(self.hwnd()).unwrap();
             SetWindowLongPtrW(self.hwnd(), GWLP_USERDATA, 0);
             UnhookWindowsHookEx(self.hook_handle).unwrap();
             DestroyWindow(self.hwnd()).unwrap();

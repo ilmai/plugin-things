@@ -1,4 +1,4 @@
-use crate::{dimensions::LogicalPosition, drag::{DragData, DragOperation}};
+use crate::{dimensions::LogicalPosition, drag_drop::{DropData, DropOperation}};
 
 #[derive(Debug)]
 pub enum MouseButton {
@@ -43,26 +43,26 @@ pub enum Event {
 
     DragEntered {
         position: LogicalPosition,
-        data: DragData,
+        data: DropData,
     },
 
     DragExited,
 
     DragMoved {
         position: LogicalPosition,
-        data: DragData,
+        data: DropData,
     },
 
     DragDropped {
         position: LogicalPosition,
-        data: DragData,
+        data: DropData,
     }
 }
 
 pub enum EventResponse {
     Handled,
     Ignored,
-    DragAccepted(DragOperation),
+    DragAccepted(DropOperation),
 }
 
 pub type EventCallback = dyn Fn(Event) -> EventResponse + Send;
