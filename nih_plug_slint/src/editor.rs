@@ -20,6 +20,7 @@ where
 {
     window_attributes: WindowAttributes,
     os_scale_factor: RwLock<f32>,
+    parameter_globals_name: String,
     component_builder: F,
     editor_handle: Mutex<Option<Weak<EditorHandle>>>,
     param_map: Vec<(String, ParamPtr, String)>,
@@ -30,10 +31,16 @@ impl<F> SlintEditor<F>
 where
     F: Fn() -> ComponentInstance,
 {
-    pub fn new(window_attributes: WindowAttributes, params: &impl Params, component_builder: F) -> Self {
+    pub fn new(
+        window_attributes: WindowAttributes,
+        params: &impl Params,
+        parameter_globals_name: impl AsRef<str>,
+        component_builder: F
+    ) -> Self {
         Self {
             window_attributes,
             os_scale_factor: RwLock::new(1.0),
+            parameter_globals_name: parameter_globals_name.as_ref().into(),
             component_builder,
             editor_handle: Default::default(),
             param_map: params.param_map(),
@@ -72,6 +79,7 @@ where
                 let editor_handle = editor_handle.clone();
                 let component_builder = self.component_builder.clone();
                 let param_map = self.param_map.clone();
+                let parameter_globals_name = self.parameter_globals_name.clone();
                 let gui_context = context.clone();
 
                 Box::new(move |window| {
@@ -94,6 +102,7 @@ where
                         component,
                         component_definition,
                         param_map: Rc::new(param_map),
+                        parameter_globals_name,
                         gui_context,
                         parameter_change_receiver,
                     };
