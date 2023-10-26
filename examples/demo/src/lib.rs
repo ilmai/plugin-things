@@ -88,6 +88,7 @@ impl Plugin for DemoPlugin {
         let editor = SlintEditor::new(
             window_attributes,
             &self.params,
+            "PluginParameters",
             || {
                 let mut compiler = ComponentCompiler::new();
                 compiler.set_include_paths(vec![

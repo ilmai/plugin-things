@@ -6,6 +6,7 @@ use std::sync::{Mutex, RwLock, Weak, mpsc};
 
 use i_slint_core::window::WindowAdapter;
 use nih_plug::prelude::*;
+use plugin_canvas::event::EventResponse;
 use plugin_canvas::{window::WindowAttributes, Event};
 use raw_window_handle_0_4::HasRawWindowHandle;
 use slint_interpreter::{ComponentHandle, ComponentInstance};
@@ -19,6 +20,7 @@ where
 {
     window_attributes: WindowAttributes,
     os_scale_factor: RwLock<f32>,
+    parameter_globals_name: String,
     component_builder: F,
     editor_handle: Mutex<Option<Weak<EditorHandle>>>,
     param_map: Vec<(String, ParamPtr, String)>,
@@ -29,10 +31,16 @@ impl<F> SlintEditor<F>
 where
     F: Fn() -> ComponentInstance,
 {
-    pub fn new(window_attributes: WindowAttributes, params: &impl Params, component_builder: F) -> Self {
+    pub fn new(
+        window_attributes: WindowAttributes,
+        params: &impl Params,
+        parameter_globals_name: impl AsRef<str>,
+        component_builder: F
+    ) -> Self {
         Self {
             window_attributes,
             os_scale_factor: RwLock::new(1.0),
+            parameter_globals_name: parameter_globals_name.as_ref().into(),
             component_builder,
             editor_handle: Default::default(),
             param_map: params.param_map(),
@@ -62,6 +70,8 @@ where
                 Box::new(move |event| {
                     if let Some(editor_handle) = editor_handle.upgrade() {
                         editor_handle.on_event(event)
+                    } else {
+                        EventResponse::Ignored
                     }
                 })
             },
@@ -69,6 +79,7 @@ where
                 let editor_handle = editor_handle.clone();
                 let component_builder = self.component_builder.clone();
                 let param_map = self.param_map.clone();
+                let parameter_globals_name = self.parameter_globals_name.clone();
                 let gui_context = context.clone();
 
                 Box::new(move |window| {
@@ -91,6 +102,7 @@ where
                         component,
                         component_definition,
                         param_map: Rc::new(param_map),
+                        parameter_globals_name,
                         gui_context,
                         parameter_change_receiver,
                     };
@@ -160,13 +172,13 @@ impl EditorHandle {
         self.window_adapter_ptr.store(Rc::into_raw(window_adapter) as _, Ordering::Relaxed);
     }
 
-    fn on_event(&self, event: Event) {
+    fn on_event(&self, event: Event) -> EventResponse {
         let window_adapter_ptr = self.window_adapter_ptr.load(Ordering::Relaxed);
         assert!(*self.window_adapter_thread.lock().unwrap() == Some(std::thread::current().id()));
         assert!(!window_adapter_ptr.is_null());
 
         let window_adapter = unsafe { &*window_adapter_ptr };
-        window_adapter.on_event(event);
+        window_adapter.on_event(event)
     } 
 }
 

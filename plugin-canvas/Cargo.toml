@@ -28,12 +28,17 @@ features = [
     "AppKit",
     "AppKit_NSCursor",
     "AppKit_NSEvent",
+    "AppKit_NSPasteboard",
+    "AppKit_NSPasteboardItem",
     "AppKit_NSTrackingArea",
     "AppKit_NSView",
     "AppKit_NSWindow",
+    "Foundation_NSArray",
     "Foundation_NSAttributedString",
+    "Foundation_NSData",
     "Foundation_NSInvocationOperation",
     "Foundation_NSOperationQueue",
+    "Foundation_NSURL",
 ]
 
 [target.'cfg(target_os="windows")'.dependencies]

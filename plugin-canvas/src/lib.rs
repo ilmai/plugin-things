@@ -1,5 +1,6 @@
 pub mod cursor;
 pub mod dimensions;
+pub mod drag;
 pub mod error;
 pub mod event;
 pub mod window;
