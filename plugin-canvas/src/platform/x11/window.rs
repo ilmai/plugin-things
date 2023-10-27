@@ -23,8 +23,27 @@ pub struct OsWindow {
     window_handle: XlibWindowHandle,
     display_handle: XlibDisplayHandle,
 
+    cursor_none: x::Cursor,
     cursor_arrow: x::Cursor,
+    cursor_bottom_left_corner: x::Cursor,
+    cursor_bottom_right_corner: x::Cursor,
+    cursor_bottom_side: x::Cursor,
+    cursor_crosshair: x::Cursor,
+    cursor_double_arrow: x::Cursor,
+    cursor_fleur: x::Cursor,
+    cursor_h_double_arrow: x::Cursor,
+    cursor_left_side: x::Cursor,
+    cursor_plus: x::Cursor,
     cursor_pointer: x::Cursor,
+    cursor_question_arrow: x::Cursor,
+    cursor_right_side: x::Cursor,
+    cursor_top_left_corner: x::Cursor,
+    cursor_top_right_corner: x::Cursor,
+    cursor_top_side: x::Cursor,
+    cursor_watch: x::Cursor,
+    cursor_x: x::Cursor,
+    cursor_xterm: x::Cursor,
+
     new_cursor: Arc<Mutex<Option<x::Cursor>>>,
     set_input_focus: Arc<Mutex<Option<bool>>>,
 }
@@ -33,6 +52,7 @@ impl OsWindow {
     fn window_thread(
         parent_window_id: u32,
         window_attributes: WindowAttributes,
+        os_scale_factor: f64,
         event_callback: Box<EventCallback>,
         window_event_sender: Sender<OsWindowEvent>,
         build_window: OsWindowBuilder,
@@ -40,7 +60,7 @@ impl OsWindow {
         let new_cursor: Arc<Mutex<Option<x::Cursor>>> = Default::default();
         let set_input_focus: Arc<Mutex<Option<bool>>> = Default::default();
 
-        let (connection, window_id, xkb_state, xkb_compose_state) = match Self::create_window(parent_window_id, window_attributes.clone(), build_window, new_cursor.clone(), set_input_focus.clone()) {
+        let (connection, window_id, xkb_state, xkb_compose_state) = match Self::create_window(parent_window_id, window_attributes.clone(), os_scale_factor, build_window, new_cursor.clone(), set_input_focus.clone()) {
             Ok(connection) => connection,
             Err(error) => {
                 window_event_sender.send(OsWindowEvent::Error(error)).unwrap();
@@ -117,12 +137,13 @@ impl OsWindow {
     fn create_window(
         parent_window_id: u32,
         window_attributes: WindowAttributes,
+        os_scale_factor: f64,
         build_window: OsWindowBuilder,
         new_cursor: Arc<Mutex<Option<x::Cursor>>>,
         set_input_focus: Arc<Mutex<Option<bool>>>,
     ) -> Result<(xcb::Connection, x::Window, xkb::State, xkb::compose::State), Error> {
         let parent_window_id = unsafe { x::Window::new(parent_window_id) };
-        let size = Size::with_logical_size(window_attributes.size, window_attributes.scale);
+        let size = Size::with_logical_size(window_attributes.size, window_attributes.scale * os_scale_factor);
     
         let (connection, screen_number) = xcb::Connection::connect_with_xlib_display_and_extensions(
             &[], // Mandatory
@@ -178,48 +199,38 @@ impl OsWindow {
         let raw_window_handle = RawWindowHandle::Xlib(window_handle);
         let raw_display_handle = RawDisplayHandle::Xlib(display_handle);
         
-        // Load cursors
         let cursor_font: x::Font = connection.generate_id();
-        let cursor_arrow: x::Cursor = connection.generate_id(); 
-        let cursor_pointer: x::Cursor = connection.generate_id(); 
 
         connection.send_and_check_request(&x::OpenFont {
             fid: cursor_font,
             name: b"cursor",
         })?;
-        connection.send_and_check_request(&x::CreateGlyphCursor {
-            cid: cursor_arrow,
-            source_font: cursor_font,
-            mask_font: cursor_font,
-            source_char: 2,
-            mask_char: 3,
-            fore_red: 0,
-            fore_green: 0,
-            fore_blue: 0,
-            back_red: u16::MAX,
-            back_green: u16::MAX,
-            back_blue: u16::MAX,
-        })?;
-        connection.send_and_check_request(&x::CreateGlyphCursor {
-            cid: cursor_pointer,
-            source_font: cursor_font,
-            mask_font: cursor_font,
-            source_char: 60,
-            mask_char: 61,
-            fore_red: 0,
-            fore_green: 0,
-            fore_blue: 0,
-            back_red: u16::MAX,
-            back_green: u16::MAX,
-            back_blue: u16::MAX,
-        })?;
 
         let window = Rc::new(OsWindow {
             window_handle,
             display_handle,
-            
-            cursor_arrow,
-            cursor_pointer,
+
+            cursor_none: connection.generate_id(),
+            cursor_arrow: Self::create_cursor(&connection, cursor_font, 2)?,
+            cursor_bottom_left_corner: Self::create_cursor(&connection, cursor_font, 12)?,
+            cursor_bottom_right_corner: Self::create_cursor(&connection, cursor_font, 14)?,
+            cursor_bottom_side: Self::create_cursor(&connection, cursor_font, 16)?,
+            cursor_crosshair: Self::create_cursor(&connection, cursor_font, 34)?,
+            cursor_double_arrow: Self::create_cursor(&connection, cursor_font, 42)?,
+            cursor_fleur: Self::create_cursor(&connection, cursor_font, 52)?,
+            cursor_h_double_arrow: Self::create_cursor(&connection, cursor_font, 108)?,
+            cursor_left_side: Self::create_cursor(&connection, cursor_font, 70)?,
+            cursor_plus: Self::create_cursor(&connection, cursor_font, 90)?,
+            cursor_pointer: Self::create_cursor(&connection, cursor_font, 60)?,
+            cursor_question_arrow: Self::create_cursor(&connection, cursor_font, 92)?,
+            cursor_right_side: Self::create_cursor(&connection, cursor_font, 96)?,
+            cursor_top_left_corner: Self::create_cursor(&connection, cursor_font, 134)?,
+            cursor_top_right_corner: Self::create_cursor(&connection, cursor_font, 136)?,
+            cursor_top_side: Self::create_cursor(&connection, cursor_font, 138)?,
+            cursor_watch: Self::create_cursor(&connection, cursor_font, 150)?,
+            cursor_x: Self::create_cursor(&connection, cursor_font, 0)?,
+            cursor_xterm: Self::create_cursor(&connection, cursor_font, 152)?,
+
             new_cursor,
             set_input_focus,
         });
@@ -228,6 +239,26 @@ impl OsWindow {
         build_window(os_window_handle);
     
         Ok((connection, window_id, xkb_state, xkb_compose_state))
+    }
+
+    fn create_cursor(connection: &xcb::Connection, font: x::Font, char: u16) -> Result<x::Cursor, Error> {
+        let id: x::Cursor = connection.generate_id();
+
+        connection.send_and_check_request(&x::CreateGlyphCursor {
+            cid: id,
+            source_font: font,
+            mask_font: font,
+            source_char: char,
+            mask_char: char + 1,
+            fore_red: 0,
+            fore_green: 0,
+            fore_blue: 0,
+            back_red: u16::MAX,
+            back_green: u16::MAX,
+            back_blue: u16::MAX,
+        })?;
+
+        Ok(id)
     }
 
     fn handle_events(context: &mut Context) {
@@ -354,6 +385,7 @@ impl OsWindowInterface for OsWindow {
     fn open(
         parent_window_handle: RawWindowHandle,
         window_attributes: WindowAttributes,
+        os_scale_factor: f64,
         event_callback: Box<EventCallback>,
         window_builder: OsWindowBuilder,
     ) -> Result<(), Error>
@@ -369,6 +401,7 @@ impl OsWindowInterface for OsWindow {
             move || Self::window_thread(
                 parent_window_id,
                 window_attributes,
+                os_scale_factor,
                 event_callback,
                 event_sender,
                 Box::new(move |os_window_handle| window_builder(os_window_handle))
@@ -386,8 +419,30 @@ impl OsWindowInterface for OsWindow {
 
     fn set_cursor(&self, cursor: Cursor) {
         let cursor = match cursor {
+            Cursor::None => self.cursor_none,
             Cursor::Arrow => self.cursor_arrow,
+            Cursor::Copy => self.cursor_plus,
+            Cursor::Crosshair => self.cursor_crosshair,
+            Cursor::Help => self.cursor_question_arrow,
+            Cursor::Move => self.cursor_fleur,
+            Cursor::NoDrop => self.cursor_x,
+            Cursor::NotAllowed => self.cursor_x,
             Cursor::Pointer => self.cursor_pointer,
+            Cursor::Text => self.cursor_xterm,
+            Cursor::Wait => self.cursor_watch,
+
+            Cursor::ResizeNorth => self.cursor_top_side,
+            Cursor::ResizeNorthEast => self.cursor_top_right_corner,
+            Cursor::ResizeEast => self.cursor_right_side,
+            Cursor::ResizeSouthEast => self.cursor_bottom_left_corner,
+            Cursor::ResizeSouth => self.cursor_bottom_side,
+            Cursor::ResizeSouthWest => self.cursor_bottom_right_corner,
+            Cursor::ResizeWest => self.cursor_left_side,
+            Cursor::ResizeNorthWest => self.cursor_top_left_corner,
+            Cursor::ResizeEastWest => self.cursor_h_double_arrow,
+            Cursor::ResizeNorthSouth => self.cursor_double_arrow,
+
+            _ => self.cursor_arrow,
         };
 
         *self.new_cursor.lock().unwrap() = Some(cursor);
