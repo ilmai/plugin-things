@@ -12,6 +12,9 @@ export global PluginParameters {
 }
 
 export component PluginWindow {
+    in-out property <bool> dragging;
+    in-out property <Point> drag-position;
+
     Rectangle {
         background: gold;
 
@@ -31,6 +34,16 @@ export component PluginWindow {
 
             x: 350px + sin(mod(animation-tick(), 5s) / 5s * 360deg) * 350px;
             y: 100px;
+
+            states [
+                dropping when drag-position.x >= self.x &&
+                    drag-position.x <= self.x + self.width &&
+                    drag-position.y >= self.y &&
+                    drag-position.y <= self.y + self.height:
+                {
+                    background: blue;                    
+                }
+            ]
         }
 
         HorizontalLayout {

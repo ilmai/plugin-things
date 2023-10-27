@@ -14,34 +14,39 @@ use slint_interpreter::{ComponentHandle, ComponentInstance};
 use crate::window_adapter::{Context, ParameterChangeSender, ParameterChange};
 use crate::{platform::PluginCanvasPlatform, window_adapter::{WINDOW_TO_SLINT, WINDOW_ADAPTER_FROM_SLINT, PluginCanvasWindowAdapter}, raw_window_handle_adapter::RawWindowHandleAdapter};
 
-pub struct SlintEditor<F>
+pub struct SlintEditor<B, E>
 where
-    F: Fn() -> ComponentInstance,
+    B: Fn() -> ComponentInstance,
+    E: Fn(&ComponentInstance, &Event) -> EventResponse,
 {
     window_attributes: WindowAttributes,
     os_scale_factor: RwLock<f32>,
     parameter_globals_name: String,
-    component_builder: F,
+    component_builder: B,
+    event_handler: E,
     editor_handle: Mutex<Option<Weak<EditorHandle>>>,
     param_map: Vec<(String, ParamPtr, String)>,
     parameter_change_sender: RefCell<Option<ParameterChangeSender>>,
 }
 
-impl<F> SlintEditor<F>
+impl<B, E> SlintEditor<B, E>
 where
-    F: Fn() -> ComponentInstance,
+    B: Fn() -> ComponentInstance,
+    E: Fn(&ComponentInstance, &Event) -> EventResponse,
 {
     pub fn new(
         window_attributes: WindowAttributes,
         params: &impl Params,
         parameter_globals_name: impl AsRef<str>,
-        component_builder: F
+        component_builder: B,
+        event_handler: E,
     ) -> Self {
         Self {
             window_attributes,
             os_scale_factor: RwLock::new(1.0),
             parameter_globals_name: parameter_globals_name.as_ref().into(),
             component_builder,
+            event_handler,
             editor_handle: Default::default(),
             param_map: params.param_map(),
             parameter_change_sender: Default::default(),
@@ -49,12 +54,13 @@ where
     }
 }
 
-impl<F> Editor for SlintEditor<F>
+impl<B, E> Editor for SlintEditor<B, E>
 where
-    F: Fn() -> ComponentInstance + Clone + Send + 'static,
+    B: Fn() -> ComponentInstance + Clone + Send + 'static,
+    E: Fn(&ComponentInstance, &Event) -> EventResponse + Clone + Send + 'static,
 {
     fn spawn(&self, parent: ParentWindowHandle, context: Arc<dyn GuiContext>) -> Box<dyn Any + Send> {
-        let editor_handle = Arc::new(EditorHandle::new(context.clone()));
+        let editor_handle = Arc::new(EditorHandle::new());
         let raw_window_handle_adapter = RawWindowHandleAdapter::from(parent.raw_window_handle());
         let mut window_attributes = self.window_attributes.clone();
         window_attributes.scale *= *self.os_scale_factor.read().unwrap() as f64;
@@ -67,9 +73,19 @@ where
             window_attributes,
             {
                 let editor_handle = Arc::downgrade(&editor_handle.clone());
+                let event_handler = self.event_handler.clone();
+
                 Box::new(move |event| {
                     if let Some(editor_handle) = editor_handle.upgrade() {
-                        editor_handle.on_event(event)
+                        match editor_handle.on_event(&event) {
+                            EventResponse::Ignored => {
+                                editor_handle.window_adapter().with_context(|context| {
+                                    event_handler(&context.component, &event)
+                                })
+                            },
+
+                            response => response,
+                        }
                     } else {
                         EventResponse::Ignored
                     }
@@ -153,17 +169,22 @@ where
 struct EditorHandle {
     window_adapter_thread: Mutex<Option<ThreadId>>,
     window_adapter_ptr: AtomicPtr<PluginCanvasWindowAdapter>,
-
-    _gui_context: Arc<dyn GuiContext>,
 }
 
 impl EditorHandle {
-    pub fn new(gui_context: Arc<dyn GuiContext>) -> Self {
+    fn new() -> Self {
         Self {
             window_adapter_thread: Default::default(),
             window_adapter_ptr: Default::default(),
-            _gui_context: gui_context,
         }
+    }
+
+    fn window_adapter(&self) -> &PluginCanvasWindowAdapter {
+        assert!(*self.window_adapter_thread.lock().unwrap() == Some(std::thread::current().id()));
+
+        let window_adapter_ptr = self.window_adapter_ptr.load(Ordering::Relaxed);
+        assert!(!window_adapter_ptr.is_null());
+        unsafe { &*window_adapter_ptr }
     }
 
     fn set_window_adapter(&self, window_adapter: Rc<PluginCanvasWindowAdapter>) {
@@ -172,13 +193,8 @@ impl EditorHandle {
         self.window_adapter_ptr.store(Rc::into_raw(window_adapter) as _, Ordering::Relaxed);
     }
 
-    fn on_event(&self, event: Event) -> EventResponse {
-        let window_adapter_ptr = self.window_adapter_ptr.load(Ordering::Relaxed);
-        assert!(*self.window_adapter_thread.lock().unwrap() == Some(std::thread::current().id()));
-        assert!(!window_adapter_ptr.is_null());
-
-        let window_adapter = unsafe { &*window_adapter_ptr };
-        window_adapter.on_event(event)
+    fn on_event(&self, event: &Event) -> EventResponse {
+        self.window_adapter().on_event(event)
     } 
 }
 

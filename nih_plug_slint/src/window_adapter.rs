@@ -92,6 +92,11 @@ impl PluginCanvasWindowAdapter {
         Ok(self_rc as _)
     }
 
+    pub fn with_context<T>(&self, f: impl Fn(&Context) -> T) -> T {
+        let context = self.context.borrow();
+        f(context.as_ref().unwrap())
+    }
+
     pub fn set_context(&self, context: Context) {
         // Save parameter names that are used by the UI
         let mut ui_parameters = self.ui_parameters.borrow_mut();
@@ -171,7 +176,7 @@ impl PluginCanvasWindowAdapter {
         self.update_all_parameters();
     }
 
-    pub fn on_event(&self, event: plugin_canvas::Event) -> EventResponse {
+    pub fn on_event(&self, event: &plugin_canvas::Event) -> EventResponse {
         match event {
             plugin_canvas::Event::Draw => {
                 let context = self.context.borrow();
@@ -263,32 +268,32 @@ impl PluginCanvasWindowAdapter {
                 self.slint_window.dispatch_event(
                     WindowEvent::PointerScrolled {
                         position,
-                        delta_x: delta_x as f32,
-                        delta_y: delta_y as f32,
+                        delta_x: *delta_x as f32,
+                        delta_y: *delta_y as f32,
                     }
                 );
                 EventResponse::Handled
             },
             
-            plugin_canvas::Event::DragEntered { position: _, data: _ } => {
-                EventResponse::Handled
+            plugin_canvas::Event::DragEntered { .. } => {
+                EventResponse::Ignored
             },
 
             plugin_canvas::Event::DragExited => {
-                EventResponse::Handled
+                EventResponse::Ignored
             },
 
-            plugin_canvas::Event::DragMoved { position: _, data: _ } => {
-                EventResponse::Handled
+            plugin_canvas::Event::DragMoved { .. } => {
+                EventResponse::Ignored
             },
 
-            plugin_canvas::Event::DragDropped { position: _, data: _ } => {
-                EventResponse::Handled
+            plugin_canvas::Event::DragDropped { .. } => {
+                EventResponse::Ignored
             },
         }
     }
 
-    fn convert_button(button: plugin_canvas::MouseButton) -> i_slint_core::platform::PointerEventButton {
+    fn convert_button(button: &plugin_canvas::MouseButton) -> i_slint_core::platform::PointerEventButton {
         match button {
             plugin_canvas::MouseButton::Left => i_slint_core::platform::PointerEventButton::Left,
             plugin_canvas::MouseButton::Right => i_slint_core::platform::PointerEventButton::Right,
@@ -296,7 +301,7 @@ impl PluginCanvasWindowAdapter {
         }
     }
 
-    fn convert_logical_position(&self, position: plugin_canvas::LogicalPosition) -> slint::LogicalPosition {
+    fn convert_logical_position(&self, position: &plugin_canvas::LogicalPosition) -> slint::LogicalPosition {
         slint::LogicalPosition {
             x: (position.x / *self.user_scale) as f32,
             y: (position.y / *self.user_scale) as f32,

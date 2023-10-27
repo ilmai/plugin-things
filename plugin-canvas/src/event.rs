@@ -62,7 +62,7 @@ pub enum Event {
 pub enum EventResponse {
     Handled,
     Ignored,
-    DragAccepted(DropOperation),
+    DropAccepted(DropOperation),
 }
 
 pub type EventCallback = dyn Fn(Event) -> EventResponse + Send;

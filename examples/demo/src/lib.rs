@@ -5,8 +5,10 @@ use nih_plug::util::db_to_gain;
 use nih_plug::{nih_export_clap, nih_export_vst3, nih_debug_assert_eq};
 use nih_plug::prelude::*;
 use nih_plug_slint::{WindowAttributes, editor::SlintEditor};
-use plugin_canvas::LogicalSize;
-use slint_interpreter::ComponentCompiler;
+use plugin_canvas::drag_drop::DropOperation;
+use plugin_canvas::{LogicalSize, Event};
+use plugin_canvas::event::EventResponse;
+use slint_interpreter::{ComponentCompiler, Value, Struct};
 
 const DB_MIN: f32 = -80.0;
 const DB_MAX: f32 = 20.0;
@@ -103,6 +105,44 @@ impl Plugin for DemoPlugin {
                 };
 
                 definition.create().unwrap()
+            },
+            |component, event| {
+                match event {
+                    Event::DragEntered { position, data: _ } => {
+                        let position: Value = [
+                            ("x".into(), position.x.into()),
+                            ("y".into(), position.y.into()),
+                        ].iter().cloned().collect::<Struct>().into();
+
+                        component.set_property("dragging", Value::Bool(true)).unwrap();
+                        component.set_property("drag-position", position).unwrap();
+
+                        EventResponse::DropAccepted(DropOperation::Copy)
+                    },
+
+                    Event::DragExited => {
+                        component.set_property("dragging", Value::Bool(false)).unwrap();
+                        EventResponse::Handled
+                    },
+
+                    Event::DragMoved { position, data: _ } => {
+                        let position: Value = [
+                            ("x".into(), position.x.into()),
+                            ("y".into(), position.y.into()),
+                        ].iter().cloned().collect::<Struct>().into();
+
+                        component.set_property("drag-position", position).unwrap();
+
+                        EventResponse::DropAccepted(DropOperation::Copy)
+                    },
+
+                    Event::DragDropped { position: _, data: _ } => {
+                        component.set_property("dragging", Value::Bool(false)).unwrap();
+                        EventResponse::DropAccepted(DropOperation::Copy)
+                    },
+
+                    _ => EventResponse::Ignored,
+                }
             },
         );
         Some(Box::new(editor))

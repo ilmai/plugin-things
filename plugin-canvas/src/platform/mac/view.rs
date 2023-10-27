@@ -437,7 +437,7 @@ impl OsWindowView {
     }
 
     fn convert_drag_operation(&self, response: EventResponse) -> NSDragOperation {
-        if let EventResponse::DragAccepted(operation) = response {
+        if let EventResponse::DropAccepted(operation) = response {
             match operation {
                 DropOperation::None => NSDragOperationNone,
                 DropOperation::Copy => NSDragOperationCopy,
