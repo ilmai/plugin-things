@@ -1,9 +1,9 @@
 use std::{sync::atomic::{Ordering, AtomicU8, AtomicUsize}, path::PathBuf};
 
-use icrate::{AppKit::{NSView, NSEvent, NSResponder, NSTextInputClient, NSEventModifierFlagShift, NSEventModifierFlagCommand, NSEventModifierFlagControl, NSEventModifierFlagOption, NSDraggingDestination, NSDraggingInfo, NSDragOperation, NSDragOperationNone, NSDragOperationCopy, NSDragOperationMove, NSPasteboardTypeFileURL}, Foundation::{NSRect, NSArray, NSRange, NSRangePointer, NSPoint, NSAttributedStringKey, NSAttributedString, CGPoint, CGSize, NSURL}};
-use objc2::{declare_class, mutability, ClassType,  msg_send, declare::IvarEncode, runtime::{AnyObject, Sel, NSObject, NSObjectProtocol, ProtocolObject}, ffi::NSUInteger, rc::Id, msg_send_id};
+use icrate::{AppKit::{NSView, NSEvent, NSResponder, NSTextInputClient, NSEventModifierFlagShift, NSEventModifierFlagCommand, NSEventModifierFlagControl, NSEventModifierFlagOption, NSDraggingDestination, NSDraggingInfo, NSDragOperation, NSDragOperationNone, NSDragOperationCopy, NSDragOperationMove, NSPasteboardTypeFileURL, NSDragOperationLink}, Foundation::{NSRect, NSArray, NSRange, NSRangePointer, NSPoint, NSAttributedStringKey, NSAttributedString, CGPoint, CGSize, NSURL}};
+use objc2::{declare_class, mutability, ClassType,  msg_send, declare::IvarEncode, runtime::{AnyObject, Sel, NSObject, NSObjectProtocol, ProtocolObject}, ffi::NSUInteger, rc::Id};
 
-use crate::{Event, MouseButton, LogicalPosition, drag::{DragData, DragOperation}, event::EventResponse};
+use crate::{Event, MouseButton, LogicalPosition, event::EventResponse, drag_drop::{DropData, DropOperation}};
 
 use super::{types::AtomicVoidPtr, window::OsWindow};
 
@@ -408,7 +408,7 @@ impl OsWindowView {
         self.point_to_position(point)
     }
 
-    fn drag_event_data(&self, sender: &ProtocolObject<dyn NSDraggingInfo>) -> DragData {
+    fn drag_event_data(&self, sender: &ProtocolObject<dyn NSDraggingInfo>) -> DropData {
         let paths = unsafe {
             let pasteboard = sender.draggingPasteboard();
             let mut paths = Vec::new();
@@ -430,18 +430,19 @@ impl OsWindowView {
         };
 
         if paths.is_empty() {
-            DragData::None
+            DropData::None
         } else {
-            DragData::Files(paths)
+            DropData::Files(paths)
         }
     }
 
     fn convert_drag_operation(&self, response: EventResponse) -> NSDragOperation {
         if let EventResponse::DragAccepted(operation) = response {
             match operation {
-                DragOperation::None => NSDragOperationNone,
-                DragOperation::Copy => NSDragOperationCopy,
-                DragOperation::Move => NSDragOperationMove,
+                DropOperation::None => NSDragOperationNone,
+                DropOperation::Copy => NSDragOperationCopy,
+                DropOperation::Move => NSDragOperationMove,
+                DropOperation::Link => NSDragOperationLink,
             }
         } else {
             NSDragOperationNone
