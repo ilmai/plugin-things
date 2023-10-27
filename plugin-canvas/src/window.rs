@@ -21,12 +21,14 @@ impl Window {
     pub fn open(
         parent: impl HasRawWindowHandle,
         attributes: WindowAttributes,
+        os_scale_factor: f64,
         event_callback: Box<EventCallback>,
         window_builder: WindowBuilder,
     ) -> Result<(), Error> {
         OsWindow::open(
             parent.raw_window_handle(),
             attributes.clone(),
+            os_scale_factor,
             event_callback,
             {
                 Box::new(move |os_window_handle| {

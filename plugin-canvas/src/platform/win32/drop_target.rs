@@ -4,7 +4,8 @@ use std::os::windows::prelude::OsStringExt;
 use std::ptr::null_mut;
 use std::rc::Rc;
 
-use windows::Win32::Foundation::POINTL;
+use windows::Win32::Foundation::{POINTL, POINT};
+use windows::Win32::Graphics::Gdi::ScreenToClient;
 use windows::Win32::System::Com::{IDataObject, FORMATETC, DVASPECT_CONTENT, TYMED_HGLOBAL};
 use windows::Win32::System::SystemServices::MODIFIERKEYS_FLAGS;
 use windows::Win32::UI::Shell::{DragQueryFileW, HDROP};
@@ -74,7 +75,7 @@ impl DropTarget {
     }
 
     fn convert_drag_operation(&self, response: EventResponse) -> DROPEFFECT {
-        if let EventResponse::DragAccepted(operation) = response {
+        if let EventResponse::DropAccepted(operation) = response {
             match operation {
                 DropOperation::None => DROPEFFECT_NONE,
                 DropOperation::Copy => DROPEFFECT_COPY,
@@ -85,6 +86,21 @@ impl DropTarget {
             DROPEFFECT_NONE
         }
     }
+
+    fn convert_coordinates(&self, point: &POINTL) -> LogicalPosition {
+        let scale = self.window.os_scale_factor();
+        let mut point = POINT {
+            x: (point.x as f64 / scale) as i32,
+            y: (point.y as f64 / scale) as i32
+        };
+
+        unsafe { ScreenToClient(self.window.hwnd(), &mut point); }
+
+        LogicalPosition {
+            x: point.x as f64,
+            y: point.y as f64,
+        }
+    }
 }
 
 #[allow(non_snake_case)]
@@ -93,7 +109,7 @@ impl IDropTarget_Impl for DropTarget {
         self.parse_drag_data(pdataobj)?;
 
         let response = self.window.send_event(crate::Event::DragEntered {
-            position: LogicalPosition { x: pt.x as f64, y: pt.y as f64 },
+            position: self.convert_coordinates(pt),
             data: self.drop_data.borrow().clone(),
         });
         
@@ -104,7 +120,7 @@ impl IDropTarget_Impl for DropTarget {
 
     fn DragOver(&self, _grfkeystate: MODIFIERKEYS_FLAGS, pt: &POINTL, pdweffect: *mut DROPEFFECT) -> windows::core::Result<()> {
         let response = self.window.send_event(crate::Event::DragMoved {
-            position: LogicalPosition { x: pt.x as f64, y: pt.y as f64 },
+            position: self.convert_coordinates(pt),
             data: self.drop_data.borrow().clone(),
         });
         
@@ -122,7 +138,7 @@ impl IDropTarget_Impl for DropTarget {
         self.parse_drag_data(pdataobj)?;
 
         let response = self.window.send_event(crate::Event::DragDropped {
-            position: LogicalPosition { x: pt.x as f64, y: pt.y as f64 },
+            position: self.convert_coordinates(pt),
             data: self.drop_data.borrow().clone(),
         });
         

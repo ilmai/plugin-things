@@ -9,6 +9,8 @@ use crate::{error::Error, platform::interface::{OsWindowInterface, OsWindowHandl
 use super::{PLUGIN_HINSTANCE, to_wstr, message_window::MessageWindow, cursors::Cursors, WM_USER_CHAR, WM_USER_FRAME_TIMER, version::is_windows10_or_greater, drop_target::DropTarget};
 
 pub struct OsWindow {
+    os_scale_factor: f64,
+
     window_class: u16,
     window_handle: Win32WindowHandle,
     hook_handle: HHOOK,
@@ -23,15 +25,19 @@ pub struct OsWindow {
 }
 
 impl OsWindow {
+    pub(super) fn os_scale_factor(&self) -> f64 {
+        self.os_scale_factor
+    }
+
     pub(super) fn send_event(&self, event: Event) -> EventResponse {
         (self.event_callback)(event)
     }
     
-    fn hinstance(&self) -> HINSTANCE {
+    pub(super) fn hinstance(&self) -> HINSTANCE {
         HINSTANCE(self.window_handle.hinstance as isize)
     }
 
-    fn hwnd(&self) -> HWND {
+    pub(super) fn hwnd(&self) -> HWND {
         HWND(self.window_handle.hwnd as isize)
     }
 
@@ -63,6 +69,7 @@ impl OsWindowInterface for OsWindow {
     fn open(
         parent_window_handle: RawWindowHandle,
         window_attributes: WindowAttributes,
+        os_scale_factor: f64,
         event_callback: Box<EventCallback>,
         window_builder: OsWindowBuilder,
     ) -> Result<(), Error> {
@@ -71,7 +78,7 @@ impl OsWindowInterface for OsWindow {
         };
 
         let class_name = to_wstr("plugin-canvas-".to_string() + &Uuid::new_v4().simple().to_string());
-        let size = Size::with_logical_size(window_attributes.size, window_attributes.scale);
+        let size = Size::with_logical_size(window_attributes.size, window_attributes.scale * os_scale_factor);
 
         let cursor = unsafe { LoadCursorW(HINSTANCE(0), IDC_ARROW).unwrap() };
 
@@ -147,6 +154,8 @@ impl OsWindowInterface for OsWindow {
         });
 
         let window = Rc::new(Self {
+            os_scale_factor,
+
             window_class,
             window_handle,
             hook_handle,

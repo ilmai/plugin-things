@@ -62,8 +62,7 @@ where
     fn spawn(&self, parent: ParentWindowHandle, context: Arc<dyn GuiContext>) -> Box<dyn Any + Send> {
         let editor_handle = Arc::new(EditorHandle::new());
         let raw_window_handle_adapter = RawWindowHandleAdapter::from(parent.raw_window_handle());
-        let mut window_attributes = self.window_attributes.clone();
-        window_attributes.scale *= *self.os_scale_factor.read().unwrap() as f64;
+        let window_attributes = self.window_attributes.clone();
 
         let (parameter_change_sender, parameter_change_receiver) = mpsc::channel();
         *self.parameter_change_sender.borrow_mut() = Some(parameter_change_sender);
@@ -71,6 +70,7 @@ where
         plugin_canvas::Window::open(
             raw_window_handle_adapter,
             window_attributes,
+            *self.os_scale_factor.read().unwrap() as f64,
             {
                 let editor_handle = Arc::downgrade(&editor_handle.clone());
                 let event_handler = self.event_handler.clone();
