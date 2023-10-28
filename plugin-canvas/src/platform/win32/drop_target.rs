@@ -88,7 +88,7 @@ impl DropTarget {
     }
 
     fn convert_coordinates(&self, point: &POINTL) -> LogicalPosition {
-        let scale = self.window.os_scale_factor();
+        let scale = self.window.os_scale();
         let mut point = POINT {
             x: (point.x as f64 / scale) as i32,
             y: (point.y as f64 / scale) as i32

@@ -20,7 +20,7 @@ where
     E: Fn(&ComponentInstance, &Event) -> EventResponse,
 {
     window_attributes: WindowAttributes,
-    os_scale_factor: RwLock<f32>,
+    os_scale: RwLock<f32>,
     parameter_globals_name: String,
     component_builder: B,
     event_handler: E,
@@ -43,7 +43,7 @@ where
     ) -> Self {
         Self {
             window_attributes,
-            os_scale_factor: RwLock::new(1.0),
+            os_scale: RwLock::new(1.0),
             parameter_globals_name: parameter_globals_name.as_ref().into(),
             component_builder,
             event_handler,
@@ -70,7 +70,7 @@ where
         plugin_canvas::Window::open(
             raw_window_handle_adapter,
             window_attributes,
-            *self.os_scale_factor.read().unwrap() as f64,
+            *self.os_scale.read().unwrap() as f64,
             {
                 let editor_handle = Arc::downgrade(&editor_handle.clone());
                 let event_handler = self.event_handler.clone();
@@ -137,12 +137,12 @@ where
     }
 
     fn size(&self) -> (u32, u32) {
-        let size = self.window_attributes.size * self.window_attributes.scale;
+        let size = self.window_attributes.scaled_size();
         (size.width as u32, size.height as u32)
     }
 
     fn set_scale_factor(&self, factor: f32) -> bool {
-        *self.os_scale_factor.write().unwrap() = factor;
+        *self.os_scale.write().unwrap() = factor;
         true
     }
 

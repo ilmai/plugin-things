@@ -12,7 +12,7 @@ pub(crate) trait OsWindowInterface: HasRawDisplayHandle + HasRawWindowHandle + S
     fn open(
         parent_window_handle: RawWindowHandle,
         window_attributes: WindowAttributes,
-        os_scale_factor: f64,
+        os_scale: f64,
         event_callback: Box<EventCallback>,
         window_builder: OsWindowBuilder,
     ) -> Result<(), Error>;

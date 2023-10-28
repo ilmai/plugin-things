@@ -53,8 +53,8 @@ impl PluginCanvasWindowAdapter {
         let display_handle = plugin_canvas_window.display_handle().unwrap();
         
         let window_attributes = plugin_canvas_window.attributes();
-        let plugin_canvas_size = plugin_canvas::PhysicalSize::from_logical(&window_attributes.size, window_attributes.scale);
-        let user_scale = window_attributes.scale;
+        let plugin_canvas_size = window_attributes.scaled_size();
+        let user_scale = window_attributes.user_scale();
 
         let slint_size = slint::PhysicalSize {
             width: plugin_canvas_size.width as u32,

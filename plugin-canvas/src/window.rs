@@ -6,8 +6,33 @@ pub type WindowBuilder = Box<dyn FnOnce(Window) + Send>;
 
 #[derive(Clone)]
 pub struct WindowAttributes {
-    pub size: LogicalSize,
-    pub scale: Scale,
+    pub(crate) size: LogicalSize,
+    pub(crate) user_scale: Scale,
+}
+
+impl WindowAttributes {
+    pub fn new(size: LogicalSize, user_scale: Scale) -> Self {
+        Self {
+            size,
+            user_scale,
+        }
+    }
+
+    pub fn with_size(size: LogicalSize) -> Self {
+        Self::new(size, Scale::default())
+    }
+
+    pub fn size(&self) -> LogicalSize {
+        self.size
+    }
+
+    pub fn user_scale(&self) -> Scale {
+        self.user_scale
+    }
+
+    pub fn scaled_size(&self) -> LogicalSize {
+        self.size * self.user_scale
+    }
 }
 
 pub struct Window {
@@ -21,14 +46,14 @@ impl Window {
     pub fn open(
         parent: impl HasRawWindowHandle,
         attributes: WindowAttributes,
-        os_scale_factor: f64,
+        os_scale: f64,
         event_callback: Box<EventCallback>,
         window_builder: WindowBuilder,
     ) -> Result<(), Error> {
         OsWindow::open(
             parent.raw_window_handle(),
             attributes.clone(),
-            os_scale_factor,
+            os_scale,
             event_callback,
             {
                 Box::new(move |os_window_handle| {

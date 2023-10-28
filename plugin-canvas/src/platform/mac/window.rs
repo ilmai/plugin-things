@@ -39,6 +39,7 @@ impl OsWindowInterface for OsWindow {
     fn open(
         parent_window_handle: RawWindowHandle,
         attributes: WindowAttributes,
+        os_scale: f64,
         event_callback: Box<EventCallback>,
         window_builder: OsWindowBuilder,
     ) -> Result<(), Error> {
@@ -46,7 +47,7 @@ impl OsWindowInterface for OsWindow {
             return Err(Error::PlatformError("Not an AppKit window".into()));
         };
 
-        let physical_size = crate::PhysicalSize::from_logical(&attributes.size, attributes.scale);
+        let physical_size = crate::PhysicalSize::from_logical(&attributes.size, attributes.user_scale * os_scale);
 
         let view_rect = CGRect::new(
             CGPoint { x: 0.0, y: 0.0 },
