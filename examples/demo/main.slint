@@ -13,7 +13,13 @@ export global PluginParameters {
 
 export component PluginWindow {
     in-out property <bool> dragging;
-    in-out property <Point> drag-position;
+    in-out property <length> drag-x;
+    in-out property <length> drag-y;
+    
+    out property <length> drop-area-x: drop-area.x;
+    out property <length> drop-area-y: drop-area.y;
+    out property <length> drop-area-width: drop-area.width;
+    out property <length> drop-area-height: drop-area.height;
 
     Rectangle {
         background: gold;
@@ -27,7 +33,7 @@ export component PluginWindow {
             }
         }
 
-        Rectangle {
+        drop-area := Rectangle {
             background: red;
             width: 100px;
             height: 100px;
@@ -36,10 +42,10 @@ export component PluginWindow {
             y: 100px;
 
             states [
-                dropping when drag-position.x >= self.x &&
-                    drag-position.x <= self.x + self.width &&
-                    drag-position.y >= self.y &&
-                    drag-position.y <= self.y + self.height:
+                dropping when drag-x >= self.x &&
+                    drag-x <= self.x + self.width &&
+                    drag-y >= self.y &&
+                    drag-y <= self.y + self.height:
                 {
                     background: blue;                    
                 }

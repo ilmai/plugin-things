@@ -6,9 +6,9 @@ use nih_plug::{nih_export_clap, nih_export_vst3, nih_debug_assert_eq};
 use nih_plug::prelude::*;
 use nih_plug_slint::{WindowAttributes, editor::SlintEditor};
 use plugin_canvas::drag_drop::DropOperation;
-use plugin_canvas::{LogicalSize, Event};
+use plugin_canvas::{LogicalSize, Event, LogicalPosition};
 use plugin_canvas::event::EventResponse;
-use slint_interpreter::{ComponentCompiler, Value, Struct};
+use slint_interpreter::{ComponentCompiler, Value, ComponentInstance};
 
 const DB_MIN: f32 = -80.0;
 const DB_MAX: f32 = 20.0;
@@ -21,6 +21,41 @@ pub struct PluginParams {
 
 pub struct DemoPlugin {
     params: Arc<PluginParams>,
+}
+
+impl DemoPlugin {
+    fn drag_event_response(component: &ComponentInstance, position: &LogicalPosition) -> EventResponse {
+        component.set_property("drag-x", Value::Number(position.x.into())).unwrap();
+        component.set_property("drag-y", Value::Number(position.y.into())).unwrap();
+
+        if let (
+            Value::Number(drag_x),
+            Value::Number(drag_y),
+            Value::Number(drop_area_x),
+            Value::Number(drop_area_y),
+            Value::Number(drop_area_width),
+            Value::Number(drop_area_height),
+        ) = (
+            component.get_property("drag-x").unwrap(),
+            component.get_property("drag-y").unwrap(),
+            component.get_property("drop-area-x").unwrap(),
+            component.get_property("drop-area-y").unwrap(),
+            component.get_property("drop-area-width").unwrap(),
+            component.get_property("drop-area-height").unwrap(),
+        ) {
+            if drag_x >= drop_area_x &&
+                drag_x <= drop_area_x + drop_area_width &&
+                drag_y >= drop_area_y &&
+                drag_y <= drop_area_y + drop_area_height
+            {
+                EventResponse::DropAccepted(DropOperation::Copy)
+            } else {
+                EventResponse::Ignored
+            }
+        } else {
+            EventResponse::Ignored
+        }
+    }
 }
 
 impl Default for DemoPlugin {
@@ -106,15 +141,8 @@ impl Plugin for DemoPlugin {
             |component, event| {
                 match event {
                     Event::DragEntered { position, data: _ } => {
-                        let position: Value = [
-                            ("x".into(), position.x.into()),
-                            ("y".into(), position.y.into()),
-                        ].iter().cloned().collect::<Struct>().into();
-
                         component.set_property("dragging", Value::Bool(true)).unwrap();
-                        component.set_property("drag-position", position).unwrap();
-
-                        EventResponse::DropAccepted(DropOperation::Copy)
+                        Self::drag_event_response(component, position)
                     },
 
                     Event::DragExited => {
@@ -123,19 +151,13 @@ impl Plugin for DemoPlugin {
                     },
 
                     Event::DragMoved { position, data: _ } => {
-                        let position: Value = [
-                            ("x".into(), position.x.into()),
-                            ("y".into(), position.y.into()),
-                        ].iter().cloned().collect::<Struct>().into();
-
-                        component.set_property("drag-position", position).unwrap();
-
-                        EventResponse::DropAccepted(DropOperation::Copy)
+                        component.set_property("dragging", Value::Bool(true)).unwrap();
+                        Self::drag_event_response(component, position)
                     },
 
-                    Event::DragDropped { position: _, data: _ } => {
+                    Event::DragDropped { position, data: _ } => {
                         component.set_property("dragging", Value::Bool(false)).unwrap();
-                        EventResponse::DropAccepted(DropOperation::Copy)
+                        Self::drag_event_response(component, position)
                     },
 
                     _ => EventResponse::Ignored,
