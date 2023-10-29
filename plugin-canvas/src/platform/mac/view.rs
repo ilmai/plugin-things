@@ -57,7 +57,7 @@ declare_class! {
                 text = "\u{000a}".to_string();
             }
 
-            self.window().send_event(
+            self.os_window().send_event(
                 Event::KeyDown {
                     text,
                 }
@@ -70,7 +70,7 @@ declare_class! {
 
         #[method(keyUp:)]
         fn key_up(&self, event: *const NSEvent) {
-            self.window().send_event(
+            self.os_window().send_event(
                 Event::KeyUp {
                     text: self.key_event_text(event),
                 }
@@ -138,7 +138,7 @@ declare_class! {
 
         #[method(mouseExited:)]
         fn mouse_exited(&self, _event: *const NSEvent) {
-            self.window().send_event(Event::MouseExited);
+            self.os_window().send_event(Event::MouseExited);
         }
 
         #[method(scrollWheel:)]
@@ -147,7 +147,7 @@ declare_class! {
             let x: f64 = unsafe { (*event).deltaX() };
             let y: f64 = unsafe { (*event).deltaY() };
 
-            self.window().send_event(
+            self.os_window().send_event(
                 Event::MouseWheel {
                     position: self.mouse_event_position(event),
                     delta_x: x,
@@ -161,7 +161,7 @@ declare_class! {
             // Window might have closed while the operation calling this function
             // was queued
             if !self.os_window_ptr.load(Ordering::Relaxed).is_null() {
-                self.window().send_event(Event::Draw);
+                self.os_window().send_event(Event::Draw);
             }
         }
     }
@@ -247,7 +247,7 @@ declare_class! {
 
         #[method(draggingEntered:)]
         unsafe fn dragging_entered(&self, sender: &ProtocolObject<dyn NSDraggingInfo>) -> NSDragOperation {
-            let response = self.window().send_event(Event::DragEntered {
+            let response = self.os_window().send_event(Event::DragEntered {
                 position: self.drag_event_position(sender),
                 data: self.drag_event_data(sender),
             });
@@ -257,7 +257,7 @@ declare_class! {
 
         #[method(draggingUpdated:)]
         unsafe fn dragging_updated(&self, sender: &ProtocolObject<dyn NSDraggingInfo>) -> NSDragOperation {
-            let response = self.window().send_event(Event::DragMoved {
+            let response = self.os_window().send_event(Event::DragMoved {
                 position: self.drag_event_position(sender),
                 data: self.drag_event_data(sender),
             });
@@ -267,7 +267,7 @@ declare_class! {
 
         #[method(draggingExited:)]
         unsafe fn dragging_exited(&self, _sender: &ProtocolObject<dyn NSDraggingInfo>) {
-            self.window().send_event(Event::DragExited);
+            self.os_window().send_event(Event::DragExited);
         }
 
         #[method(prepareForDragOperation:)]
@@ -277,7 +277,7 @@ declare_class! {
 
         #[method(performDragOperation:)]
         unsafe fn perform_drag_operation(&self, sender: &ProtocolObject<dyn NSDraggingInfo>) -> bool {
-            let response = self.window().send_event(Event::DragDropped {
+            let response = self.os_window().send_event(Event::DragDropped {
                 position: self.drag_event_position(sender),
                 data: self.drag_event_data(sender),
             });
@@ -290,7 +290,7 @@ declare_class! {
 unsafe impl NSObjectProtocol for OsWindowView {}
 
 impl OsWindowView {
-    pub(crate) fn window(&self) -> &mut OsWindow {
+    pub(crate) fn os_window(&self) -> &mut OsWindow {
         let window_ptr = self.os_window_ptr.load(Ordering::Relaxed) as *mut OsWindow;
         assert!(!window_ptr.is_null());
         unsafe { &mut *window_ptr }
@@ -339,15 +339,15 @@ impl OsWindowView {
             let is_down = event_flags & modifier > 0;
 
             if !was_down && is_down {
-                self.window().send_event(Event::KeyDown { text: text.to_string() });
+                self.os_window().send_event(Event::KeyDown { text: text.to_string() });
             } else if was_down && !is_down {
-                self.window().send_event(Event::KeyUp { text: text.to_string() });
+                self.os_window().send_event(Event::KeyUp { text: text.to_string() });
             }
         }
     }
     
     fn handle_mouse_move_event(&self, event: *const NSEvent) {
-        self.window().send_event(
+        self.os_window().send_event(
             Event::MouseMoved {
                 position: self.mouse_event_position(event)
             },
@@ -356,7 +356,7 @@ impl OsWindowView {
 
     fn handle_mouse_button_down_event(&self, event: *const NSEvent) {
         if let Some(button) = self.mouse_event_button(event) {
-            self.window().send_event(
+            self.os_window().send_event(
                 Event::MouseButtonDown {
                     button,
                     position: self.mouse_event_position(event)
@@ -367,7 +367,7 @@ impl OsWindowView {
 
     fn handle_mouse_button_up_event(&self, event: *const NSEvent) {
         if let Some(button) = self.mouse_event_button(event) {
-            self.window().send_event(
+            self.os_window().send_event(
                 Event::MouseButtonUp {
                     button,
                     position: self.mouse_event_position(event)
