@@ -6,13 +6,16 @@ use sys_locale::get_locale;
 use xcb::{x::{self, GrabStatus}, XidNew, Xid};
 use xkbcommon::xkb;
 
-use crate::{window::WindowAttributes, event::EventCallback, error::Error, platform::interface::{OsWindowInterface, OsWindowHandle, OsWindowBuilder}, dimensions::Size, Event, MouseButton, LogicalPosition, cursor::Cursor};
+use crate::{window::WindowAttributes, event::EventCallback, error::Error, platform::interface::{OsWindowInterface, OsWindowHandle, OsWindowBuilder}, dimensions::Size, Event, MouseButton, cursor::Cursor, PhysicalPosition};
 
 enum OsWindowEvent {
     Error(Error),
 }
 
 struct Context {
+    window_attributes: WindowAttributes,
+    os_scale: f64,
+
     event_callback: Box<EventCallback>,
     connection: xcb::Connection,
     xkb_state: xkb::State,
@@ -70,6 +73,9 @@ impl OsWindow {
         drop(window_event_sender);
 
         let mut context = Context {
+            window_attributes,
+            os_scale,
+
             event_callback,
             connection,
             xkb_state,
@@ -143,7 +149,7 @@ impl OsWindow {
         set_input_focus: Arc<Mutex<Option<bool>>>,
     ) -> Result<(xcb::Connection, x::Window, xkb::State, xkb::compose::State), Error> {
         let parent_window_id = unsafe { x::Window::new(parent_window_id) };
-        let size = Size::with_logical_size(window_attributes.size, window_attributes.scale * os_scale);
+        let size = Size::with_logical_size(window_attributes.size, window_attributes.user_scale * os_scale);
     
         let (connection, screen_number) = xcb::Connection::connect_with_xlib_display_and_extensions(
             &[], // Mandatory
@@ -271,10 +277,10 @@ impl OsWindow {
     fn handle_event(event: xcb::Event, context: &mut Context) {
         match event {
             xcb::Event::X(x::Event::ButtonPress(event)) => {
-                let position = LogicalPosition {
-                    x: event.event_x() as f64,
-                    y: event.event_y() as f64,
-                };
+                let position = PhysicalPosition {
+                    x: event.event_x() as i32,
+                    y: event.event_y() as i32,
+                }.to_logical(context.os_scale * context.window_attributes.user_scale);
 
                 if let Some(button) = Self::mouse_button_from_detail(event.detail()) {
                     (context.event_callback)(Event::MouseButtonDown {
@@ -297,10 +303,10 @@ impl OsWindow {
             }
 
             xcb::Event::X(x::Event::ButtonRelease(event)) => {
-                let position = LogicalPosition {
-                    x: event.event_x() as f64,
-                    y: event.event_y() as f64,
-                };
+                let position = PhysicalPosition {
+                    x: event.event_x() as i32,
+                    y: event.event_y() as i32,
+                }.to_logical(context.os_scale * context.window_attributes.user_scale);
 
                 if let Some(button) = Self::mouse_button_from_detail(event.detail()) {
                     (context.event_callback)(Event::MouseButtonUp {
@@ -359,10 +365,10 @@ impl OsWindow {
             }
 
             xcb::Event::X(x::Event::MotionNotify(event)) => {
-                let position = LogicalPosition {
-                    x: event.event_x() as f64,
-                    y: event.event_y() as f64,
-                };
+                let position = PhysicalPosition {
+                    x: event.event_x() as i32,
+                    y: event.event_y() as i32,
+                }.to_logical(context.os_scale * context.window_attributes.user_scale);
 
                 (context.event_callback)(Event::MouseMoved { position });
             }

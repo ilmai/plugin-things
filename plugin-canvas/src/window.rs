@@ -37,6 +37,7 @@ impl WindowAttributes {
 
 pub struct Window {
     attributes: WindowAttributes,
+    os_scale: f64,
 
     os_window_handle: OsWindowHandle,
     active_tracker: Active,
@@ -62,6 +63,7 @@ impl Window {
 
                     let window = Self {
                         attributes,
+                        os_scale,
                         os_window_handle,
                         active_tracker: Active::new(),
                     };
@@ -75,6 +77,10 @@ impl Window {
 
     pub fn attributes(&self) -> &WindowAttributes {
         &self.attributes
+    }
+
+    pub fn os_scale(&self) -> f64 {
+        self.os_scale
     }
 
     pub fn set_cursor(&self, cursor: Cursor) {

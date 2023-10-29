@@ -119,7 +119,7 @@ impl Plugin for DemoPlugin {
     fn editor(&mut self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
         let window_attributes = WindowAttributes::new(
             LogicalSize::new(800.0, 600.0),
-            2.0,
+            0.75,
         );
 
         let editor = SlintEditor::new(
