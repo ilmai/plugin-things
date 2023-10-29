@@ -78,7 +78,7 @@ impl OsWindowInterface for OsWindow {
         };
 
         let class_name = to_wstr("plugin-canvas-".to_string() + &Uuid::new_v4().simple().to_string());
-        let size = Size::with_logical_size(window_attributes.size, window_attributes.scale * os_scale);
+        let size = Size::with_logical_size(window_attributes.size, window_attributes.user_scale * os_scale);
 
         let cursor = unsafe { LoadCursorW(HINSTANCE(0), IDC_ARROW).unwrap() };
 
