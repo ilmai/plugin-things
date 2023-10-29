@@ -42,7 +42,8 @@ export component PluginWindow {
             y: 100px;
 
             states [
-                dropping when drag-x >= self.x &&
+                dropping when dragging &&
+                    drag-x >= self.x &&
                     drag-x <= self.x + self.width &&
                     drag-y >= self.y &&
                     drag-y <= self.y + self.height:
