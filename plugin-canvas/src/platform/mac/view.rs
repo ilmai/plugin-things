@@ -391,10 +391,10 @@ impl OsWindowView {
         assert!(!event.is_null());
         let point = unsafe { (*event).locationInWindow() };
 
-        self.point_to_position(point)
+        self.window_point_to_position(point)
     }
 
-    fn point_to_position(&self, point_in_window: CGPoint) -> LogicalPosition {
+    fn window_point_to_position(&self, point_in_window: CGPoint) -> LogicalPosition {
         let local_position = unsafe { self.convertPoint_fromView(point_in_window, None) };
 
         LogicalPosition {
@@ -405,7 +405,7 @@ impl OsWindowView {
 
     fn drag_event_position(&self, sender: &ProtocolObject<dyn NSDraggingInfo>) -> LogicalPosition {
         let point = unsafe { sender.draggingLocation() };
-        self.point_to_position(point)
+        self.window_point_to_position(point)
     }
 
     fn drag_event_data(&self, sender: &ProtocolObject<dyn NSDraggingInfo>) -> DropData {
