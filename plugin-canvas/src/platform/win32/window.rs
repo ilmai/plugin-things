@@ -4,13 +4,14 @@ use raw_window_handle::{HasRawWindowHandle, RawWindowHandle, WindowsDisplayHandl
 use uuid::Uuid;
 use windows::{Win32::{UI::{WindowsAndMessaging::{WNDCLASSW, RegisterClassW, HICON, LoadCursorW, IDC_ARROW, CS_OWNDC, CreateWindowExW, WS_CHILD, WS_VISIBLE, HMENU, DefWindowProcW, PostMessageW, SetWindowLongPtrW, GWLP_USERDATA, GetWindowLongPtrW, UnregisterClassW, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOVE, DestroyWindow, SetCursor, WM_MOUSEMOVE, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_RBUTTONDOWN, WM_RBUTTONUP, SetWindowsHookExW, WH_MOUSE, CallNextHookEx, HHOOK, WM_MOUSEWHEEL, MOUSEHOOKSTRUCTEX, UnhookWindowsHookEx, ShowCursor, WINDOW_EX_STYLE, SendMessageW}, Input::KeyboardAndMouse::{SetCapture, TRACKMOUSEEVENT, TME_LEAVE, TrackMouseEvent}, Controls::WM_MOUSELEAVE}, Foundation::{HWND, WPARAM, LPARAM, LRESULT, HINSTANCE, POINT}, Graphics::{Gdi::{HBRUSH, MonitorFromWindow, MONITOR_DEFAULTTOPRIMARY, ScreenToClient}, Dxgi::{CreateDXGIFactory, IDXGIFactory, DXGI_OUTPUT_DESC, IDXGIOutput}, Dwm::{DwmIsCompositionEnabled, DwmFlush}}, System::{Threading::GetCurrentThreadId, Ole::{OleInitialize, RegisterDragDrop, IDropTarget, RevokeDragDrop}}}, core::PCWSTR};
 
-use crate::{error::Error, platform::interface::{OsWindowInterface, OsWindowHandle, OsWindowBuilder}, event::{Event, MouseButton, EventCallback, EventResponse}, window::WindowAttributes, dimensions::Size, cursor::Cursor, LogicalPosition};
+use crate::{error::Error, platform::interface::{OsWindowInterface, OsWindowHandle, OsWindowBuilder}, event::{Event, MouseButton, EventCallback, EventResponse}, window::WindowAttributes, dimensions::Size, cursor::Cursor, LogicalPosition, PhysicalPosition};
 
 use super::{PLUGIN_HINSTANCE, to_wstr, message_window::MessageWindow, cursors::Cursors, WM_USER_CHAR, WM_USER_FRAME_TIMER, version::is_windows10_or_greater, drop_target::DropTarget};
 
 pub struct OsWindow {
+    window_attributes: WindowAttributes,
     os_scale: f64,
-
+    
     window_class: u16,
     window_handle: Win32WindowHandle,
     hook_handle: HHOOK,
@@ -25,6 +26,10 @@ pub struct OsWindow {
 }
 
 impl OsWindow {
+    pub(super) fn window_attributes(&self) -> &WindowAttributes {
+        &self.window_attributes
+    }
+
     pub(super) fn os_scale(&self) -> f64 {
         self.os_scale
     }
@@ -58,10 +63,12 @@ impl OsWindow {
     }
 
     fn logical_mouse_position(&self, lparam: LPARAM) -> LogicalPosition {
-        LogicalPosition {
-            x: (lparam.0 & 0xFFFF) as i16 as f64,
-            y: ((lparam.0 >> 16) & 0xFFFF) as i16 as f64,
-        }
+        let user_scale: f64 = self.window_attributes.user_scale.into();
+
+        PhysicalPosition {
+            x: (lparam.0 & 0xFFFF) as i16 as i32,
+            y: ((lparam.0 >> 16) & 0xFFFF) as i16 as i32,
+        }.to_logical(self.os_scale * user_scale)
     }
 }
 
@@ -154,6 +161,7 @@ impl OsWindowInterface for OsWindow {
         });
 
         let window = Rc::new(Self {
+            window_attributes,
             os_scale,
 
             window_class,

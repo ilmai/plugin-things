@@ -4,7 +4,6 @@ use futures::executor::block_on;
 use nih_plug::util::db_to_gain;
 use nih_plug::{nih_export_clap, nih_export_vst3, nih_debug_assert_eq};
 use nih_plug::prelude::*;
-use nih_plug_slint::Scale;
 use nih_plug_slint::{WindowAttributes, editor::SlintEditor};
 use plugin_canvas::drag_drop::DropOperation;
 use plugin_canvas::{LogicalSize, Event, LogicalPosition};
@@ -120,7 +119,7 @@ impl Plugin for DemoPlugin {
     fn editor(&mut self, _async_executor: AsyncExecutor<Self>) -> Option<Box<dyn Editor>> {
         let window_attributes = WindowAttributes::new(
             LogicalSize::new(800.0, 600.0),
-            Scale::from(0.75),
+            2.0,
         );
 
         let editor = SlintEditor::new(

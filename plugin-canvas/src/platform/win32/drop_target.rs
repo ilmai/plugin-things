@@ -88,17 +88,19 @@ impl DropTarget {
     }
 
     fn convert_coordinates(&self, point: &POINTL) -> LogicalPosition {
-        let scale = self.window.os_scale();
+        let os_scale = self.window.os_scale();
+        let user_scale: f64 = self.window.window_attributes().user_scale.into();
+
         let mut point = POINT {
-            x: (point.x as f64 / scale) as i32,
-            y: (point.y as f64 / scale) as i32
+            x: (point.x as f64 / os_scale) as i32,
+            y: (point.y as f64 / os_scale) as i32
         };
 
         unsafe { ScreenToClient(self.window.hwnd(), &mut point); }
 
         LogicalPosition {
-            x: point.x as f64,
-            y: point.y as f64,
+            x: point.x as f64 / user_scale,
+            y: point.y as f64 / user_scale,
         }
     }
 }

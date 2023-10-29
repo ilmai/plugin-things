@@ -3,7 +3,7 @@ use std::{cell::RefCell, rc::Rc, sync::{atomic::{AtomicBool, Ordering, AtomicUsi
 use i_slint_core::{window::{WindowAdapter, WindowAdapterInternal}, renderer::Renderer, platform::{PlatformError, WindowEvent}};
 use i_slint_renderer_skia::SkiaRenderer;
 use nih_plug::prelude::{ParamPtr, GuiContext};
-use plugin_canvas::{dimensions::Scale, event::EventResponse};
+use plugin_canvas::event::EventResponse;
 use raw_window_handle::{HasWindowHandle, HasDisplayHandle};
 use slint_interpreter::{ComponentInstance, ComponentDefinition, Value};
 
@@ -39,7 +39,7 @@ pub struct PluginCanvasWindowAdapter {
     ui_parameters: RefCell<HashSet<String>>,
 
     slint_size: slint::PhysicalSize,
-    user_scale: Scale,
+    user_scale: f64,
 
     pending_draw: AtomicBool,
     buttons_down: AtomicUsize,
@@ -84,7 +84,7 @@ impl PluginCanvasWindowAdapter {
         });
 
         self_rc.slint_window.dispatch_event(
-            WindowEvent::ScaleFactorChanged { scale_factor: *user_scale as f32 }
+            WindowEvent::ScaleFactorChanged { scale_factor: user_scale as f32 }
         );
 
         WINDOW_ADAPTER_FROM_SLINT.set(Some(self_rc.clone()));
@@ -303,8 +303,8 @@ impl PluginCanvasWindowAdapter {
 
     fn convert_logical_position(&self, position: &plugin_canvas::LogicalPosition) -> slint::LogicalPosition {
         slint::LogicalPosition {
-            x: (position.x / *self.user_scale) as f32,
-            y: (position.y / *self.user_scale) as f32,
+            x: position.x as f32,
+            y: position.y as f32,
         }
     }
 

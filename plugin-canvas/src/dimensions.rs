@@ -1,4 +1,4 @@
-use std::ops::{Deref, Mul, MulAssign};
+use std::ops::Mul;
 
 #[derive(Debug)]
 pub struct LogicalPosition {
@@ -7,14 +7,14 @@ pub struct LogicalPosition {
 }
 
 impl LogicalPosition {
-    pub fn from_physical(position: &PhysicalPosition, scale: Scale) -> Self {
+    pub fn from_physical(position: &PhysicalPosition, scale: f64) -> Self {
         LogicalPosition {
-            x: position.x as f64 / *scale,
-            y: position.y as f64 / *scale,
+            x: position.x as f64 / scale,
+            y: position.y as f64 / scale,
         }
     }
 
-    pub fn to_physical(&self, scale: Scale) -> PhysicalPosition {
+    pub fn to_physical(&self, scale: f64) -> PhysicalPosition {
         PhysicalPosition::from_logical(self, scale)
     }
 }
@@ -26,14 +26,14 @@ pub struct PhysicalPosition {
 }
 
 impl PhysicalPosition {
-    pub fn from_logical(position: &LogicalPosition, scale: Scale) -> Self {
+    pub fn from_logical(position: &LogicalPosition, scale: f64) -> Self {
         Self {
-            x: (position.x * *scale) as i32,
-            y: (position.y * *scale) as i32,
+            x: (position.x * scale) as i32,
+            y: (position.y * scale) as i32,
         }
     }
 
-    pub fn to_logical(&self, scale: Scale) -> LogicalPosition {
+    pub fn to_logical(&self, scale: f64) -> LogicalPosition {
         LogicalPosition::from_physical(self, scale)
     }
 }
@@ -49,25 +49,25 @@ impl LogicalSize {
         LogicalSize { width, height }
     }
 
-    pub fn from_physical(size: &PhysicalSize, scale: Scale) -> Self {
+    pub fn from_physical(size: &PhysicalSize, scale: f64) -> Self {
         Self {
-            width: size.width as f64 / *scale,
-            height: size.height as f64 / *scale,
+            width: size.width as f64 / scale,
+            height: size.height as f64 / scale,
         }
     }
 
-    pub fn to_physical(&self, scale: Scale) -> PhysicalSize {
+    pub fn to_physical(&self, scale: f64) -> PhysicalSize {
         PhysicalSize::from_logical(self, scale)
     }
 }
 
-impl Mul<Scale> for LogicalSize {
+impl Mul<f64> for LogicalSize {
     type Output = LogicalSize;
 
-    fn mul(self, rhs: Scale) -> Self::Output {
+    fn mul(self, rhs: f64) -> Self::Output {
         LogicalSize {
-            width: self.width * rhs.0,
-            height: self.height * rhs.0,
+            width: self.width * rhs,
+            height: self.height * rhs,
         }
     }
 }
@@ -86,14 +86,14 @@ impl PhysicalSize {
         }
     }
 
-    pub fn from_logical(size: &LogicalSize, scale: Scale) -> Self {
+    pub fn from_logical(size: &LogicalSize, scale: f64) -> Self {
         Self {
-            width: (size.width * *scale).round() as u32,
-            height: (size.height * *scale).round() as u32,
+            width: (size.width * scale).round() as u32,
+            height: (size.height * scale).round() as u32,
         }
     }
 
-    pub fn to_logical(&self, scale: Scale) -> LogicalSize {
+    pub fn to_logical(&self, scale: f64) -> LogicalSize {
         LogicalSize::from_physical(self, scale)
     }
 }
@@ -102,11 +102,11 @@ impl PhysicalSize {
 pub struct Size {
     logical_size: LogicalSize,
     physical_size: PhysicalSize,
-    scale: Scale,
+    scale: f64,
 }
 
 impl Size {
-    pub fn with_logical_size(logical_size: LogicalSize, scale: Scale) -> Self {
+    pub fn with_logical_size(logical_size: LogicalSize, scale: f64) -> Self {
         Self {
             logical_size,
             physical_size: PhysicalSize::from_logical(&logical_size, scale),
@@ -114,7 +114,7 @@ impl Size {
         }
     }
 
-    pub fn with_physical_size(physical_size: PhysicalSize, scale: Scale) -> Self {
+    pub fn with_physical_size(physical_size: PhysicalSize, scale: f64) -> Self {
         Self {
             logical_size: LogicalSize::from_physical(&physical_size, scale),
             physical_size,
@@ -130,79 +130,16 @@ impl Size {
         &self.physical_size
     }
 
-    pub fn scale(&self) -> Scale {
+    pub fn scale(&self) -> f64 {
         self.scale
     }
 
-    pub fn set_scale(&mut self, scale: Scale) {
+    pub fn set_scale(&mut self, scale: f64) {
         self.scale = scale;
         self.physical_size = PhysicalSize::from_logical(&self.logical_size, scale);
     }
 
-    pub fn scale_by(&mut self, scale: Scale) {
+    pub fn scale_by(&mut self, scale: f64) {
         self.set_scale(self.scale * scale);
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd)]
-pub struct Scale(f64);
-
-impl Default for Scale {
-    fn default() -> Self {
-        Self(1.0)
-    }
-}
-
-impl Deref for Scale {
-    type Target = f64;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl From<f32> for Scale {
-    fn from(value: f32) -> Self {
-        Self(value as f64)
-    }
-}
-
-impl From<f64> for Scale {
-    fn from(value: f64) -> Self {
-        Self(value)
-    }
-}
-
-impl Into<f64> for Scale {
-    fn into(self) -> f64 {
-        self.0
-    }
-}
-
-impl Mul<f64> for Scale {
-    type Output = Scale;
-
-    fn mul(self, rhs: f64) -> Self::Output {
-        Scale(self.0 * rhs)
-    }
-}
-
-impl Mul<Scale> for Scale {
-    type Output = Scale;
-
-    fn mul(self, rhs: Scale) -> Self::Output {
-        Scale(self.0 * rhs.0)
-    }
-}
-
-impl MulAssign<f64> for Scale {
-    fn mul_assign(&mut self, rhs: f64) {
-        self.0 *= rhs;
-    }
-}
-
-impl MulAssign<Scale> for Scale {
-    fn mul_assign(&mut self, rhs: Scale) {
-        self.0 *= rhs.0;
     }
 }

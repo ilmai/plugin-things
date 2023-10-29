@@ -1,17 +1,17 @@
 use raw_window_handle::{RawWindowHandle, HasRawWindowHandle, HasWindowHandle, Active, HasDisplayHandle, HasRawDisplayHandle};
 
-use crate::{platform::{window::OsWindow, interface::{OsWindowInterface, OsWindowHandle}}, error::Error, event::EventCallback, cursor::Cursor, dimensions::{LogicalSize, Scale}};
+use crate::{platform::{window::OsWindow, interface::{OsWindowInterface, OsWindowHandle}}, error::Error, event::EventCallback, cursor::Cursor, dimensions::LogicalSize};
 
 pub type WindowBuilder = Box<dyn FnOnce(Window) + Send>;
 
 #[derive(Clone)]
 pub struct WindowAttributes {
     pub(crate) size: LogicalSize,
-    pub(crate) user_scale: Scale,
+    pub(crate) user_scale: f64,
 }
 
 impl WindowAttributes {
-    pub fn new(size: LogicalSize, user_scale: Scale) -> Self {
+    pub fn new(size: LogicalSize, user_scale: f64) -> Self {
         Self {
             size,
             user_scale,
@@ -19,14 +19,14 @@ impl WindowAttributes {
     }
 
     pub fn with_size(size: LogicalSize) -> Self {
-        Self::new(size, Scale::default())
+        Self::new(size, 1.0)
     }
 
     pub fn size(&self) -> LogicalSize {
         self.size
     }
 
-    pub fn user_scale(&self) -> Scale {
+    pub fn user_scale(&self) -> f64 {
         self.user_scale
     }
 
