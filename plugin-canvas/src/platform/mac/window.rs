@@ -10,6 +10,8 @@ use super::display_link::{CVDisplayLinkRef, CVTimeStamp, CVReturn, self};
 use super::view::OsWindowView;
 
 pub struct OsWindow {
+    window_attributes: WindowAttributes,
+
     window_handle: AppKitWindowHandle,
     display_link: RefCell<Option<CVDisplayLinkRef>>,
     event_callback: Box<EventCallback>,
@@ -18,6 +20,10 @@ pub struct OsWindow {
 }
 
 impl OsWindow {
+    pub(super) fn window_attributes(&self) -> &WindowAttributes {
+        &self.window_attributes
+    }
+
     unsafe fn from_ptr<'a>(ptr: *mut c_void) -> &'a mut Self {
         assert!(!ptr.is_null());
         let window_ptr = ptr as *mut OsWindow;
@@ -38,7 +44,7 @@ impl OsWindow {
 impl OsWindowInterface for OsWindow {
     fn open(
         parent_window_handle: RawWindowHandle,
-        attributes: WindowAttributes,
+        window_attributes: WindowAttributes,
         os_scale: f64,
         event_callback: Box<EventCallback>,
         window_builder: OsWindowBuilder,
@@ -47,7 +53,7 @@ impl OsWindowInterface for OsWindow {
             return Err(Error::PlatformError("Not an AppKit window".into()));
         };
 
-        let physical_size = crate::PhysicalSize::from_logical(&attributes.size, attributes.user_scale * os_scale);
+        let physical_size = crate::PhysicalSize::from_logical(&window_attributes.size, window_attributes.user_scale * os_scale);
 
         let view_rect = CGRect::new(
             CGPoint { x: 0.0, y: 0.0 },
@@ -86,6 +92,8 @@ impl OsWindowInterface for OsWindow {
         let raw_display_handle = RawDisplayHandle::AppKit(AppKitDisplayHandle::empty());
 
         let window = Rc::new(Self {
+            window_attributes,
+
             window_handle,
             display_link: Default::default(),
             event_callback,
