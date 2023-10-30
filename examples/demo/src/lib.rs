@@ -141,7 +141,7 @@ impl Plugin for DemoPlugin {
 
                 definition.create().unwrap()
             },
-            |component, event| {
+            |_gui_context, component, event| {
                 match event {
                     Event::DragEntered { position, data: _ } => {
                         component.set_property("dragging", Value::Bool(true)).unwrap();

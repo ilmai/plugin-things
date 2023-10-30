@@ -17,7 +17,7 @@ use crate::{platform::PluginCanvasPlatform, window_adapter::{WINDOW_TO_SLINT, WI
 pub struct SlintEditor<B, E>
 where
     B: Fn() -> ComponentInstance,
-    E: Fn(&ComponentInstance, &Event) -> EventResponse,
+    E: Fn(Arc<dyn GuiContext>, &ComponentInstance, &Event) -> EventResponse,
 {
     window_attributes: WindowAttributes,
     os_scale: RwLock<f32>,
@@ -32,7 +32,7 @@ where
 impl<B, E> SlintEditor<B, E>
 where
     B: Fn() -> ComponentInstance,
-    E: Fn(&ComponentInstance, &Event) -> EventResponse,
+    E: Fn(Arc<dyn GuiContext>, &ComponentInstance, &Event) -> EventResponse,
 {
     pub fn new(
         window_attributes: WindowAttributes,
@@ -57,7 +57,7 @@ where
 impl<B, E> Editor for SlintEditor<B, E>
 where
     B: Fn() -> ComponentInstance + Clone + Send + 'static,
-    E: Fn(&ComponentInstance, &Event) -> EventResponse + Clone + Send + 'static,
+    E: Fn(Arc<dyn GuiContext>, &ComponentInstance, &Event) -> EventResponse + Clone + Send + 'static,
 {
     fn spawn(&self, parent: ParentWindowHandle, context: Arc<dyn GuiContext>) -> Box<dyn Any + Send> {
         let editor_handle = Arc::new(EditorHandle::new());
@@ -80,7 +80,7 @@ where
                         match editor_handle.on_event(&event) {
                             EventResponse::Ignored => {
                                 editor_handle.window_adapter().with_context(|context| {
-                                    event_handler(&context.component, &event)
+                                    event_handler(context.gui_context.clone(), &context.component, &event)
                                 })
                             },
 
