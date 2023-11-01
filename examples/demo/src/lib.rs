@@ -1,17 +1,19 @@
-use std::{sync::Arc, num::NonZeroU32, path::PathBuf};
+use std::any::Any;
+use std::{sync::Arc, num::NonZeroU32};
 
-use futures::executor::block_on;
 use nih_plug::util::db_to_gain;
 use nih_plug::{nih_export_clap, nih_export_vst3, nih_debug_assert_eq};
 use nih_plug::prelude::*;
+use nih_plug_slint::plugin_component_handle::PluginComponentHandle;
 use nih_plug_slint::{WindowAttributes, editor::SlintEditor};
 use plugin_canvas::drag_drop::DropOperation;
 use plugin_canvas::{LogicalSize, Event, LogicalPosition};
 use plugin_canvas::event::EventResponse;
-use slint_interpreter::{ComponentCompiler, Value, ComponentInstance};
 
 const DB_MIN: f32 = -80.0;
 const DB_MAX: f32 = 20.0;
+
+slint::include_modules!();
 
 #[derive(Params)]
 pub struct PluginParams {
@@ -19,39 +21,36 @@ pub struct PluginParams {
     pub gain: FloatParam,
 }
 
+impl PluginComponentHandle for PluginWindow {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn window(&self) -> &slint::Window {
+        slint::ComponentHandle::window(self)
+    }
+}
+
 pub struct DemoPlugin {
     params: Arc<PluginParams>,
 }
 
 impl DemoPlugin {
-    fn drag_event_response(component: &ComponentInstance, position: &LogicalPosition) -> EventResponse {
-        component.set_property("drag-x", Value::Number(position.x.into())).unwrap();
-        component.set_property("drag-y", Value::Number(position.y.into())).unwrap();
+    fn drag_event_response(component: &PluginWindow, position: &LogicalPosition) -> EventResponse {
+        component.set_drag_x(position.x as f32);
+        component.set_drag_y(position.y as f32);
+    
+        let drop_area_x = component.get_drop_area_x() as f64;
+        let drop_area_y = component.get_drop_area_y() as f64;
+        let drop_area_width = component.get_drop_area_width() as f64;
+        let drop_area_height = component.get_drop_area_height() as f64;
 
-        if let (
-            Value::Number(drag_x),
-            Value::Number(drag_y),
-            Value::Number(drop_area_x),
-            Value::Number(drop_area_y),
-            Value::Number(drop_area_width),
-            Value::Number(drop_area_height),
-        ) = (
-            component.get_property("drag-x").unwrap(),
-            component.get_property("drag-y").unwrap(),
-            component.get_property("drop-area-x").unwrap(),
-            component.get_property("drop-area-y").unwrap(),
-            component.get_property("drop-area-width").unwrap(),
-            component.get_property("drop-area-height").unwrap(),
-        ) {
-            if drag_x >= drop_area_x &&
-                drag_x <= drop_area_x + drop_area_width &&
-                drag_y >= drop_area_y &&
-                drag_y <= drop_area_y + drop_area_height
-            {
-                EventResponse::DropAccepted(DropOperation::Copy)
-            } else {
-                EventResponse::Ignored
-            }
+        if position.x >= drop_area_x &&
+            position.x <= drop_area_x + drop_area_width &&
+            position.y >= drop_area_y &&
+            position.y <= drop_area_y + drop_area_height
+        {
+            EventResponse::DropAccepted(DropOperation::Copy)
         } else {
             EventResponse::Ignored
         }
@@ -127,39 +126,27 @@ impl Plugin for DemoPlugin {
             &self.params,
             "PluginParameters",
             || {
-                let mut compiler = ComponentCompiler::new();
-                compiler.set_include_paths(vec![
-                    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../nih_plug_slint/components/"),
-                ]);
-
-                let Some(definition) = block_on(compiler.build_from_source(
-                    include_str!("../main.slint").into(),
-                    "../main.slint".into())
-                ) else {
-                    panic!("{:?}", compiler.diagnostics());
-                };
-
-                definition.create().unwrap()
+                PluginWindow::new().unwrap()
             },
             |_gui_context, component, event| {
                 match event {
                     Event::DragEntered { position, data: _ } => {
-                        component.set_property("dragging", Value::Bool(true)).unwrap();
+                        component.set_dragging(true);
                         Self::drag_event_response(component, position)
                     },
 
                     Event::DragExited => {
-                        component.set_property("dragging", Value::Bool(false)).unwrap();
+                        component.set_dragging(false);
                         EventResponse::Handled
                     },
 
                     Event::DragMoved { position, data: _ } => {
-                        component.set_property("dragging", Value::Bool(true)).unwrap();
+                        component.set_dragging(true);
                         Self::drag_event_response(component, position)
                     },
 
                     Event::DragDropped { position, data: _ } => {
-                        component.set_property("dragging", Value::Bool(false)).unwrap();
+                        component.set_dragging(false);
                         Self::drag_event_response(component, position)
                     },
 
@@ -167,6 +154,7 @@ impl Plugin for DemoPlugin {
                 }
             },
         );
+
         Some(Box::new(editor))
     }
 

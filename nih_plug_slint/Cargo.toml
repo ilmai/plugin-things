@@ -16,4 +16,3 @@ plugin-canvas.workspace = true
 raw-window-handle.workspace = true
 raw-window-handle-0-4 = { version = "0.4", package = "raw-window-handle" }
 slint.workspace = true
-slint-interpreter.workspace = true

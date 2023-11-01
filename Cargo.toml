@@ -13,7 +13,6 @@ nih_plug_slint = { path = "nih_plug_slint" }
 plugin-canvas = { path = "plugin-canvas" }
 raw-window-handle = "0.5"
 slint = { version = "1.2", default-features = false, features = ["accessibility", "compat-1-2", "std"] }
-slint-interpreter = { version = "1.2", default-features = false, features = ["accessibility", "compat-1-2", "std"] }
 
 # Internal slint crate versions need to be pinned
 # since they don't maintain semver compatibility

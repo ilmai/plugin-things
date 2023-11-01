@@ -9,30 +9,33 @@ use nih_plug::prelude::*;
 use plugin_canvas::event::EventResponse;
 use plugin_canvas::{window::WindowAttributes, Event};
 use raw_window_handle_0_4::HasRawWindowHandle;
-use slint_interpreter::{ComponentHandle, ComponentInstance};
 
+use crate::plugin_component_handle::PluginComponentHandle;
 use crate::window_adapter::{Context, ParameterChangeSender, ParameterChange};
 use crate::{platform::PluginCanvasPlatform, window_adapter::{WINDOW_TO_SLINT, WINDOW_ADAPTER_FROM_SLINT, PluginCanvasWindowAdapter}, raw_window_handle_adapter::RawWindowHandleAdapter};
 
-pub struct SlintEditor<B, E>
+pub struct SlintEditor<C, B, E>
 where
-    B: Fn() -> ComponentInstance,
-    E: Fn(Arc<dyn GuiContext>, &ComponentInstance, &Event) -> EventResponse,
+    C: PluginComponentHandle,
+    B: Fn() -> C,
+    E: Fn(Arc<dyn GuiContext>, &C, &Event) -> EventResponse,
 {
     window_attributes: WindowAttributes,
     os_scale: RwLock<f32>,
     parameter_globals_name: String,
     component_builder: B,
     event_handler: E,
+
     editor_handle: Mutex<Option<Weak<EditorHandle>>>,
     param_map: Vec<(String, ParamPtr, String)>,
     parameter_change_sender: RefCell<Option<ParameterChangeSender>>,
 }
 
-impl<B, E> SlintEditor<B, E>
+impl<C, B, E> SlintEditor<C, B, E>
 where
-    B: Fn() -> ComponentInstance,
-    E: Fn(Arc<dyn GuiContext>, &ComponentInstance, &Event) -> EventResponse,
+    C: PluginComponentHandle,
+    B: Fn() -> C,
+    E: Fn(Arc<dyn GuiContext>, &C, &Event) -> EventResponse,
 {
     pub fn new(
         window_attributes: WindowAttributes,
@@ -47,6 +50,7 @@ where
             parameter_globals_name: parameter_globals_name.as_ref().into(),
             component_builder,
             event_handler,
+
             editor_handle: Default::default(),
             param_map: params.param_map(),
             parameter_change_sender: Default::default(),
@@ -54,10 +58,11 @@ where
     }
 }
 
-impl<B, E> Editor for SlintEditor<B, E>
+impl<C, B, E> Editor for SlintEditor<C, B, E>
 where
-    B: Fn() -> ComponentInstance + Clone + Send + 'static,
-    E: Fn(Arc<dyn GuiContext>, &ComponentInstance, &Event) -> EventResponse + Clone + Send + 'static,
+    C: PluginComponentHandle + 'static,
+    B: Fn() -> C + Clone + Send + 'static,
+    E: Fn(Arc<dyn GuiContext>, &C, &Event) -> EventResponse + Clone + Send + 'static,
 {
     fn spawn(&self, parent: ParentWindowHandle, context: Arc<dyn GuiContext>) -> Box<dyn Any + Send> {
         let editor_handle = Arc::new(EditorHandle::new());
@@ -80,7 +85,7 @@ where
                         match editor_handle.on_event(&event) {
                             EventResponse::Ignored => {
                                 editor_handle.window_adapter().with_context(|context| {
-                                    event_handler(context.gui_context.clone(), &context.component, &event)
+                                    event_handler(context.gui_context.clone(), context.component().unwrap(), &event)
                                 })
                             },
 
@@ -105,7 +110,6 @@ where
                     WINDOW_TO_SLINT.set(Some(Box::new(window)));
 
                     let component = component_builder();
-                    let component_definition = component.definition();
                     component.window().show().unwrap();
             
                     let param_map = param_map.iter()
@@ -115,12 +119,11 @@ where
                         .collect();
 
                     let context = Context {
-                        component,
-                        component_definition,
                         param_map: Rc::new(param_map),
                         parameter_globals_name,
                         gui_context,
                         parameter_change_receiver,
+                        component: Box::new(component),
                     };
 
                     let window_adapter = WINDOW_ADAPTER_FROM_SLINT.take().unwrap();

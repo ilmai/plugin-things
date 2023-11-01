@@ -5,7 +5,8 @@ use i_slint_renderer_skia::SkiaRenderer;
 use nih_plug::prelude::{ParamPtr, GuiContext};
 use plugin_canvas::event::EventResponse;
 use raw_window_handle::{HasWindowHandle, HasDisplayHandle};
-use slint_interpreter::{ComponentInstance, ComponentDefinition, Value};
+
+use crate::plugin_component_handle::PluginComponentHandle;
 
 thread_local! {
     pub static WINDOW_TO_SLINT: RefCell<Option<Box<plugin_canvas::Window>>> = Default::default();
@@ -22,12 +23,17 @@ pub type ParameterChangeSender = mpsc::Sender<ParameterChange>;
 pub type ParameterChangeReceiver = mpsc::Receiver<ParameterChange>;
 
 pub struct Context {
-    pub component: ComponentInstance,
-    pub component_definition: ComponentDefinition,
     pub param_map: Rc<HashMap<String, ParamPtr>>,
     pub parameter_globals_name: String,
     pub gui_context: Arc<dyn GuiContext>,
     pub parameter_change_receiver: ParameterChangeReceiver,
+    pub component: Box<dyn PluginComponentHandle>,
+}
+
+impl Context {
+    pub fn component<T: PluginComponentHandle + 'static>(&self) -> Option<&T> {
+        self.component.as_any().downcast_ref()
+    }
 }
 
 pub struct PluginCanvasWindowAdapter {
@@ -103,76 +109,76 @@ impl PluginCanvasWindowAdapter {
 
     pub fn set_context(&self, context: Context) {
         // Save parameter names that are used by the UI
-        let mut ui_parameters = self.ui_parameters.borrow_mut();
-        for (name, _) in context.component_definition.global_properties(&context.parameter_globals_name).unwrap() {
-            ui_parameters.insert(name);
-        }
-        drop(ui_parameters);
+        // let mut ui_parameters = self.ui_parameters.borrow_mut();
+        // for (name, _) in context.component_definition.global_properties(&context.parameter_globals_name).unwrap() {
+        //     ui_parameters.insert(name);
+        // }
+        // drop(ui_parameters);
 
-        // Set callbacks
-        let param_map = context.param_map.clone();
-        let gui_context = context.gui_context.clone();
-        context.component.set_global_callback(&context.parameter_globals_name, "start-change", move |values| {
-            if let Value::String(name) = &values[0] {
-                let param_ptr = param_map.get(name.as_str()).unwrap();
-                unsafe { gui_context.raw_begin_set_parameter(param_ptr.clone()) };
-            }
+        // // Set callbacks
+        // let param_map = context.param_map.clone();
+        // let gui_context = context.gui_context.clone();
+        // context.component.set_global_callback(&context.parameter_globals_name, "start-change", move |values| {
+        //     if let Value::String(name) = &values[0] {
+        //         let param_ptr = param_map.get(name.as_str()).unwrap();
+        //         unsafe { gui_context.raw_begin_set_parameter(param_ptr.clone()) };
+        //     }
 
-            Value::Void
-        }).unwrap();
+        //     Value::Void
+        // }).unwrap();
 
-        let param_map = context.param_map.clone();
-        let gui_context = context.gui_context.clone();
-        context.component.set_global_callback(&context.parameter_globals_name, "changed", move |values| {
-            if let (Value::String(name), Value::Number(value)) = (&values[0], &values[1]) {                
-                let param_ptr = param_map.get(name.as_str()).unwrap();
-                unsafe { gui_context.raw_set_parameter_normalized(param_ptr.clone(), *value as f32) };
-            }
+        // let param_map = context.param_map.clone();
+        // let gui_context = context.gui_context.clone();
+        // context.component.set_global_callback(&context.parameter_globals_name, "changed", move |values| {
+        //     if let (Value::String(name), Value::Number(value)) = (&values[0], &values[1]) {                
+        //         let param_ptr = param_map.get(name.as_str()).unwrap();
+        //         unsafe { gui_context.raw_set_parameter_normalized(param_ptr.clone(), *value as f32) };
+        //     }
 
-            Value::Void
-        }).unwrap();
+        //     Value::Void
+        // }).unwrap();
 
-        let param_map = context.param_map.clone();
-        let gui_context = context.gui_context.clone();
-        context.component.set_global_callback(&context.parameter_globals_name, "end-change", move |values| {
-            if let Value::String(name) = &values[0] {
-                let param_ptr = param_map.get(name.as_str()).unwrap();
-                unsafe { gui_context.raw_end_set_parameter(param_ptr.clone()) };
-            }
+        // let param_map = context.param_map.clone();
+        // let gui_context = context.gui_context.clone();
+        // context.component.set_global_callback(&context.parameter_globals_name, "end-change", move |values| {
+        //     if let Value::String(name) = &values[0] {
+        //         let param_ptr = param_map.get(name.as_str()).unwrap();
+        //         unsafe { gui_context.raw_end_set_parameter(param_ptr.clone()) };
+        //     }
 
-            Value::Void
-        }).unwrap();
+        //     Value::Void
+        // }).unwrap();
 
-        let param_map = context.param_map.clone();
-        let gui_context = context.gui_context.clone();
-        context.component.set_global_callback(&context.parameter_globals_name, "set-string", move |values| {
-            if let (Value::String(name), Value::String(string)) = (&values[0], &values[1]) {
-                let param_ptr = param_map.get(name.as_str()).unwrap();
-                unsafe {
-                    if let Some(value) = param_ptr.string_to_normalized_value(string) {
-                        gui_context.raw_begin_set_parameter(param_ptr.clone());
-                        gui_context.raw_set_parameter_normalized(param_ptr.clone(), value);
-                        gui_context.raw_end_set_parameter(param_ptr.clone());
-                    }
-                }
-            }
+        // let param_map = context.param_map.clone();
+        // let gui_context = context.gui_context.clone();
+        // context.component.set_global_callback(&context.parameter_globals_name, "set-string", move |values| {
+        //     if let (Value::String(name), Value::String(string)) = (&values[0], &values[1]) {
+        //         let param_ptr = param_map.get(name.as_str()).unwrap();
+        //         unsafe {
+        //             if let Some(value) = param_ptr.string_to_normalized_value(string) {
+        //                 gui_context.raw_begin_set_parameter(param_ptr.clone());
+        //                 gui_context.raw_set_parameter_normalized(param_ptr.clone(), value);
+        //                 gui_context.raw_end_set_parameter(param_ptr.clone());
+        //             }
+        //         }
+        //     }
 
-            Value::Void
-        }).unwrap();
+        //     Value::Void
+        // }).unwrap();
 
-        // Set default values for parameters
-        if let Some(ui_plugin_parameters) = context.component_definition.global_properties(&context.parameter_globals_name) {
-            for (name, _) in ui_plugin_parameters {
-                if let Some(param_ptr) = context.param_map.get(&name) {
-                    let default_value = unsafe { param_ptr.default_normalized_value() };
+        // // Set default values for parameters
+        // if let Some(ui_plugin_parameters) = context.component_definition.global_properties(&context.parameter_globals_name) {
+        //     for (name, _) in ui_plugin_parameters {
+        //         if let Some(param_ptr) = context.param_map.get(&name) {
+        //             let default_value = unsafe { param_ptr.default_normalized_value() };
 
-                    if let Ok(Value::Struct(mut plugin_parameter)) = context.component.get_global_property(&context.parameter_globals_name, &name) {
-                        plugin_parameter.set_field("default-value".into(), Value::Number(default_value as f64));
-                        context.component.set_global_property(&context.parameter_globals_name, &name, Value::Struct(plugin_parameter)).unwrap();
-                    }
-                }
-            }
-        }
+        //             if let Ok(Value::Struct(mut plugin_parameter)) = context.component.get_global_property(&context.parameter_globals_name, &name) {
+        //                 plugin_parameter.set_field("default-value".into(), Value::Number(default_value as f64));
+        //                 context.component.set_global_property(&context.parameter_globals_name, &name, Value::Struct(plugin_parameter)).unwrap();
+        //             }
+        //         }
+        //     }
+        // }
 
         *self.context.borrow_mut() = Some(context);
 
@@ -316,24 +322,24 @@ impl PluginCanvasWindowAdapter {
         let context = self.context.borrow();
         let context = context.as_ref().unwrap();
 
-        if let Some(param_ptr) = context.param_map.get(id) {
-            if let Ok(Value::Struct(mut plugin_parameter)) = context.component.get_global_property(&context.parameter_globals_name, &id) {
-                let value = unsafe { param_ptr.unmodulated_normalized_value() };
-                let modulation = unsafe { param_ptr.modulated_normalized_value() - value };
+        // if let Some(param_ptr) = context.param_map.get(id) {
+        //     if let Ok(Value::Struct(mut plugin_parameter)) = context.component.get_global_property(&context.parameter_globals_name, &id) {
+        //         let value = unsafe { param_ptr.unmodulated_normalized_value() };
+        //         let modulation = unsafe { param_ptr.modulated_normalized_value() - value };
 
-                if update_value {
-                    let display_value = unsafe { param_ptr.normalized_value_to_string(value, true) };
+        //         if update_value {
+        //             let display_value = unsafe { param_ptr.normalized_value_to_string(value, true) };
 
-                    plugin_parameter.set_field("value".into(), Value::Number(value as f64));
-                    plugin_parameter.set_field("display-value".into(), Value::String(display_value.into()));    
-                    plugin_parameter.set_field("modulation".into(), Value::Number(modulation as f64));
-                } else if update_modulation {
-                    plugin_parameter.set_field("modulation".into(), Value::Number(modulation as f64));
-                }
+        //             plugin_parameter.set_field("value".into(), Value::Number(value as f64));
+        //             plugin_parameter.set_field("display-value".into(), Value::String(display_value.into()));    
+        //             plugin_parameter.set_field("modulation".into(), Value::Number(modulation as f64));
+        //         } else if update_modulation {
+        //             plugin_parameter.set_field("modulation".into(), Value::Number(modulation as f64));
+        //         }
 
-                context.component.set_global_property(&context.parameter_globals_name, id, Value::Struct(plugin_parameter)).unwrap();
-            }
-        }
+        //         context.component.set_global_property(&context.parameter_globals_name, id, Value::Struct(plugin_parameter)).unwrap();
+        //     }
+        // }
     }
 
     fn update_all_parameters(&self) {

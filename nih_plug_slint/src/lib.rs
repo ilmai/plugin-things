@@ -1,3 +1,4 @@
+pub mod plugin_component_handle;
 pub mod editor;
 pub mod platform;
 pub mod raw_window_handle_adapter;
