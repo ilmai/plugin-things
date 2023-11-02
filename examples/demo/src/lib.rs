@@ -1,4 +1,5 @@
 use std::any::Any;
+use std::collections::HashMap;
 use std::{sync::Arc, num::NonZeroU32};
 
 use nih_plug::util::db_to_gain;
@@ -9,6 +10,7 @@ use nih_plug_slint::{WindowAttributes, editor::SlintEditor};
 use plugin_canvas::drag_drop::DropOperation;
 use plugin_canvas::{LogicalSize, Event, LogicalPosition};
 use plugin_canvas::event::EventResponse;
+use slint::SharedString;
 
 const DB_MIN: f32 = -80.0;
 const DB_MAX: f32 = 20.0;
@@ -27,9 +29,63 @@ pub struct PluginComponent {
 }
 
 impl PluginComponent {
-    fn new(params: Arc<PluginParams>) -> Self {
+    fn new(params: Arc<PluginParams>, gui_context: Arc<dyn GuiContext>) -> Self {
+        let window = PluginWindow::new().unwrap();
+
+        let param_map: HashMap<SharedString, _> = params.param_map().iter()
+            .map(|(name, param_ptr, _)| {
+                (name.clone().into(), *param_ptr)
+            })
+            .collect();
+
+        window.on_start_change({
+            let gui_context = gui_context.clone();
+            let param_map = param_map.clone();
+
+            move |parameter_id| {
+                let param_ptr = param_map.get(&parameter_id).unwrap();
+                unsafe { gui_context.raw_begin_set_parameter(*param_ptr) };
+            }
+        });
+
+        window.on_changed({
+            let gui_context = gui_context.clone();
+            let param_map = param_map.clone();
+
+            move |parameter_id, value| {
+                let param_ptr = param_map.get(&parameter_id).unwrap();
+                unsafe { gui_context.raw_set_parameter_normalized(*param_ptr, value) };
+            }
+        });
+
+        window.on_end_change({
+            let gui_context = gui_context.clone();
+            let param_map = param_map.clone();
+
+            move |parameter_id| {
+                let param_ptr = param_map.get(&parameter_id).unwrap();
+                unsafe { gui_context.raw_end_set_parameter(*param_ptr) };
+            }
+        });
+
+        window.on_set_string({
+            let gui_context = gui_context.clone();
+            let param_map = param_map.clone();
+
+            move |parameter_id, string| {
+                let param_ptr = param_map.get(&parameter_id).unwrap();
+                unsafe {
+                    if let Some(value) = param_ptr.string_to_normalized_value(&string) {
+                        gui_context.raw_begin_set_parameter(*param_ptr);
+                        gui_context.raw_set_parameter_normalized(*param_ptr, value);
+                        gui_context.raw_end_set_parameter(*param_ptr);
+                    }    
+                }
+            }
+        });
+
         Self {
-            window: PluginWindow::new().unwrap(),
+            window,
             params,
         }
     }
@@ -280,7 +336,7 @@ impl Plugin for DemoPlugin {
             window_attributes,
             {
                 let params = self.params.clone();
-                move || PluginComponent::new(params.clone())
+                move |gui_context| PluginComponent::new(params.clone(), gui_context)
             },
         );
 
