@@ -52,7 +52,7 @@ where
     C: PluginComponentHandle + 'static,
     B: Fn() -> C + Clone + Send + 'static,
 {
-    fn spawn(&self, parent: ParentWindowHandle, context: Arc<dyn GuiContext>) -> Box<dyn Any + Send> {
+    fn spawn(&self, parent: ParentWindowHandle, gui_context: Arc<dyn GuiContext>) -> Box<dyn Any + Send> {
         let editor_handle = Arc::new(EditorHandle::new());
         let raw_window_handle_adapter = RawWindowHandleAdapter::from(parent.raw_window_handle());
         let window_attributes = self.window_attributes.clone();
@@ -86,7 +86,7 @@ where
             {
                 let editor_handle = editor_handle.clone();
                 let component_builder = self.component_builder.clone();
-                let gui_context = context.clone();
+                let gui_context = gui_context.clone();
 
                 Box::new(move |window| {
                     // It's ok if this fails as it just means it has already been set
@@ -113,6 +113,7 @@ where
 
         let weak_editor_handle = Arc::downgrade(&editor_handle);
         *self.editor_handle.lock().unwrap() = Some(weak_editor_handle);
+
         Box::new(editor_handle)
     }
 
