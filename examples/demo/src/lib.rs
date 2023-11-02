@@ -21,29 +21,15 @@ pub struct PluginParams {
     pub gain: FloatParam,
 }
 
-impl PluginComponentHandle for PluginWindow {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn window(&self) -> &slint::Window {
-        slint::ComponentHandle::window(self)
-    }
-}
-
-pub struct DemoPlugin {
-    params: Arc<PluginParams>,
-}
-
-impl DemoPlugin {
-    fn drag_event_response(component: &PluginWindow, position: &LogicalPosition) -> EventResponse {
-        component.set_drag_x(position.x as f32);
-        component.set_drag_y(position.y as f32);
+impl PluginWindow {
+    fn drag_event_response(&self, position: &LogicalPosition) -> EventResponse {
+        self.set_drag_x(position.x as f32);
+        self.set_drag_y(position.y as f32);
     
-        let drop_area_x = component.get_drop_area_x() as f64;
-        let drop_area_y = component.get_drop_area_y() as f64;
-        let drop_area_width = component.get_drop_area_width() as f64;
-        let drop_area_height = component.get_drop_area_height() as f64;
+        let drop_area_x = self.get_drop_area_x() as f64;
+        let drop_area_y = self.get_drop_area_y() as f64;
+        let drop_area_width = self.get_drop_area_width() as f64;
+        let drop_area_height = self.get_drop_area_height() as f64;
 
         if position.x >= drop_area_x &&
             position.x <= drop_area_x + drop_area_width &&
@@ -55,6 +41,52 @@ impl DemoPlugin {
             EventResponse::Ignored
         }
     }
+}
+
+impl PluginComponentHandle for PluginWindow {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn window(&self) -> &slint::Window {
+        slint::ComponentHandle::window(self)
+    }
+
+    fn on_event(&self, event: &Event) -> EventResponse {
+        match event {
+            Event::DragEntered { position, data: _ } => {
+                self.set_dragging(true);
+                self.drag_event_response(position)
+            },
+
+            Event::DragExited => {
+                self.set_dragging(false);
+                EventResponse::Handled
+            },
+
+            Event::DragMoved { position, data: _ } => {
+                self.set_dragging(true);
+                self.drag_event_response(position)
+            },
+
+            Event::DragDropped { position, data: _ } => {
+                self.set_dragging(false);
+                self.drag_event_response(position)
+            },
+
+            _ => EventResponse::Ignored,
+        }
+    }
+
+    fn update_parameter(&self, _id: &str, _update_value: bool, _update_modulation: bool) {
+    }
+
+    fn update_all_parameters(&self) {
+    }
+}
+
+pub struct DemoPlugin {
+    params: Arc<PluginParams>,
 }
 
 impl Default for DemoPlugin {
@@ -123,36 +155,7 @@ impl Plugin for DemoPlugin {
 
         let editor = SlintEditor::new(
             window_attributes,
-            &self.params,
-            "PluginParameters",
-            || {
-                PluginWindow::new().unwrap()
-            },
-            |_gui_context, component, event| {
-                match event {
-                    Event::DragEntered { position, data: _ } => {
-                        component.set_dragging(true);
-                        Self::drag_event_response(component, position)
-                    },
-
-                    Event::DragExited => {
-                        component.set_dragging(false);
-                        EventResponse::Handled
-                    },
-
-                    Event::DragMoved { position, data: _ } => {
-                        component.set_dragging(true);
-                        Self::drag_event_response(component, position)
-                    },
-
-                    Event::DragDropped { position, data: _ } => {
-                        component.set_dragging(false);
-                        Self::drag_event_response(component, position)
-                    },
-
-                    _ => EventResponse::Ignored,
-                }
-            },
+            || PluginWindow::new().unwrap(),
         );
 
         Some(Box::new(editor))

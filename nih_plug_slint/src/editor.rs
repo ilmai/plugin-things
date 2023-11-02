@@ -14,55 +14,43 @@ use crate::plugin_component_handle::PluginComponentHandle;
 use crate::window_adapter::{Context, ParameterChangeSender, ParameterChange};
 use crate::{platform::PluginCanvasPlatform, window_adapter::{WINDOW_TO_SLINT, WINDOW_ADAPTER_FROM_SLINT, PluginCanvasWindowAdapter}, raw_window_handle_adapter::RawWindowHandleAdapter};
 
-pub struct SlintEditor<C, B, E>
+pub struct SlintEditor<C, B>
 where
     C: PluginComponentHandle,
     B: Fn() -> C,
-    E: Fn(Arc<dyn GuiContext>, &C, &Event) -> EventResponse,
 {
     window_attributes: WindowAttributes,
     os_scale: RwLock<f32>,
-    parameter_globals_name: String,
     component_builder: B,
-    event_handler: E,
 
     editor_handle: Mutex<Option<Weak<EditorHandle>>>,
-    param_map: Vec<(String, ParamPtr, String)>,
     parameter_change_sender: RefCell<Option<ParameterChangeSender>>,
 }
 
-impl<C, B, E> SlintEditor<C, B, E>
+impl<C, B> SlintEditor<C, B>
 where
     C: PluginComponentHandle,
     B: Fn() -> C,
-    E: Fn(Arc<dyn GuiContext>, &C, &Event) -> EventResponse,
 {
     pub fn new(
         window_attributes: WindowAttributes,
-        params: &impl Params,
-        parameter_globals_name: impl AsRef<str>,
         component_builder: B,
-        event_handler: E,
     ) -> Self {
         Self {
             window_attributes,
             os_scale: RwLock::new(1.0),
-            parameter_globals_name: parameter_globals_name.as_ref().into(),
             component_builder,
-            event_handler,
 
             editor_handle: Default::default(),
-            param_map: params.param_map(),
             parameter_change_sender: Default::default(),
         }
     }
 }
 
-impl<C, B, E> Editor for SlintEditor<C, B, E>
+impl<C, B> Editor for SlintEditor<C, B>
 where
     C: PluginComponentHandle + 'static,
     B: Fn() -> C + Clone + Send + 'static,
-    E: Fn(Arc<dyn GuiContext>, &C, &Event) -> EventResponse + Clone + Send + 'static,
 {
     fn spawn(&self, parent: ParentWindowHandle, context: Arc<dyn GuiContext>) -> Box<dyn Any + Send> {
         let editor_handle = Arc::new(EditorHandle::new());
@@ -78,14 +66,13 @@ where
             *self.os_scale.read().unwrap() as f64,
             {
                 let editor_handle = Arc::downgrade(&editor_handle.clone());
-                let event_handler = self.event_handler.clone();
 
                 Box::new(move |event| {
                     if let Some(editor_handle) = editor_handle.upgrade() {
                         match editor_handle.on_event(&event) {
                             EventResponse::Ignored => {
                                 editor_handle.window_adapter().with_context(|context| {
-                                    event_handler(context.gui_context.clone(), context.component().unwrap(), &event)
+                                    context.component.on_event(&event)
                                 })
                             },
 
@@ -99,8 +86,6 @@ where
             {
                 let editor_handle = editor_handle.clone();
                 let component_builder = self.component_builder.clone();
-                let param_map = self.param_map.clone();
-                let parameter_globals_name = self.parameter_globals_name.clone();
                 let gui_context = context.clone();
 
                 Box::new(move |window| {
@@ -112,15 +97,7 @@ where
                     let component = component_builder();
                     component.window().show().unwrap();
             
-                    let param_map = param_map.iter()
-                        .map(|(name, param_ptr, _)| {
-                            (name.clone(), *param_ptr)
-                        })
-                        .collect();
-
                     let context = Context {
-                        param_map: Rc::new(param_map),
-                        parameter_globals_name,
                         gui_context,
                         parameter_change_receiver,
                         component: Box::new(component),
