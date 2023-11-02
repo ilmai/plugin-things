@@ -34,7 +34,7 @@ export component ParameterSlider inherits Rectangle {
         border-radius: self.height / 2;
         background: handle.background.with-alpha(25%);
         border-color: self.background.darker(15%);
-        x: (root.width - self.width) * (root.parameter.value + root.parameter.modulation);
+        x: (root.width - self.width) * root.parameter.modulated-value;
     }
 
     handle := Rectangle {

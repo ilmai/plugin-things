@@ -101,7 +101,7 @@ export component ParameterKnob inherits Rectangle {
             }
 
             // Modulation arc
-            if (root.max-angle - root.min-angle) * root.parameter.modulation <= 180deg: Path {
+            if (root.max-angle - root.min-angle) * (root.parameter.modulated-value - root.parameter.value) <= 180deg: Path {
                 viewbox-x: -50;
                 viewbox-y: -50;
                 viewbox-width: 100;
@@ -117,13 +117,13 @@ export component ParameterKnob inherits Rectangle {
                 ArcTo {
                     radius-x: 48;
                     radius-y: 48;
-                    x: Math.cos(root.min-angle + (root.max-angle - root.min-angle) * (root.parameter.value + root.parameter.modulation)) * 48;
-                    y: Math.sin(root.min-angle + (root.max-angle - root.min-angle) * (root.parameter.value + root.parameter.modulation)) * 48;
-                    sweep: root.parameter.modulation > 0;
+                    x: Math.cos(root.min-angle + (root.max-angle - root.min-angle) * root.parameter.modulated-value) * 48;
+                    y: Math.sin(root.min-angle + (root.max-angle - root.min-angle) * root.parameter.modulated-value) * 48;
+                    sweep: root.parameter.modulated-value > root.parameter.value;
                 }
             }
 
-            if (root.max-angle - root.min-angle) * root.parameter.modulation > 180deg: Path {
+            if (root.max-angle - root.min-angle) * (root.parameter.modulated-value - root.parameter.value) > 180deg: Path {
                 viewbox-x: -50;
                 viewbox-y: -50;
                 viewbox-width: 100;
@@ -139,10 +139,10 @@ export component ParameterKnob inherits Rectangle {
                 ArcTo {
                     radius-x: 48;
                     radius-y: 48;
-                    x: Math.cos(root.min-angle + (root.max-angle - root.min-angle) * (root.parameter.value + root.parameter.modulation)) * 48;
-                    y: Math.sin(root.min-angle + (root.max-angle - root.min-angle) * (root.parameter.value + root.parameter.modulation)) * 48;
+                    x: Math.cos(root.min-angle + (root.max-angle - root.min-angle) * root.parameter.modulated-value) * 48;
+                    y: Math.sin(root.min-angle + (root.max-angle - root.min-angle) * root.parameter.modulated-value) * 48;
                     large-arc: true;
-                    sweep: root.parameter.modulation > 0;
+                    sweep: root.parameter.modulated-value > root.parameter.value;
                 }    
             }
 

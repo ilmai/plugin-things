@@ -96,9 +96,12 @@ impl PluginComponentHandle for PluginComponent {
     }
 
     fn update_all_parameters(&self) {
-        let mut gain = self.window.global::<PluginParameters>().get_gain();
-        gain.value = self.params.gain.preview_normalized(self.params.gain.value());
-        self.window.global::<PluginParameters>().set_gain(gain);
+        let mut gain = self.window.get_gain();
+        let normalized_value = self.params.gain.unmodulated_normalized_value();
+        gain.value = normalized_value;
+        gain.display_value = self.params.gain.normalized_value_to_string(normalized_value, true).into();
+        gain.modulated_value = self.params.gain.modulated_normalized_value();
+        self.window.set_gain(gain);
     }
 }
 

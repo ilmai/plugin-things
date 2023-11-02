@@ -2,16 +2,9 @@ import { ParameterSlider } from "slider.slint";
 import { PluginParameter } from "parameter.slint";
 import { ParameterKnob } from "../../nih_plug_slint/components/knob.slint";
 
-export global PluginParameters {
+export component PluginWindow {
     in-out property<PluginParameter> gain;
 
-    callback start-change(string);
-    callback changed(string, float);
-    callback end-change(string);
-    callback set-string(string, string);
-}
-
-export component PluginWindow {
     in-out property <bool> dragging;
     in-out property <length> drag-x;
     in-out property <length> drag-y;
@@ -20,6 +13,11 @@ export component PluginWindow {
     out property <length> drop-area-y: drop-area.y;
     out property <length> drop-area-width: drop-area.width;
     out property <length> drop-area-height: drop-area.height;
+
+    callback start-change(string);
+    callback changed(string, float);
+    callback end-change(string);
+    callback set-string(string, string);
 
     Rectangle {
         background: gold;
@@ -60,13 +58,13 @@ export component PluginWindow {
 
             ParameterKnob {
                 height: 25px;
-                parameter: PluginParameters.gain;
+                parameter: root.gain;
 
                 // FIXME: Callbacks need to be mapped manually
-                start-change => { PluginParameters.start-change("gain"); }
-                changed(value) => { PluginParameters.changed("gain", value); }
-                end-change => { PluginParameters.end-change("gain"); }
-                set-string(string) => { PluginParameters.set-string("gain", string); }
+                start-change => { start-change("gain"); }
+                changed(value) => { changed("gain", value); }
+                end-change => { end-change("gain"); }
+                set-string(string) => { set-string("gain", string); }
             }
 
             VerticalLayout {
@@ -85,13 +83,13 @@ export component PluginWindow {
     
                 ParameterSlider {
                     height: 25px;
-                    parameter: PluginParameters.gain;
+                    parameter: root.gain;
     
                     // FIXME: Callbacks need to be mapped manually
-                    start-change => { PluginParameters.start-change("gain"); }
-                    changed(value) => { PluginParameters.changed("gain", value); }
-                    end-change => { PluginParameters.end-change("gain"); }
-                    set-string(string) => { PluginParameters.set-string("gain", string); }
+                    start-change => { start-change("gain"); }
+                    changed(value) => { changed("gain", value); }
+                    end-change => { end-change("gain"); }
+                    set-string(string) => { set-string("gain", string); }
                 }
             }    
         }
