@@ -21,15 +21,27 @@ pub struct PluginParams {
     pub gain: FloatParam,
 }
 
-impl PluginWindow {
+pub struct PluginComponent {
+    window: PluginWindow,
+    params: Arc<PluginParams>,
+}
+
+impl PluginComponent {
+    fn new(params: Arc<PluginParams>) -> Self {
+        Self {
+            window: PluginWindow::new().unwrap(),
+            params,
+        }
+    }
+
     fn drag_event_response(&self, position: &LogicalPosition) -> EventResponse {
-        self.set_drag_x(position.x as f32);
-        self.set_drag_y(position.y as f32);
+        self.window.set_drag_x(position.x as f32);
+        self.window.set_drag_y(position.y as f32);
     
-        let drop_area_x = self.get_drop_area_x() as f64;
-        let drop_area_y = self.get_drop_area_y() as f64;
-        let drop_area_width = self.get_drop_area_width() as f64;
-        let drop_area_height = self.get_drop_area_height() as f64;
+        let drop_area_x = self.window.get_drop_area_x() as f64;
+        let drop_area_y = self.window.get_drop_area_y() as f64;
+        let drop_area_width = self.window.get_drop_area_width() as f64;
+        let drop_area_height = self.window.get_drop_area_height() as f64;
 
         if position.x >= drop_area_x &&
             position.x <= drop_area_x + drop_area_width &&
@@ -43,34 +55,34 @@ impl PluginWindow {
     }
 }
 
-impl PluginComponentHandle for PluginWindow {
+impl PluginComponentHandle for PluginComponent {
     fn as_any(&self) -> &dyn Any {
         self
     }
 
     fn window(&self) -> &slint::Window {
-        slint::ComponentHandle::window(self)
+        self.window.window()
     }
 
     fn on_event(&self, event: &Event) -> EventResponse {
         match event {
             Event::DragEntered { position, data: _ } => {
-                self.set_dragging(true);
+                self.window.set_dragging(true);
                 self.drag_event_response(position)
             },
 
             Event::DragExited => {
-                self.set_dragging(false);
+                self.window.set_dragging(false);
                 EventResponse::Handled
             },
 
             Event::DragMoved { position, data: _ } => {
-                self.set_dragging(true);
+                self.window.set_dragging(true);
                 self.drag_event_response(position)
             },
 
             Event::DragDropped { position, data: _ } => {
-                self.set_dragging(false);
+                self.window.set_dragging(false);
                 self.drag_event_response(position)
             },
 
@@ -79,9 +91,14 @@ impl PluginComponentHandle for PluginWindow {
     }
 
     fn update_parameter(&self, _id: &str, _update_value: bool, _update_modulation: bool) {
+        // TODO: Only update changed parameter
+        self.update_all_parameters();
     }
 
     fn update_all_parameters(&self) {
+        let mut gain = self.window.global::<PluginParameters>().get_gain();
+        gain.value = self.params.gain.preview_normalized(self.params.gain.value());
+        self.window.global::<PluginParameters>().set_gain(gain);
     }
 }
 
@@ -258,7 +275,10 @@ impl Plugin for DemoPlugin {
 
         let editor = SlintEditor::new(
             window_attributes,
-            || PluginWindow::new().unwrap(),
+            {
+                let params = self.params.clone();
+                move || PluginComponent::new(params.clone())
+            },
         );
 
         Some(Box::new(editor))
