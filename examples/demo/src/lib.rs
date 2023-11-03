@@ -155,8 +155,9 @@ impl PluginComponentHandle for PluginComponent {
         let mut gain = self.window.get_gain();
         let normalized_value = self.params.gain.unmodulated_normalized_value();
         gain.value = normalized_value;
-        gain.display_value = self.params.gain.normalized_value_to_string(normalized_value, true).into();
         gain.modulated_value = self.params.gain.modulated_normalized_value();
+        gain.default_value = self.params.gain.default_normalized_value();
+        gain.display_value = self.params.gain.normalized_value_to_string(normalized_value, true).into();
         self.window.set_gain(gain);
     }
 }
