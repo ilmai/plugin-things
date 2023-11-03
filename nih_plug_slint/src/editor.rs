@@ -69,15 +69,11 @@ where
 
                 Box::new(move |event| {
                     if let Some(editor_handle) = editor_handle.upgrade() {
-                        match editor_handle.on_event(&event) {
-                            EventResponse::Ignored => {
-                                editor_handle.window_adapter().with_context(|context| {
-                                    context.component.on_event(&event)
-                                })
-                            },
-
-                            response => response,
-                        }
+                        editor_handle.on_event(&event);
+                        
+                        editor_handle.window_adapter().with_context(|context| {
+                            context.component.on_event(&event)
+                        })
                     } else {
                         EventResponse::Ignored
                     }
