@@ -133,7 +133,6 @@ impl PluginComponentHandle for PluginComponent {
             },
 
             Event::DragMoved { position, data: _ } => {
-                self.window.set_dragging(true);
                 self.drag_event_response(position)
             },
 
