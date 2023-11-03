@@ -25,7 +25,7 @@ pub struct PluginParams {
 
 pub struct PluginComponent {
     window: PluginWindow,
-    params: Arc<PluginParams>,
+    param_map: HashMap<SharedString, ParamPtr>,
 }
 
 impl PluginComponent {
@@ -86,7 +86,7 @@ impl PluginComponent {
 
         Self {
             window,
-            params,
+            param_map,
         }
     }
 
@@ -107,6 +107,29 @@ impl PluginComponent {
             EventResponse::DropAccepted(DropOperation::Copy)
         } else {
             EventResponse::Ignored
+        }
+    }
+
+    fn convert_parameter(&self, id: &str) -> PluginParameter {
+        let param_ptr = self.param_map.get(id.into()).unwrap();
+
+        let value = unsafe { param_ptr.unmodulated_normalized_value() };
+        let default_value = unsafe { param_ptr.default_normalized_value() };
+        let display_value = unsafe { param_ptr.normalized_value_to_string(value, true) };
+        let modulated_value = unsafe { param_ptr.modulated_normalized_value() };
+
+        PluginParameter {
+            default_value,
+            display_value: display_value.into(),
+            modulated_value,
+            value,
+        }
+    }
+
+    fn set_parameter(&self, id: &str, parameter: PluginParameter) {
+        match id {
+            "gain" => self.window.set_gain(parameter),
+            _ => unimplemented!(),
         }
     }
 }
@@ -145,19 +168,15 @@ impl PluginComponentHandle for PluginComponent {
         }
     }
 
-    fn update_parameter(&self, _id: &str, _update_value: bool, _update_modulation: bool) {
-        // TODO: Only update changed parameter
-        self.update_all_parameters();
+    fn update_parameter(&self, id: &str, _update_value: bool, _update_modulation: bool) {
+        let parameter = self.convert_parameter(id);
+        self.set_parameter(id, parameter);
     }
 
     fn update_all_parameters(&self) {
-        let mut gain = self.window.get_gain();
-        let normalized_value = self.params.gain.unmodulated_normalized_value();
-        gain.value = normalized_value;
-        gain.modulated_value = self.params.gain.modulated_normalized_value();
-        gain.default_value = self.params.gain.default_normalized_value();
-        gain.display_value = self.params.gain.normalized_value_to_string(normalized_value, true).into();
-        self.window.set_gain(gain);
+        for id in self.param_map.keys() {
+            self.update_parameter(id, true, true);
+        }
     }
 }
 
