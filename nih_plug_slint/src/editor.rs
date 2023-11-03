@@ -10,14 +10,14 @@ use plugin_canvas::event::EventResponse;
 use plugin_canvas::{window::WindowAttributes, Event};
 use raw_window_handle_0_4::HasRawWindowHandle;
 
-use crate::plugin_component_handle::PluginComponentHandle;
+use crate::plugin_component_handle::PluginComponentHandleParameterEvents;
 use crate::window_adapter::{Context, ParameterChangeSender, ParameterChange};
 use crate::{platform::PluginCanvasPlatform, window_adapter::{WINDOW_TO_SLINT, WINDOW_ADAPTER_FROM_SLINT, PluginCanvasWindowAdapter}, raw_window_handle_adapter::RawWindowHandleAdapter};
 
 pub struct SlintEditor<C, B>
 where
-    C: PluginComponentHandle,
-    B: Fn(Arc<dyn GuiContext>) -> C,
+    C: PluginComponentHandleParameterEvents,
+    B: Fn() -> C,
 {
     window_attributes: WindowAttributes,
     os_scale: RwLock<f32>,
@@ -29,8 +29,8 @@ where
 
 impl<C, B> SlintEditor<C, B>
 where
-    C: PluginComponentHandle,
-    B: Fn(Arc<dyn GuiContext>) -> C,
+    C: PluginComponentHandleParameterEvents,
+    B: Fn() -> C,
 {
     pub fn new(
         window_attributes: WindowAttributes,
@@ -49,8 +49,8 @@ where
 
 impl<C, B> Editor for SlintEditor<C, B>
 where
-    C: PluginComponentHandle + 'static,
-    B: Fn(Arc<dyn GuiContext>) -> C + Clone + Send + 'static,
+    C: PluginComponentHandleParameterEvents + 'static,
+    B: Fn() -> C + Clone + Send + 'static,
 {
     fn spawn(&self, parent: ParentWindowHandle, gui_context: Arc<dyn GuiContext>) -> Box<dyn Any + Send> {
         let editor_handle = Arc::new(EditorHandle::new());
@@ -94,9 +94,56 @@ where
 
                     WINDOW_TO_SLINT.set(Some(Box::new(window)));
 
-                    let component = component_builder(gui_context.clone());
-                    component.window().show().unwrap();
+                    let component = component_builder();
+
+                    component.on_start_parameter_change({
+                        let gui_context = gui_context.clone();
+                        let param_map = component.param_map().clone();
             
+                        move |parameter_id| {
+                            let param_ptr = param_map.get(&parameter_id).unwrap();
+                            unsafe { gui_context.raw_begin_set_parameter(*param_ptr) };
+                        }
+                    });
+            
+                    component.on_parameter_changed({
+                        let gui_context = gui_context.clone();
+                        let param_map = component.param_map().clone();
+            
+                        move |parameter_id, value| {
+                            let param_ptr = param_map.get(&parameter_id).unwrap();
+                            unsafe { gui_context.raw_set_parameter_normalized(*param_ptr, value) };
+                        }
+                    });
+            
+                    component.on_end_parameter_change({
+                        let gui_context = gui_context.clone();
+                        let param_map = component.param_map().clone();
+            
+                        move |parameter_id| {
+                            let param_ptr = param_map.get(&parameter_id).unwrap();
+                            unsafe { gui_context.raw_end_set_parameter(*param_ptr) };
+                        }
+                    });
+            
+                    component.on_set_parameter_string({
+                        let gui_context = gui_context.clone();
+                        let param_map = component.param_map().clone();
+            
+                        move |parameter_id, string| {
+                            let param_ptr = param_map.get(&parameter_id).unwrap();
+                            unsafe {
+                                if let Some(value) = param_ptr.string_to_normalized_value(&string) {
+                                    gui_context.raw_begin_set_parameter(*param_ptr);
+                                    gui_context.raw_set_parameter_normalized(*param_ptr, value);
+                                    gui_context.raw_end_set_parameter(*param_ptr);
+                                }    
+                            }
+                        }
+                    });
+            
+                    component.window().show().unwrap();
+
                     let context = Context {
                         gui_context,
                         parameter_change_receiver,

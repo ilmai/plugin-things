@@ -5,7 +5,7 @@ use std::{sync::Arc, num::NonZeroU32};
 use nih_plug::util::db_to_gain;
 use nih_plug::{nih_export_clap, nih_export_vst3, nih_debug_assert_eq};
 use nih_plug::prelude::*;
-use nih_plug_slint::plugin_component_handle::PluginComponentHandle;
+use nih_plug_slint::plugin_component_handle::{PluginComponentHandle, PluginComponentHandleParameterEvents};
 use nih_plug_slint::{WindowAttributes, editor::SlintEditor};
 use plugin_canvas::drag_drop::DropOperation;
 use plugin_canvas::{LogicalSize, Event, LogicalPosition};
@@ -29,7 +29,7 @@ pub struct PluginComponent {
 }
 
 impl PluginComponent {
-    fn new(params: Arc<PluginParams>, gui_context: Arc<dyn GuiContext>) -> Self {
+    fn new(params: Arc<PluginParams>) -> Self {
         let window = PluginWindow::new().unwrap();
 
         let param_map: HashMap<SharedString, _> = params.param_map().iter()
@@ -37,52 +37,6 @@ impl PluginComponent {
                 (name.clone().into(), *param_ptr)
             })
             .collect();
-
-        window.on_start_change({
-            let gui_context = gui_context.clone();
-            let param_map = param_map.clone();
-
-            move |parameter_id| {
-                let param_ptr = param_map.get(&parameter_id).unwrap();
-                unsafe { gui_context.raw_begin_set_parameter(*param_ptr) };
-            }
-        });
-
-        window.on_changed({
-            let gui_context = gui_context.clone();
-            let param_map = param_map.clone();
-
-            move |parameter_id, value| {
-                let param_ptr = param_map.get(&parameter_id).unwrap();
-                unsafe { gui_context.raw_set_parameter_normalized(*param_ptr, value) };
-            }
-        });
-
-        window.on_end_change({
-            let gui_context = gui_context.clone();
-            let param_map = param_map.clone();
-
-            move |parameter_id| {
-                let param_ptr = param_map.get(&parameter_id).unwrap();
-                unsafe { gui_context.raw_end_set_parameter(*param_ptr) };
-            }
-        });
-
-        window.on_set_string({
-            let gui_context = gui_context.clone();
-            let param_map = param_map.clone();
-
-            move |parameter_id, string| {
-                let param_ptr = param_map.get(&parameter_id).unwrap();
-                unsafe {
-                    if let Some(value) = param_ptr.string_to_normalized_value(&string) {
-                        gui_context.raw_begin_set_parameter(*param_ptr);
-                        gui_context.raw_set_parameter_normalized(*param_ptr, value);
-                        gui_context.raw_end_set_parameter(*param_ptr);
-                    }    
-                }
-            }
-        });
 
         Self {
             window,
@@ -143,6 +97,10 @@ impl PluginComponentHandle for PluginComponent {
         self.window.window()
     }
 
+    fn param_map(&self) -> &HashMap<slint::SharedString, ParamPtr> {
+        &self.param_map
+    }
+
     fn on_event(&self, event: &Event) -> EventResponse {
         match event {
             Event::DragEntered { position, data: _ } => {
@@ -177,6 +135,24 @@ impl PluginComponentHandle for PluginComponent {
         for id in self.param_map.keys() {
             self.update_parameter(id, true, true);
         }
+    }
+}
+
+impl PluginComponentHandleParameterEvents for PluginComponent {
+    fn on_start_parameter_change(&self, f: impl FnMut(slint::SharedString) + 'static) {
+        self.window.on_start_change(f)
+    }
+
+    fn on_parameter_changed(&self, f: impl FnMut(slint::SharedString, f32) + 'static) {
+        self.window.on_changed(f)
+    }
+
+    fn on_end_parameter_change(&self, f: impl FnMut(slint::SharedString) + 'static) {
+        self.window.on_end_change(f)
+    }
+
+    fn on_set_parameter_string(&self, f: impl FnMut(slint::SharedString, slint::SharedString) + 'static) {
+        self.window.on_set_string(f)
     }
 }
 
@@ -252,7 +228,7 @@ impl Plugin for DemoPlugin {
             window_attributes,
             {
                 let params = self.params.clone();
-                move |gui_context| PluginComponent::new(params.clone(), gui_context)
+                move || PluginComponent::new(params.clone())
             },
         );
 
