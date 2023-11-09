@@ -97,7 +97,7 @@ where
                         let param_map = component.param_map().clone();
             
                         move |parameter_id| {
-                            let param_ptr = param_map.get(&parameter_id).unwrap();
+                            let param_ptr = param_map.get(&parameter_id).expect(&format!("Couldn't find parameter {parameter_id}"));
                             unsafe { gui_context.raw_begin_set_parameter(*param_ptr) };
                         }
                     });
@@ -107,7 +107,7 @@ where
                         let param_map = component.param_map().clone();
             
                         move |parameter_id, value| {
-                            let param_ptr = param_map.get(&parameter_id).unwrap();
+                            let param_ptr = param_map.get(&parameter_id).expect(&format!("Couldn't find parameter {parameter_id}"));
                             unsafe { gui_context.raw_set_parameter_normalized(*param_ptr, value) };
                         }
                     });
@@ -117,7 +117,7 @@ where
                         let param_map = component.param_map().clone();
             
                         move |parameter_id| {
-                            let param_ptr = param_map.get(&parameter_id).unwrap();
+                            let param_ptr = param_map.get(&parameter_id).expect(&format!("Couldn't find parameter {parameter_id}"));
                             unsafe { gui_context.raw_end_set_parameter(*param_ptr) };
                         }
                     });
@@ -127,7 +127,8 @@ where
                         let param_map = component.param_map().clone();
             
                         move |parameter_id, string| {
-                            let param_ptr = param_map.get(&parameter_id).unwrap();
+                            let param_ptr = param_map.get(&parameter_id).expect(&format!("Couldn't find parameter {parameter_id}"));
+
                             unsafe {
                                 if let Some(value) = param_ptr.string_to_normalized_value(&string) {
                                     gui_context.raw_begin_set_parameter(*param_ptr);
