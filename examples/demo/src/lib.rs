@@ -73,6 +73,7 @@ impl PluginComponent {
         let modulated_value = unsafe { param_ptr.modulated_normalized_value() };
 
         PluginParameter {
+            id: id.into(),
             default_value,
             display_value: display_value.into(),
             modulated_value,
@@ -139,20 +140,20 @@ impl PluginComponentHandle for PluginComponent {
 }
 
 impl PluginComponentHandleParameterEvents for PluginComponent {
-    fn on_start_parameter_change(&self, f: impl FnMut(slint::SharedString) + 'static) {
-        self.window.on_start_change(f)
+    fn on_start_parameter_change(&self, mut f: impl FnMut(slint::SharedString) + 'static) {
+        self.window.on_start_change(move |parameter| f(parameter.id.into()));
     }
 
-    fn on_parameter_changed(&self, f: impl FnMut(slint::SharedString, f32) + 'static) {
-        self.window.on_changed(f)
+    fn on_parameter_changed(&self, mut f: impl FnMut(slint::SharedString, f32) + 'static) {
+        self.window.on_changed(move |parameter, value| f(parameter.id.into(), value));
     }
 
-    fn on_end_parameter_change(&self, f: impl FnMut(slint::SharedString) + 'static) {
-        self.window.on_end_change(f)
+    fn on_end_parameter_change(&self, mut f: impl FnMut(slint::SharedString) + 'static) {
+        self.window.on_end_change(move |parameter| f(parameter.id.into()));
     }
 
-    fn on_set_parameter_string(&self, f: impl FnMut(slint::SharedString, slint::SharedString) + 'static) {
-        self.window.on_set_string(f)
+    fn on_set_parameter_string(&self, mut f: impl FnMut(slint::SharedString, slint::SharedString) + 'static) {
+        self.window.on_set_string(move |parameter, string| f(parameter.id.into(), string));
     }
 }
 

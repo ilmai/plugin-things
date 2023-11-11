@@ -14,10 +14,10 @@ export component PluginWindow {
     out property <length> drop-area-width: drop-area.width;
     out property <length> drop-area-height: drop-area.height;
 
-    callback start-change(string);
-    callback changed(string, float);
-    callback end-change(string);
-    callback set-string(string, string);
+    callback start-change(PluginParameter);
+    callback changed(PluginParameter, float);
+    callback end-change(PluginParameter);
+    callback set-string(PluginParameter, string);
 
     Rectangle {
         background: gold;
@@ -60,13 +60,13 @@ export component PluginWindow {
 
             ParameterKnob {
                 height: 25px;
-                parameter: root.gain;
+                parameter: gain;
 
                 // FIXME: Callbacks need to be mapped manually
-                start-change => { start-change("gain"); }
-                changed(value) => { changed("gain", value); }
-                end-change => { end-change("gain"); }
-                set-string(string) => { set-string("gain", string); }
+                start-change => { start-change(gain); }
+                changed(value) => { changed(gain, value); }
+                end-change => { end-change(gain); }
+                set-string(string) => { set-string(gain, string); }
             }
 
             VerticalLayout {
@@ -85,13 +85,13 @@ export component PluginWindow {
     
                 ParameterSlider {
                     height: 25px;
-                    parameter: root.gain;
+                    parameter: gain;
     
                     // FIXME: Callbacks need to be mapped manually
-                    start-change => { start-change("gain"); }
-                    changed(value) => { changed("gain", value); }
-                    end-change => { end-change("gain"); }
-                    set-string(string) => { set-string("gain", string); }
+                    start-change => { start-change(gain); }
+                    changed(value) => { changed(gain, value); }
+                    end-change => { end-change(gain); }
+                    set-string(string) => { set-string(gain, string); }
                 }
             }    
         }
