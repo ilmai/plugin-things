@@ -1,10 +1,11 @@
 use std::{ptr::null, ffi::{OsString, c_void}, os::windows::prelude::OsStringExt, time::Duration, sync::{atomic::{AtomicBool, Ordering, AtomicUsize}, Arc}, rc::Rc, mem::{self, size_of}, cell::RefCell};
 
+use cursor_icon::CursorIcon;
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle, WindowsDisplayHandle, RawDisplayHandle, Win32WindowHandle, HasRawDisplayHandle};
 use uuid::Uuid;
 use windows::{Win32::{UI::{WindowsAndMessaging::{WNDCLASSW, RegisterClassW, HICON, LoadCursorW, IDC_ARROW, CS_OWNDC, CreateWindowExW, WS_CHILD, WS_VISIBLE, HMENU, DefWindowProcW, PostMessageW, SetWindowLongPtrW, GWLP_USERDATA, GetWindowLongPtrW, UnregisterClassW, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOVE, DestroyWindow, SetCursor, WM_MOUSEMOVE, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_RBUTTONDOWN, WM_RBUTTONUP, SetWindowsHookExW, WH_MOUSE, CallNextHookEx, HHOOK, WM_MOUSEWHEEL, MOUSEHOOKSTRUCTEX, UnhookWindowsHookEx, ShowCursor, WINDOW_EX_STYLE, SendMessageW}, Input::KeyboardAndMouse::{SetCapture, TRACKMOUSEEVENT, TME_LEAVE, TrackMouseEvent}, Controls::WM_MOUSELEAVE}, Foundation::{HWND, WPARAM, LPARAM, LRESULT, HINSTANCE, POINT}, Graphics::{Gdi::{HBRUSH, MonitorFromWindow, MONITOR_DEFAULTTOPRIMARY, ScreenToClient}, Dxgi::{CreateDXGIFactory, IDXGIFactory, DXGI_OUTPUT_DESC, IDXGIOutput}, Dwm::{DwmIsCompositionEnabled, DwmFlush}}, System::{Threading::GetCurrentThreadId, Ole::{OleInitialize, RegisterDragDrop, IDropTarget, RevokeDragDrop}}}, core::PCWSTR};
 
-use crate::{error::Error, platform::interface::{OsWindowInterface, OsWindowHandle, OsWindowBuilder}, event::{Event, MouseButton, EventCallback, EventResponse}, window::WindowAttributes, dimensions::Size, cursor::Cursor, LogicalPosition, PhysicalPosition};
+use crate::{error::Error, platform::interface::{OsWindowInterface, OsWindowHandle, OsWindowBuilder}, event::{Event, MouseButton, EventCallback, EventResponse}, window::WindowAttributes, dimensions::Size, LogicalPosition, PhysicalPosition};
 
 use super::{PLUGIN_HINSTANCE, to_wstr, message_window::MessageWindow, cursors::Cursors, WM_USER_KEY_DOWN, WM_USER_FRAME_TIMER, version::is_windows10_or_greater, drop_target::DropTarget, message_hook::MessageHook, WM_USER_KEY_UP};
 
@@ -198,42 +199,52 @@ impl OsWindowInterface for OsWindow {
         Ok(())
     }
 
-    fn set_cursor(&self, cursor: Cursor) {
-        let cursor = match cursor {
-            Cursor::None => {
-                unsafe { ShowCursor(false); }
-                return;
+    fn set_cursor(&self, cursor: Option<CursorIcon>) {
+        if let Some(cursor) = cursor {
+            let cursor = match cursor {
+                CursorIcon::Default => self.cursors.arrow,
+                CursorIcon::ContextMenu => self.cursors.arrow, // TODO
+                CursorIcon::Help => self.cursors.arrow, // TODO
+                CursorIcon::Pointer => self.cursors.hand,
+                CursorIcon::Progress => self.cursors.app_starting,
+                CursorIcon::Wait => self.cursors.wait,
+                CursorIcon::Cell => self.cursors.cross,
+                CursorIcon::Crosshair => self.cursors.cross,
+                CursorIcon::Text => self.cursors.ibeam,
+                CursorIcon::VerticalText => self.cursors.arrow, // TODO
+                CursorIcon::Alias => self.cursors.arrow, // TODO
+                CursorIcon::Copy => self.cursors.arrow, // TODO
+                CursorIcon::Move => self.cursors.size_all,
+                CursorIcon::NoDrop => self.cursors.no,
+                CursorIcon::NotAllowed => self.cursors.no,
+                CursorIcon::Grab => self.cursors.size_all, // TODO
+                CursorIcon::Grabbing => self.cursors.size_all, // TODO
+                CursorIcon::EResize => self.cursors.size_ew,
+                CursorIcon::NResize => self.cursors.size_ns,
+                CursorIcon::NeResize => self.cursors.size_nesw,
+                CursorIcon::NwResize => self.cursors.size_nwse,
+                CursorIcon::SResize => self.cursors.size_ns,
+                CursorIcon::SeResize => self.cursors.size_nwse,
+                CursorIcon::SwResize => self.cursors.size_nesw,
+                CursorIcon::WResize => self.cursors.size_ew,
+                CursorIcon::EwResize => self.cursors.size_ew,
+                CursorIcon::NsResize => self.cursors.size_ns,
+                CursorIcon::NeswResize => self.cursors.size_nesw,
+                CursorIcon::NwseResize => self.cursors.size_nwse,
+                CursorIcon::ColResize => self.cursors.size_ew, // TODO
+                CursorIcon::RowResize => self.cursors.size_ns, // TODO
+                CursorIcon::AllScroll => self.cursors.size_all,
+                CursorIcon::ZoomIn => self.cursors.size_all, // TODO
+                CursorIcon::ZoomOut => self.cursors.size_all, // TODO
+                _ => todo!(),
+            };
+    
+            unsafe {
+                ShowCursor(true);
+                SetCursor(cursor);
             }
-
-            Cursor::Arrow => self.cursors.arrow,
-            Cursor::Crosshair => self.cursors.cross,
-            Cursor::Help => self.cursors.help,
-            Cursor::Move => self.cursors.move_,
-            Cursor::NoDrop => self.cursors.no,
-            Cursor::NotAllowed => self.cursors.no,
-            Cursor::Pointer => self.cursors.hand,
-            Cursor::Progress => self.cursors.appstarting,
-            Cursor::Text => self.cursors.ibeam,
-            Cursor::Wait => self.cursors.wait,
-            Cursor::ResizeNorth => self.cursors.size_ns,
-            Cursor::ResizeNorthEast => self.cursors.size_nesw,
-            Cursor::ResizeEast => self.cursors.size_we,
-            Cursor::ResizeSouthEast => self.cursors.size_nwse,
-            Cursor::ResizeSouth => self.cursors.size_ns,
-            Cursor::ResizeSouthWest => self.cursors.size_nesw,
-            Cursor::ResizeWest => self.cursors.size_we,
-            Cursor::ResizeNorthWest => self.cursors.size_nwse,
-            Cursor::ResizeEastWest => self.cursors.size_we,
-            Cursor::ResizeNorthSouth => self.cursors.size_ns,
-            Cursor::ResizeNorthEastSouthWest => self.cursors.size_nesw,
-            Cursor::ResizeNorthWestSouthEast => self.cursors.size_nwse,
-
-            _ => self.cursors.arrow,
-        };
-
-        unsafe {
-            ShowCursor(true);
-            SetCursor(cursor);
+        } else {
+            unsafe { ShowCursor(false); }
         }
     }
 

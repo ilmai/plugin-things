@@ -9,6 +9,7 @@ repository = "https://github.com/ilmai/plugin-things"
 license = "MIT"
 
 [dependencies]
+cursor-icon.workspace = true
 i-slint-core.workspace = true
 i-slint-renderer-skia.workspace = true
 nih_plug.workspace = true

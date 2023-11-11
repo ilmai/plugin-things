@@ -1,5 +1,6 @@
 use std::{cell::RefCell, rc::Rc, sync::{atomic::{AtomicBool, Ordering, AtomicUsize}, Arc, mpsc}};
 
+use cursor_icon::CursorIcon;
 use i_slint_core::{window::{WindowAdapter, WindowAdapterInternal}, renderer::Renderer, platform::{PlatformError, WindowEvent}};
 use i_slint_renderer_skia::SkiaRenderer;
 use nih_plug::prelude::GuiContext;
@@ -274,8 +275,35 @@ impl WindowAdapterInternal for PluginCanvasWindowAdapter {
 
     fn set_mouse_cursor(&self, cursor: i_slint_core::items::MouseCursor) {
         let cursor = match cursor {
-            i_slint_core::items::MouseCursor::Pointer => plugin_canvas::cursor::Cursor::Pointer,
-            _ => plugin_canvas::cursor::Cursor::Arrow,
+            i_slint_core::items::MouseCursor::Default => Some(CursorIcon::Default),
+            i_slint_core::items::MouseCursor::None => None,
+            i_slint_core::items::MouseCursor::Help => Some(CursorIcon::Help),
+            i_slint_core::items::MouseCursor::Pointer => Some(CursorIcon::Pointer),
+            i_slint_core::items::MouseCursor::Progress => Some(CursorIcon::Progress),
+            i_slint_core::items::MouseCursor::Wait => Some(CursorIcon::Wait),
+            i_slint_core::items::MouseCursor::Crosshair => Some(CursorIcon::Crosshair),
+            i_slint_core::items::MouseCursor::Text => Some(CursorIcon::Text),
+            i_slint_core::items::MouseCursor::Alias => Some(CursorIcon::Alias),
+            i_slint_core::items::MouseCursor::Copy => Some(CursorIcon::Copy),
+            i_slint_core::items::MouseCursor::Move => Some(CursorIcon::Move),
+            i_slint_core::items::MouseCursor::NoDrop => Some(CursorIcon::NoDrop),
+            i_slint_core::items::MouseCursor::NotAllowed => Some(CursorIcon::NotAllowed),
+            i_slint_core::items::MouseCursor::Grab => Some(CursorIcon::Grab),
+            i_slint_core::items::MouseCursor::Grabbing => Some(CursorIcon::Grabbing),
+            i_slint_core::items::MouseCursor::ColResize => Some(CursorIcon::ColResize),
+            i_slint_core::items::MouseCursor::RowResize => Some(CursorIcon::RowResize),
+            i_slint_core::items::MouseCursor::NResize => Some(CursorIcon::NResize),
+            i_slint_core::items::MouseCursor::EResize => Some(CursorIcon::EResize),
+            i_slint_core::items::MouseCursor::SResize => Some(CursorIcon::SResize),
+            i_slint_core::items::MouseCursor::WResize => Some(CursorIcon::WResize),
+            i_slint_core::items::MouseCursor::NeResize => Some(CursorIcon::NeResize),
+            i_slint_core::items::MouseCursor::NwResize => Some(CursorIcon::NwResize),
+            i_slint_core::items::MouseCursor::SeResize => Some(CursorIcon::SeResize),
+            i_slint_core::items::MouseCursor::SwResize => Some(CursorIcon::SwResize),
+            i_slint_core::items::MouseCursor::EwResize => Some(CursorIcon::EwResize),
+            i_slint_core::items::MouseCursor::NsResize => Some(CursorIcon::NsResize),
+            i_slint_core::items::MouseCursor::NeswResize => Some(CursorIcon::NeswResize),
+            i_slint_core::items::MouseCursor::NwseResize => Some(CursorIcon::NwseResize),
         };
 
         self.plugin_canvas_window.set_cursor(cursor);

@@ -1,6 +1,7 @@
+use cursor_icon::CursorIcon;
 use raw_window_handle::{RawWindowHandle, HasRawWindowHandle, HasWindowHandle, Active, HasDisplayHandle, HasRawDisplayHandle};
 
-use crate::{platform::{window::OsWindow, interface::{OsWindowInterface, OsWindowHandle}}, error::Error, event::EventCallback, cursor::Cursor, dimensions::LogicalSize};
+use crate::{platform::{window::OsWindow, interface::{OsWindowInterface, OsWindowHandle}}, error::Error, event::EventCallback, dimensions::LogicalSize};
 
 pub type WindowBuilder = Box<dyn FnOnce(Window) + Send>;
 
@@ -83,7 +84,7 @@ impl Window {
         self.os_scale
     }
 
-    pub fn set_cursor(&self, cursor: Cursor) {
+    pub fn set_cursor(&self, cursor: Option<CursorIcon>) {
         self.os_window_handle.window().set_cursor(cursor);
     }
 

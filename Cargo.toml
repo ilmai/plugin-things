@@ -8,6 +8,7 @@ members = [
 ]
 
 [workspace.dependencies]
+cursor-icon = "1.1"
 nih_plug = { git = "https://github.com/robbert-vdh/nih-plug/" }
 nih_plug_slint = { path = "nih_plug_slint" }
 plugin-canvas = { path = "plugin-canvas" }

@@ -1,4 +1,3 @@
-pub mod cursor;
 pub mod dimensions;
 pub mod drag_drop;
 pub mod error;

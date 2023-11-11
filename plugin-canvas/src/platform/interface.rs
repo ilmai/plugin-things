@@ -1,8 +1,9 @@
 use std::rc::Rc;
 
+use cursor_icon::CursorIcon;
 use raw_window_handle::{RawWindowHandle, HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
 
-use crate::{error::Error, window::WindowAttributes, event::EventCallback, cursor::Cursor};
+use crate::{error::Error, window::WindowAttributes, event::EventCallback};
 
 use super::window::OsWindow;
 
@@ -17,7 +18,7 @@ pub(crate) trait OsWindowInterface: HasRawDisplayHandle + HasRawWindowHandle + S
         window_builder: OsWindowBuilder,
     ) -> Result<(), Error>;
 
-    fn set_cursor(&self, cursor: Cursor);
+    fn set_cursor(&self, cursor: Option<CursorIcon>);
     fn set_input_focus(&self, focus: bool);
 }
 

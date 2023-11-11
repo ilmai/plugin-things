@@ -9,6 +9,7 @@ repository = "https://github.com/ilmai/plugin-things"
 license = "MIT"
 
 [dependencies]
+cursor-icon.workspace = true
 lazy_static = "1.4"
 raw-window-handle.workspace = true
 uuid = { version = "1.4", features = ["fast-rng", "v4"] }
