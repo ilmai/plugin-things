@@ -24,8 +24,6 @@ export component PluginWindow {
 
         // FIXME: Workaround for taking focus off TextInput by clicking outside it
         TouchArea {
-            mouse-cursor: pointer;
-
             FocusScope {
                 enabled: true;
             }
@@ -49,6 +47,10 @@ export component PluginWindow {
                     background: blue;                    
                 }
             ]
+
+            TouchArea {
+                mouse-cursor: pointer;
+            }
         }
 
         HorizontalLayout {
