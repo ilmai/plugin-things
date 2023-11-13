@@ -3,7 +3,7 @@ use std::{ptr::null, ffi::{OsString, c_void}, os::windows::prelude::OsStringExt,
 use cursor_icon::CursorIcon;
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle, WindowsDisplayHandle, RawDisplayHandle, Win32WindowHandle, HasRawDisplayHandle};
 use uuid::Uuid;
-use windows::{Win32::{UI::{WindowsAndMessaging::{WNDCLASSW, RegisterClassW, HICON, LoadCursorW, IDC_ARROW, CS_OWNDC, CreateWindowExW, WS_CHILD, WS_VISIBLE, HMENU, DefWindowProcW, PostMessageW, SetWindowLongPtrW, GWLP_USERDATA, GetWindowLongPtrW, UnregisterClassW, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOVE, DestroyWindow, SetCursor, WM_MOUSEMOVE, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_RBUTTONDOWN, WM_RBUTTONUP, SetWindowsHookExW, WH_MOUSE, CallNextHookEx, HHOOK, WM_MOUSEWHEEL, MOUSEHOOKSTRUCTEX, UnhookWindowsHookEx, ShowCursor, WINDOW_EX_STYLE, SendMessageW}, Input::KeyboardAndMouse::{SetCapture, TRACKMOUSEEVENT, TME_LEAVE, TrackMouseEvent}, Controls::WM_MOUSELEAVE}, Foundation::{HWND, WPARAM, LPARAM, LRESULT, HINSTANCE, POINT}, Graphics::{Gdi::{HBRUSH, MonitorFromWindow, MONITOR_DEFAULTTOPRIMARY, ScreenToClient}, Dxgi::{CreateDXGIFactory, IDXGIFactory, DXGI_OUTPUT_DESC, IDXGIOutput}, Dwm::{DwmIsCompositionEnabled, DwmFlush}}, System::{Threading::GetCurrentThreadId, Ole::{OleInitialize, RegisterDragDrop, IDropTarget, RevokeDragDrop}}}, core::PCWSTR};
+use windows::{Win32::{UI::{WindowsAndMessaging::{WNDCLASSW, RegisterClassW, HICON, LoadCursorW, IDC_ARROW, CS_OWNDC, CreateWindowExW, WS_CHILD, WS_VISIBLE, HMENU, DefWindowProcW, PostMessageW, SetWindowLongPtrW, GWLP_USERDATA, GetWindowLongPtrW, UnregisterClassW, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOVE, DestroyWindow, SetCursor, WM_MOUSEMOVE, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_RBUTTONDOWN, WM_RBUTTONUP, SetWindowsHookExW, WH_MOUSE, CallNextHookEx, HHOOK, WM_MOUSEWHEEL, MOUSEHOOKSTRUCTEX, UnhookWindowsHookEx, ShowCursor, WINDOW_EX_STYLE, SendMessageW, SetCursorPos}, Input::KeyboardAndMouse::{SetCapture, TRACKMOUSEEVENT, TME_LEAVE, TrackMouseEvent}, Controls::WM_MOUSELEAVE}, Foundation::{HWND, WPARAM, LPARAM, LRESULT, HINSTANCE, POINT}, Graphics::{Gdi::{HBRUSH, MonitorFromWindow, MONITOR_DEFAULTTOPRIMARY, ScreenToClient, ClientToScreen}, Dxgi::{CreateDXGIFactory, IDXGIFactory, DXGI_OUTPUT_DESC, IDXGIOutput}, Dwm::{DwmIsCompositionEnabled, DwmFlush}}, System::{Threading::GetCurrentThreadId, Ole::{OleInitialize, RegisterDragDrop, IDropTarget, RevokeDragDrop}}}, core::PCWSTR};
 
 use crate::{error::Error, platform::interface::{OsWindowInterface, OsWindowHandle, OsWindowBuilder}, event::{Event, MouseButton, EventCallback, EventResponse}, window::WindowAttributes, dimensions::Size, LogicalPosition, PhysicalPosition};
 
@@ -250,6 +250,21 @@ impl OsWindowInterface for OsWindow {
 
     fn set_input_focus(&self, focus: bool) {
         self.message_window.set_focus(focus);
+    }
+
+    fn warp_mouse(&self, position: LogicalPosition) {
+        let user_scale: f64 = self.window_attributes.user_scale.into();
+        let physical_position = position.to_physical(self.os_scale * user_scale);
+
+        let mut point = POINT {
+            x: physical_position.x,
+            y: physical_position.y,
+        };
+
+        unsafe {
+            ClientToScreen(self.hwnd(), &mut point);
+            SetCursorPos(point.x, point.y).unwrap();
+        }
     }
 }
 
