@@ -1,11 +1,12 @@
 use std::{ffi::c_void, sync::atomic::{Ordering, AtomicBool}, rc::Rc, cell::RefCell, ptr::null_mut};
 
+use core_graphics::display::CGDisplay;
 use cursor_icon::CursorIcon;
 use icrate::{AppKit::{NSTrackingArea, NSView, NSWindow, NSTrackingMouseEnteredAndExited, NSTrackingMouseMoved, NSTrackingActiveAlways, NSTrackingInVisibleRect, NSCursor, NSPasteboardTypeFileURL}, Foundation::{CGPoint, CGSize, CGRect, NSInvocationOperation, NSOperationQueue, NSArray}};
 use objc2::{ClassType, msg_send_id, rc::Id, sel};
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle, AppKitWindowHandle, HasRawDisplayHandle, RawDisplayHandle, AppKitDisplayHandle};
 
-use crate::{error::Error, platform::interface::{OsWindowInterface, OsWindowHandle, OsWindowBuilder}, event::{EventCallback, EventResponse}, window::WindowAttributes, Event};
+use crate::{error::Error, platform::interface::{OsWindowInterface, OsWindowHandle, OsWindowBuilder}, event::{EventCallback, EventResponse}, window::WindowAttributes, Event, LogicalPosition};
 
 use super::display_link::{CVDisplayLinkRef, CVTimeStamp, CVReturn, self};
 use super::view::OsWindowView;
@@ -181,6 +182,11 @@ impl OsWindowInterface for OsWindow {
 
     fn set_input_focus(&self, focus: bool) {
         self.view().set_input_focus(focus);
+    }
+
+    fn warp_mouse(&self, position: LogicalPosition) {
+        let position = core_graphics::geometry::CGPoint::new(position.x, position.y);
+        CGDisplay::warp_mouse_cursor_position(position).unwrap();
     }
 }
 

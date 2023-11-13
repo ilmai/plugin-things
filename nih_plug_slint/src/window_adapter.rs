@@ -10,7 +10,7 @@ use raw_window_handle::{HasWindowHandle, HasDisplayHandle};
 use crate::plugin_component_handle::PluginComponentHandle;
 
 thread_local! {
-    pub static WINDOW_TO_SLINT: RefCell<Option<Box<plugin_canvas::Window>>> = Default::default();
+    pub static WINDOW_TO_SLINT: RefCell<Option<Arc<plugin_canvas::Window>>> = Default::default();
     pub static WINDOW_ADAPTER_FROM_SLINT: RefCell<Option<Rc<PluginCanvasWindowAdapter>>> = Default::default();
 }
 
@@ -36,7 +36,7 @@ impl Context {
 }
 
 pub struct PluginCanvasWindowAdapter {
-    plugin_canvas_window: plugin_canvas::Window,
+    plugin_canvas_window: Arc<plugin_canvas::Window>,
     slint_window: slint::Window,
     renderer: SkiaRenderer,
 
@@ -51,7 +51,7 @@ pub struct PluginCanvasWindowAdapter {
 
 impl PluginCanvasWindowAdapter {
     pub fn new() -> Result<Rc<dyn WindowAdapter>, PlatformError> {
-        let plugin_canvas_window = *WINDOW_TO_SLINT.take().unwrap();
+        let plugin_canvas_window = WINDOW_TO_SLINT.take().unwrap();
         let window_handle = plugin_canvas_window.window_handle().unwrap();
         let display_handle = plugin_canvas_window.display_handle().unwrap();
         

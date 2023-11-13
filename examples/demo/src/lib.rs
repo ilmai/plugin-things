@@ -24,13 +24,14 @@ pub struct PluginParams {
 }
 
 pub struct PluginComponent {
-    window: PluginWindow,
+    component: PluginWindow,
+    window: Arc<plugin_canvas::Window>,
     param_map: HashMap<SharedString, ParamPtr>,
 }
 
 impl PluginComponent {
-    fn new(params: Arc<PluginParams>) -> Self {
-        let window = PluginWindow::new().unwrap();
+    fn new(window: Arc<plugin_canvas::Window>, params: Arc<PluginParams>) -> Self {
+        let component = PluginWindow::new().unwrap();
 
         let param_map: HashMap<SharedString, _> = params.param_map().iter()
             .map(|(name, param_ptr, _)| {
@@ -39,19 +40,20 @@ impl PluginComponent {
             .collect();
 
         Self {
+            component,
             window,
             param_map,
         }
     }
 
     fn drag_event_response(&self, position: &LogicalPosition) -> EventResponse {
-        self.window.set_drag_x(position.x as f32);
-        self.window.set_drag_y(position.y as f32);
+        self.component.set_drag_x(position.x as f32);
+        self.component.set_drag_y(position.y as f32);
     
-        let drop_area_x = self.window.get_drop_area_x() as f64;
-        let drop_area_y = self.window.get_drop_area_y() as f64;
-        let drop_area_width = self.window.get_drop_area_width() as f64;
-        let drop_area_height = self.window.get_drop_area_height() as f64;
+        let drop_area_x = self.component.get_drop_area_x() as f64;
+        let drop_area_y = self.component.get_drop_area_y() as f64;
+        let drop_area_width = self.component.get_drop_area_width() as f64;
+        let drop_area_height = self.component.get_drop_area_height() as f64;
 
         if position.x >= drop_area_x &&
             position.x <= drop_area_x + drop_area_width &&
@@ -83,7 +85,7 @@ impl PluginComponent {
 
     fn set_parameter(&self, id: &str, parameter: PluginParameter) {
         match id {
-            "gain" => self.window.set_gain(parameter),
+            "gain" => self.component.set_gain(parameter),
             _ => unimplemented!(),
         }
     }
@@ -95,7 +97,7 @@ impl PluginComponentHandle for PluginComponent {
     }
 
     fn window(&self) -> &slint::Window {
-        self.window.window()
+        self.component.window()
     }
 
     fn param_map(&self) -> &HashMap<slint::SharedString, ParamPtr> {
@@ -105,12 +107,12 @@ impl PluginComponentHandle for PluginComponent {
     fn on_event(&self, event: &Event) -> EventResponse {
         match event {
             Event::DragEntered { position, data: _ } => {
-                self.window.set_dragging(true);
+                self.component.set_dragging(true);
                 self.drag_event_response(position)
             },
 
             Event::DragExited => {
-                self.window.set_dragging(false);
+                self.component.set_dragging(false);
                 EventResponse::Handled
             },
 
@@ -119,8 +121,9 @@ impl PluginComponentHandle for PluginComponent {
             },
 
             Event::DragDropped { position, data: _ } => {
-                self.window.set_dragging(false);
+                self.component.set_dragging(false);
                 self.drag_event_response(position)
+                // self.window.window().
             },
 
             _ => EventResponse::Ignored,
@@ -141,19 +144,19 @@ impl PluginComponentHandle for PluginComponent {
 
 impl PluginComponentHandleParameterEvents for PluginComponent {
     fn on_start_parameter_change(&self, mut f: impl FnMut(slint::SharedString) + 'static) {
-        self.window.on_start_change(move |parameter| f(parameter.id.into()));
+        self.component.on_start_change(move |parameter| f(parameter.id.into()));
     }
 
     fn on_parameter_changed(&self, mut f: impl FnMut(slint::SharedString, f32) + 'static) {
-        self.window.on_changed(move |parameter, value| f(parameter.id.into(), value));
+        self.component.on_changed(move |parameter, value| f(parameter.id.into(), value));
     }
 
     fn on_end_parameter_change(&self, mut f: impl FnMut(slint::SharedString) + 'static) {
-        self.window.on_end_change(move |parameter| f(parameter.id.into()));
+        self.component.on_end_change(move |parameter| f(parameter.id.into()));
     }
 
     fn on_set_parameter_string(&self, mut f: impl FnMut(slint::SharedString, slint::SharedString) + 'static) {
-        self.window.on_set_string(move |parameter, string| f(parameter.id.into(), string));
+        self.component.on_set_string(move |parameter, string| f(parameter.id.into(), string));
     }
 }
 
@@ -229,7 +232,7 @@ impl Plugin for DemoPlugin {
             window_attributes,
             {
                 let params = self.params.clone();
-                move || PluginComponent::new(params.clone())
+                move |window| PluginComponent::new(window, params.clone())
             },
         );
 

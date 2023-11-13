@@ -1,7 +1,7 @@
 use cursor_icon::CursorIcon;
 use raw_window_handle::{RawWindowHandle, HasRawWindowHandle, HasWindowHandle, Active, HasDisplayHandle, HasRawDisplayHandle};
 
-use crate::{platform::{window::OsWindow, interface::{OsWindowInterface, OsWindowHandle}}, error::Error, event::EventCallback, dimensions::LogicalSize};
+use crate::{platform::{window::OsWindow, interface::{OsWindowInterface, OsWindowHandle}}, error::Error, event::EventCallback, dimensions::LogicalSize, LogicalPosition};
 
 pub type WindowBuilder = Box<dyn FnOnce(Window) + Send>;
 
@@ -90,6 +90,10 @@ impl Window {
 
     pub fn set_input_focus(&self, focus: bool) {
         self.os_window_handle.window().set_input_focus(focus);
+    }
+
+    pub fn warp_mouse(&self, position: LogicalPosition) {
+        self.os_window_handle.window().warp_mouse(position);
     }
 }
 

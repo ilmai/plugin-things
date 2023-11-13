@@ -2657,6 +2657,7 @@ checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
 name = "plugin-canvas"
 version = "0.0.0"
 dependencies = [
+ "core-graphics 0.23.1",
  "cursor-icon",
  "icrate",
  "lazy_static",
