@@ -1,10 +1,11 @@
 use std::{ffi::c_void, sync::atomic::{Ordering, AtomicBool}, rc::Rc, cell::RefCell, ptr::null_mut};
 
+use cursor_icon::CursorIcon;
 use icrate::{AppKit::{NSTrackingArea, NSView, NSWindow, NSTrackingMouseEnteredAndExited, NSTrackingMouseMoved, NSTrackingActiveAlways, NSTrackingInVisibleRect, NSCursor, NSPasteboardTypeFileURL}, Foundation::{CGPoint, CGSize, CGRect, NSInvocationOperation, NSOperationQueue, NSArray}};
 use objc2::{ClassType, msg_send_id, rc::Id, sel};
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle, AppKitWindowHandle, HasRawDisplayHandle, RawDisplayHandle, AppKitDisplayHandle};
 
-use crate::{error::Error, platform::interface::{OsWindowInterface, OsWindowHandle, OsWindowBuilder}, event::{EventCallback, EventResponse}, window::WindowAttributes, Event, cursor::Cursor};
+use crate::{error::Error, platform::interface::{OsWindowInterface, OsWindowHandle, OsWindowBuilder}, event::{EventCallback, EventResponse}, window::WindowAttributes, Event};
 
 use super::display_link::{CVDisplayLinkRef, CVTimeStamp, CVReturn, self};
 use super::view::OsWindowView;
@@ -124,41 +125,56 @@ impl OsWindowInterface for OsWindow {
         Ok(())
     }
 
-    fn set_cursor(&self, cursor: Cursor) {
+    fn set_cursor(&self, cursor: Option<CursorIcon>) {
         unsafe {
-            let cursor = match cursor {
-                Cursor::None => {
-                    if !self.cursor_hidden.swap(true, Ordering::Relaxed) {
-                        NSCursor::hide();
-                    }
-                    
-                    return;
-                },
+            if let Some(cursor) = cursor {
+                let cursor = match cursor {
+                    CursorIcon::Default => NSCursor::arrowCursor(),
+                    CursorIcon::ContextMenu => NSCursor::contextualMenuCursor(),
+                    CursorIcon::Help => NSCursor::arrowCursor(), // TODO
+                    CursorIcon::Pointer => NSCursor::pointingHandCursor(),
+                    CursorIcon::Progress => NSCursor::arrowCursor(), // TODO,
+                    CursorIcon::Wait => NSCursor::arrowCursor(), // TODO
+                    CursorIcon::Cell => NSCursor::crosshairCursor(),
+                    CursorIcon::Crosshair => NSCursor::crosshairCursor(),
+                    CursorIcon::Text => NSCursor::IBeamCursor(),
+                    CursorIcon::VerticalText => NSCursor::IBeamCursorForVerticalLayout(),
+                    CursorIcon::Alias => NSCursor::dragLinkCursor(),
+                    CursorIcon::Copy => NSCursor::dragCopyCursor(),
+                    CursorIcon::Move => NSCursor::openHandCursor(),
+                    CursorIcon::NoDrop => NSCursor::operationNotAllowedCursor(),
+                    CursorIcon::NotAllowed => NSCursor::operationNotAllowedCursor(),
+                    CursorIcon::Grab => NSCursor::openHandCursor(),
+                    CursorIcon::Grabbing => NSCursor::closedHandCursor(),
+                    CursorIcon::EResize => NSCursor::resizeRightCursor(),
+                    CursorIcon::NResize => NSCursor::resizeUpCursor(),
+                    CursorIcon::NeResize => NSCursor::arrowCursor(), // TODO,
+                    CursorIcon::NwResize => NSCursor::arrowCursor(), // TODO
+                    CursorIcon::SResize => NSCursor::resizeDownCursor(),
+                    CursorIcon::SeResize => NSCursor::arrowCursor(), // TODO
+                    CursorIcon::SwResize => NSCursor::arrowCursor(), // TODO
+                    CursorIcon::WResize => NSCursor::resizeLeftCursor(),
+                    CursorIcon::EwResize => NSCursor::resizeLeftRightCursor(),
+                    CursorIcon::NsResize => NSCursor::resizeUpDownCursor(),
+                    CursorIcon::NeswResize => NSCursor::arrowCursor(), // TODO
+                    CursorIcon::NwseResize => NSCursor::arrowCursor(), // TODO
+                    CursorIcon::ColResize => NSCursor::resizeLeftRightCursor(),
+                    CursorIcon::RowResize => NSCursor::resizeUpDownCursor(),
+                    CursorIcon::AllScroll => NSCursor::openHandCursor(),
+                    CursorIcon::ZoomIn => NSCursor::arrowCursor(), // TODO
+                    CursorIcon::ZoomOut => NSCursor::arrowCursor(), // TODO
+                    _ => todo!(),
+                };
+        
+                cursor.set();
 
-                Cursor::Arrow => NSCursor::arrowCursor(),
-                Cursor::Alias => NSCursor::dragLinkCursor(),
-                Cursor::Copy => NSCursor::dragCopyCursor(),
-                Cursor::Crosshair => NSCursor::crosshairCursor(),
-                Cursor::Grab => NSCursor::openHandCursor(),
-                Cursor::Grabbing => NSCursor::closedHandCursor(),
-                Cursor::NoDrop => NSCursor::operationNotAllowedCursor(),
-                Cursor::NotAllowed => NSCursor::operationNotAllowedCursor(),
-                Cursor::Pointer => NSCursor::pointingHandCursor(),
-                Cursor::Text => NSCursor::IBeamCursor(),
-                Cursor::ResizeNorth => NSCursor::resizeUpCursor(),
-                Cursor::ResizeEast => NSCursor::resizeRightCursor(),
-                Cursor::ResizeSouth => NSCursor::resizeDownCursor(),
-                Cursor::ResizeWest => NSCursor::resizeLeftCursor(),
-                Cursor::ResizeEastWest => NSCursor::resizeLeftRightCursor(),
-                Cursor::ResizeNorthSouth => NSCursor::resizeUpDownCursor(),
-
-                _ => NSCursor::arrowCursor(),
-            };
-    
-            cursor.set();
-
-            if self.cursor_hidden.swap(false, Ordering::Relaxed) {
-                NSCursor::unhide();
+                if self.cursor_hidden.swap(false, Ordering::Relaxed) {
+                    NSCursor::unhide();
+                }
+            } else {
+                if !self.cursor_hidden.swap(true, Ordering::Relaxed) {
+                    NSCursor::hide();
+                }
             }
         }
     }
