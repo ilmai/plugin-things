@@ -25,12 +25,11 @@ pub struct PluginParams {
 
 pub struct PluginComponent {
     component: PluginWindow,
-    window: Arc<plugin_canvas::Window>,
     param_map: HashMap<SharedString, ParamPtr>,
 }
 
 impl PluginComponent {
-    fn new(window: Arc<plugin_canvas::Window>, params: Arc<PluginParams>) -> Self {
+    fn new(params: Arc<PluginParams>) -> Self {
         let component = PluginWindow::new().unwrap();
 
         let param_map: HashMap<SharedString, _> = params.param_map().iter()
@@ -41,7 +40,6 @@ impl PluginComponent {
 
         Self {
             component,
-            window,
             param_map,
         }
     }
@@ -232,7 +230,7 @@ impl Plugin for DemoPlugin {
             window_attributes,
             {
                 let params = self.params.clone();
-                move |window| PluginComponent::new(window, params.clone())
+                move |_window| PluginComponent::new(params.clone())
             },
         );
 
