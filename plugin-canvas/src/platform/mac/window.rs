@@ -2,7 +2,7 @@ use std::{ffi::c_void, sync::atomic::{Ordering, AtomicBool}, rc::Rc, cell::RefCe
 
 use core_graphics::display::CGDisplay;
 use cursor_icon::CursorIcon;
-use icrate::{AppKit::{NSTrackingArea, NSView, NSWindow, NSTrackingMouseEnteredAndExited, NSTrackingMouseMoved, NSTrackingActiveAlways, NSTrackingInVisibleRect, NSCursor, NSPasteboardTypeFileURL}, Foundation::{CGPoint, CGSize, CGRect, NSInvocationOperation, NSOperationQueue, NSArray}};
+use icrate::{AppKit::{NSTrackingArea, NSView, NSWindow, NSTrackingMouseEnteredAndExited, NSTrackingMouseMoved, NSTrackingActiveAlways, NSTrackingInVisibleRect, NSCursor, NSPasteboardTypeFileURL, NSScreen}, Foundation::{CGPoint, CGSize, CGRect, NSInvocationOperation, NSOperationQueue, NSArray}};
 use objc2::{ClassType, msg_send_id, rc::Id, sel};
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle, AppKitWindowHandle, HasRawDisplayHandle, RawDisplayHandle, AppKitDisplayHandle};
 
@@ -185,8 +185,11 @@ impl OsWindowInterface for OsWindow {
     }
 
     fn warp_mouse(&self, position: LogicalPosition) {
-        let position = core_graphics::geometry::CGPoint::new(position.x, position.y);
-        CGDisplay::warp_mouse_cursor_position(position).unwrap();
+        let window_position = unsafe { self.view().convertPoint_toView(CGPoint::new(position.x, position.y), None) };
+        let screen_position = unsafe { self.view().window().unwrap().convertPointToScreen(window_position) };
+        let screen_height = unsafe { NSScreen::mainScreen().unwrap().frame().size.height };
+        let cg_point = core_graphics::geometry::CGPoint::new(screen_position.x, screen_height - screen_position.y);
+        CGDisplay::warp_mouse_cursor_position(cg_point).unwrap();
     }
 }
 

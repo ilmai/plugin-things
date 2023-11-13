@@ -32,6 +32,7 @@ features = [
     "AppKit_NSEvent",
     "AppKit_NSPasteboard",
     "AppKit_NSPasteboardItem",
+    "AppKit_NSScreen",
     "AppKit_NSTrackingArea",
     "AppKit_NSView",
     "AppKit_NSWindow",
