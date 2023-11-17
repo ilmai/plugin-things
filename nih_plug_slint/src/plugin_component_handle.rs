@@ -10,7 +10,8 @@ pub trait PluginComponentHandle {
 
     fn on_event(&self, event: &Event) -> EventResponse;
 
-    fn update_parameter(&self, id: &str, update_value: bool, update_modulation: bool);
+    fn update_parameter_value(&self, id: &str);
+    fn update_parameter_modulation(&self, id: &str);
     fn update_all_parameters(&self);
 }
 

@@ -121,11 +121,11 @@ impl PluginCanvasWindowAdapter {
                 while let Ok(parameter_change) = context.parameter_change_receiver.try_recv() {
                     match parameter_change {
                         ParameterChange::ValueChanged { id } => {
-                            context.component.update_parameter(&id, true, false);
+                            context.component.update_parameter_value(&id);
                         }
 
                         ParameterChange::ModulationChanged { id } => {
-                            context.component.update_parameter(&id, false, true);
+                            context.component.update_parameter_modulation(&id);
                         }
 
                         ParameterChange::AllValuesChanged => {

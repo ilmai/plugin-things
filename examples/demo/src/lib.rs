@@ -128,14 +128,17 @@ impl PluginComponentHandle for PluginComponent {
         }
     }
 
-    fn update_parameter(&self, id: &str, _update_value: bool, _update_modulation: bool) {
+    fn update_parameter_value(&self, id: &str) {
         let parameter = self.convert_parameter(id);
         self.set_parameter(id, parameter);
     }
 
+    fn update_parameter_modulation(&self, _id: &str) {
+    }
+
     fn update_all_parameters(&self) {
         for id in self.param_map.keys() {
-            self.update_parameter(id, true, true);
+            self.update_parameter_value(id);
         }
     }
 }
