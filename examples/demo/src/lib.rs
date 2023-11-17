@@ -1,4 +1,3 @@
-use std::any::Any;
 use std::collections::HashMap;
 use std::{sync::Arc, num::NonZeroU32};
 
@@ -90,10 +89,6 @@ impl PluginComponent {
 }
 
 impl PluginComponentHandle for PluginComponent {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
     fn window(&self) -> &slint::Window {
         self.component.window()
     }
