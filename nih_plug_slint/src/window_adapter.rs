@@ -29,12 +29,6 @@ pub struct Context {
     pub component: Box<dyn PluginComponentHandle>,
 }
 
-impl Context {
-    pub fn component<T: PluginComponentHandle + 'static>(&self) -> Option<&T> {
-        self.component.as_any().downcast_ref()
-    }
-}
-
 pub struct PluginCanvasWindowAdapter {
     plugin_canvas_window: Arc<plugin_canvas::Window>,
     slint_window: slint::Window,

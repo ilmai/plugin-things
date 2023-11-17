@@ -1,10 +1,9 @@
-use std::{any::Any, collections::HashMap};
+use std::collections::HashMap;
 
 use nih_plug::prelude::ParamPtr;
 use plugin_canvas::{Event, event::EventResponse};
 
 pub trait PluginComponentHandle {
-    fn as_any(&self) -> &dyn Any;
     fn window(&self) -> &slint::Window;
     fn param_map(&self) -> &HashMap<slint::SharedString, ParamPtr>;
 
