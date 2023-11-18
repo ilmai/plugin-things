@@ -1,10 +1,10 @@
 use std::cell::RefCell;
+use std::ptr::null_mut;
 use std::sync::atomic::{AtomicPtr, Ordering};
 use std::thread::ThreadId;
 use std::{sync::Arc, any::Any, rc::Rc};
 use std::sync::{Mutex, RwLock, Weak, mpsc};
 
-use i_slint_core::window::WindowAdapter;
 use nih_plug::prelude::*;
 use plugin_canvas::event::EventResponse;
 use plugin_canvas::{window::WindowAttributes, Event};
@@ -226,8 +226,9 @@ impl EditorHandle {
 
 impl Drop for EditorHandle {
     fn drop(&mut self) {
-        let window_adapter_ptr = self.window_adapter_ptr.load(Ordering::Relaxed);
-        let rc = unsafe { Rc::from_raw(window_adapter_ptr) };
-        rc.window().dispatch_event(i_slint_core::platform::WindowEvent::CloseRequested);
+        self.on_event(&Event::Close);
+
+        let window_adapter_ptr = self.window_adapter_ptr.swap(null_mut(), Ordering::Relaxed);
+        unsafe { Rc::from_raw(window_adapter_ptr) };
     }
 }

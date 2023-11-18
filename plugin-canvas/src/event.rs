@@ -9,6 +9,7 @@ pub enum MouseButton {
 
 #[derive(Debug)]
 pub enum Event {
+    Close,
     Draw,
 
     KeyDown {

@@ -107,6 +107,14 @@ impl PluginCanvasWindowAdapter {
 
     pub fn on_event(&self, event: &plugin_canvas::Event) -> EventResponse {
         match event {
+            plugin_canvas::Event::Close => {
+                self.slint_window.dispatch_event(WindowEvent::CloseRequested);
+
+                // Delete context when close is requested to unravel the cyclic reference
+                self.context.borrow_mut().take();
+                EventResponse::Handled
+            },
+
             plugin_canvas::Event::Draw => {
                 let context = self.context.borrow();
                 let context = context.as_ref().unwrap();
