@@ -17,7 +17,7 @@ use crate::{platform::PluginCanvasPlatform, window_adapter::{WINDOW_TO_SLINT, WI
 pub struct SlintEditor<C, B>
 where
     C: PluginComponentHandleParameterEvents,
-    B: Fn(Arc<plugin_canvas::Window>) -> C,
+    B: Fn(Arc<plugin_canvas::Window>, Arc<dyn GuiContext>) -> C,
 {
     window_attributes: WindowAttributes,
     os_scale: RwLock<f32>,
@@ -30,7 +30,7 @@ where
 impl<C, B> SlintEditor<C, B>
 where
     C: PluginComponentHandleParameterEvents,
-    B: Fn(Arc<plugin_canvas::Window>) -> C,
+    B: Fn(Arc<plugin_canvas::Window>, Arc<dyn GuiContext>) -> C,
 {
     pub fn new(
         window_attributes: WindowAttributes,
@@ -50,7 +50,7 @@ where
 impl<C, B> Editor for SlintEditor<C, B>
 where
     C: PluginComponentHandleParameterEvents + 'static,
-    B: Fn(Arc<plugin_canvas::Window>) -> C + Clone + Send + 'static,
+    B: Fn(Arc<plugin_canvas::Window>, Arc<dyn GuiContext>) -> C + Clone + Send + 'static,
 {
     fn spawn(&self, parent: ParentWindowHandle, gui_context: Arc<dyn GuiContext>) -> Box<dyn Any + Send> {
         let editor_handle = Arc::new(EditorHandle::new());
@@ -91,7 +91,7 @@ where
                     let window = Arc::new(window);
                     WINDOW_TO_SLINT.set(Some(window.clone()));
 
-                    let component = component_builder(window);
+                    let component = component_builder(window, gui_context.clone());
 
                     component.on_start_parameter_change({
                         let gui_context = gui_context.clone();

@@ -228,7 +228,7 @@ impl Plugin for DemoPlugin {
             window_attributes,
             {
                 let params = self.params.clone();
-                move |_window| PluginComponent::new(params.clone())
+                move |_window, _gui_context| PluginComponent::new(params.clone())
             },
         );
 
