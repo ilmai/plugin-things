@@ -116,7 +116,6 @@ impl PluginComponentHandle for PluginComponent {
             Event::DragDropped { position, data: _ } => {
                 self.component.set_dragging(false);
                 self.drag_event_response(position)
-                // self.window.window().
             },
 
             _ => EventResponse::Ignored,
