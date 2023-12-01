@@ -180,7 +180,7 @@ export component ParameterKnob inherits Rectangle {
                 }
                 moved => {
                     if (self.enabled && self.pressed) {
-                        root.changed(max(0.0, min(1.0, self.pressed-value + (touch.pressed-y - touch.mouse-y) / root.height * root.sensitivity)));
+                        root.changed(clamp(self.pressed-value + (touch.pressed-y - touch.mouse-y) / root.height * root.sensitivity, 0.0, 1.0));
                     }
                 }
             }

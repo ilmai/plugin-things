@@ -119,7 +119,7 @@ export component ParameterSlider inherits Rectangle {
         }
         moved => {
             if (self.enabled && self.pressed) {
-                root.changed(max(0.0, min(1.0, self.pressed-value + (touch.mouse-x - touch.pressed-x) / (root.width - handle.width))));
+                root.changed(clamp(self.pressed-value + (touch.mouse-x - touch.pressed-x) / (root.width - handle.width), 0.0, 1.0));
             }
         }
     }
