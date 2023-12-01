@@ -128,7 +128,8 @@ impl PluginComponentHandle for PluginComponent {
         self.set_parameter(id, parameter);
     }
 
-    fn update_parameter_modulation(&self, _id: &str) {
+    fn update_parameter_modulation(&self, id: &str) {
+        self.update_parameter_value(id);
     }
 
     fn update_all_parameters(&self) {
