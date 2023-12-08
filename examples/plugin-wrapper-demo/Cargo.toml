@@ -1,0 +1,16 @@
+[package]
+name = "plugin-wrapper-demo"
+version = "0.0.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[dependencies]
+clack-plugin = { git = "https://github.com/prokopyl/clack" }
+plugin-canvas.workspace = true
+plugin-wrapper.workspace = true
+slint.workspace = true
+
+[build-dependencies]
+slint-build = "1.3"

@@ -1,0 +1,12 @@
+[package]
+name = "plugin-wrapper"
+version = "0.0.0"
+edition = "2021"
+
+authors = ["Jussi Viiri <jussi@viiri-audio.com>"]
+readme = "README.md"
+repository = "https://github.com/ilmai/plugin-things"
+license = "MIT"
+
+[dependencies]
+clack-plugin = { git = "https://github.com/prokopyl/clack" }
