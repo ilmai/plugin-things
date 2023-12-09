@@ -716,6 +716,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "clap-demo"
+version = "0.0.0"
+dependencies = [
+ "clack-plugin",
+ "plugin-canvas",
+ "slint",
+ "slint-build",
+]
+
+[[package]]
 name = "clap-sys"
 version = "0.3.0"
 source = "git+https://github.com/robbert-vdh/clap-sys.git?branch=feature/cstr-macro#523a5f8a8dd021ec99e7d6e0c0ebe7741a3da9d4"
@@ -2662,17 +2672,6 @@ name = "plugin-wrapper"
 version = "0.0.0"
 dependencies = [
  "clack-plugin",
-]
-
-[[package]]
-name = "plugin-wrapper-demo"
-version = "0.0.0"
-dependencies = [
- "clack-plugin",
- "plugin-canvas",
- "plugin-wrapper",
- "slint",
- "slint-build",
 ]
 
 [[package]]

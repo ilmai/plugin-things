@@ -1,13 +1,8 @@
 use std::ffi::CStr;
 
 use clack_plugin::{clack_export_entry, entry::SinglePluginEntry, plugin::descriptor::StaticPluginDescriptor, prelude::PluginDescriptor};
-use plugin_wrapper::ClapPlugin;
 
 pub struct DemoPlugin {
-
-}
-
-impl ClapPlugin for DemoPlugin {
 
 }
 

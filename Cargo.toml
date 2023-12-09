@@ -1,8 +1,8 @@
 [workspace]
 resolver = "2"
 members = [
+    "examples/clap-demo",
     "examples/demo",
-    "examples/plugin-wrapper-demo",
     "nih_plug_slint",
     "plugin-canvas",
     "plugin-wrapper",
