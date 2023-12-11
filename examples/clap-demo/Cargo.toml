@@ -7,7 +7,7 @@ edition = "2021"
 crate-type = ["cdylib", "lib"]
 
 [dependencies]
-clack-extensions = { git = "https://github.com/prokopyl/clack", features = ["audio-ports", "clack-plugin", "params"] }
+clack-extensions = { git = "https://github.com/prokopyl/clack", features = ["audio-ports", "clack-plugin", "gui", "params"] }
 clack-plugin = { git = "https://github.com/prokopyl/clack" }
 plugin-canvas.workspace = true
 portable-atomic = { version = "1.6", default-features = false, features = ["float"] }

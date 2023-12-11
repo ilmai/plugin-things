@@ -704,6 +704,7 @@ dependencies = [
  "clack-common",
  "clack-plugin",
  "clap-sys 0.3.0 (git+https://github.com/glowcoil/clap-sys.git?rev=22afeff171abab7c702c599b41bedd060de61880)",
+ "raw-window-handle 0.5.2",
 ]
 
 [[package]]
