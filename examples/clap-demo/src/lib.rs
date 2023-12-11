@@ -1,5 +1,5 @@
 use core::fmt::Write;
-use std::{ffi::CStr, sync::Arc};
+use std::{ffi::CStr, sync::Arc, iter::zip};
 
 use clack_extensions::{audio_ports::{AudioPortInfoWriter, AudioPortInfoData, AudioPortFlags, AudioPortType}, params::{implementation::{ParamInfoWriter, ParamDisplayWriter}, info::{ParamInfoData, ParamInfoFlags}}};
 use clack_plugin::{prelude::*, utils::Cookie, events::{event_types::ParamValueEvent, Event}};
@@ -76,6 +76,8 @@ impl<'a> clack_plugin::plugin::PluginAudioProcessor<'a, (), DemoPluginMainThread
             self.process_event(event);
         }
 
+        let gain = 10.0_f64.powf(self.parameters.gain.load(Ordering::Relaxed) / 20.0) as f32;
+
         for mut port_pair in &mut audio {
             let Some(channel_pairs) = port_pair.channels()?.into_f32() else { continue; };
 
@@ -84,7 +86,9 @@ impl<'a> clack_plugin::plugin::PluginAudioProcessor<'a, (), DemoPluginMainThread
                     ChannelPair::InputOnly(_) => {},
                     ChannelPair::OutputOnly(output) => output.fill(0.0),
                     ChannelPair::InputOutput(input, output) => {
-                        output.copy_from_slice(input);
+                        for (input_sample, output_sample) in zip(input, output) {
+                            *output_sample = *input_sample * gain;
+                        }
                     },
                     ChannelPair::InPlace(_) => {},
                 }
@@ -175,16 +179,15 @@ impl clack_extensions::params::implementation::PluginMainThreadParams for DemoPl
         write!(writer, "{value:.1} dB")
     }
 
-    fn text_to_value(&self, param_id: u32, text: &str) -> Option<f64> {
+    fn text_to_value(&self, param_id: u32, text: &str) -> Option<f64> {        
         assert_eq!(param_id, 0);
-        // TODO
-        None
+        text.trim_end_matches(&[' ', 'd', 'D', 'b', 'B']).parse().ok()
     }
 
     fn flush(
         &mut self,
-        input_parameter_changes: &InputEvents,
-        output_parameter_changes: &mut OutputEvents,
+        _input_parameter_changes: &InputEvents,
+        _output_parameter_changes: &mut OutputEvents,
     )
     {
     }
