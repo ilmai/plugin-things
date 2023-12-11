@@ -53,11 +53,11 @@ impl PluginCanvasWindowAdapter {
 
         // TODO: Why is this needed on Linux?
         #[cfg(target_os = "linux")]
-        let scale = window_attributes.user_scale() * plugin_canvas_window.os_scale();
+        let scale = window_attributes.user_scale * plugin_canvas_window.os_scale();
         #[cfg(not(target_os = "linux"))]
-        let scale = window_attributes.user_scale();
+        let scale = window_attributes.user_scale;
 
-        let plugin_canvas_size = window_attributes.size() * scale;
+        let plugin_canvas_size = window_attributes.size * scale;
 
         let slint_size = slint::PhysicalSize {
             width: plugin_canvas_size.width as u32,

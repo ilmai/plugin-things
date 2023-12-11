@@ -7,8 +7,8 @@ pub type WindowBuilder = Box<dyn FnOnce(Window) + Send>;
 
 #[derive(Clone)]
 pub struct WindowAttributes {
-    pub(crate) size: LogicalSize,
-    pub(crate) user_scale: f64,
+    pub size: LogicalSize,
+    pub user_scale: f64,
 }
 
 impl WindowAttributes {
@@ -21,14 +21,6 @@ impl WindowAttributes {
 
     pub fn with_size(size: LogicalSize) -> Self {
         Self::new(size, 1.0)
-    }
-
-    pub fn size(&self) -> LogicalSize {
-        self.size
-    }
-
-    pub fn user_scale(&self) -> f64 {
-        self.user_scale
     }
 
     pub fn scaled_size(&self) -> LogicalSize {
