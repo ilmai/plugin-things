@@ -197,12 +197,14 @@ impl clack_extensions::gui::PluginGuiImpl for DemoPluginMainThread {
         todo!()
     }
 
+    #[cfg(target_os = "macos")]
+    fn set_scale(&mut self, _scale: f64) -> Result<(), clack_extensions::gui::GuiError> {
+        return Err(clack_extensions::gui::GuiError::SetScaleError);
+    }
+
+    #[cfg(not(target_os = "macos"))]
     fn set_scale(&mut self, scale: f64) -> Result<(), clack_extensions::gui::GuiError> {
-        #[cfg(target_os = "macos")]
-        return Err(GuiError::SetScaleError);
-
         self.os_scale = scale;
-
         Ok(())
     }
 
