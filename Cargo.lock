@@ -2682,13 +2682,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "plugin-wrapper"
-version = "0.0.0"
-dependencies = [
- "clack-plugin",
-]
-
-[[package]]
 name = "png"
 version = "0.17.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
