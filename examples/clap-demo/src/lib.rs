@@ -2,7 +2,7 @@ use core::fmt::Write;
 use std::{ffi::CStr, sync::Arc, iter::zip};
 
 use clack_extensions::{audio_ports::{AudioPortInfoWriter, AudioPortInfoData, AudioPortFlags, AudioPortType}, params::{implementation::{ParamInfoWriter, ParamDisplayWriter}, info::{ParamInfoData, ParamInfoFlags}}};
-use clack_plugin::{prelude::*, utils::Cookie, events::{event_types::ParamValueEvent, Event}};
+use clack_plugin::{prelude::*, utils::Cookie, events::{event_types::ParamValueEvent, Event, spaces::CoreEventSpace}};
 use portable_atomic::{AtomicF64, Ordering};
 
 pub struct DemoPlugin {
@@ -33,6 +33,19 @@ pub struct DemoPluginParameters {
     gain: AtomicF64,
 }
 
+impl DemoPluginParameters {
+    fn process_event(&self, event: &UnknownEvent) {
+        match event.as_core_event() {
+            Some(CoreEventSpace::ParamValue(event)) => {
+                assert_eq!(event.param_id(), 0);
+                self.gain.store(event.value(), Ordering::Relaxed);
+            },
+
+            _ => {},
+        }
+    }
+}
+
 impl Default for DemoPluginParameters {
     fn default() -> Self {
         Self {
@@ -51,18 +64,6 @@ impl DemoPluginAudioProcessor {
             parameters,
         }
     }
-
-    fn process_event(&mut self, event: &UnknownEvent) {
-        match event.header().type_id() {
-            ParamValueEvent::TYPE_ID => {
-                let param_value_event = event.as_event::<ParamValueEvent>().unwrap();
-                assert_eq!(param_value_event.param_id(), 0);
-                self.parameters.gain.store(param_value_event.value(), Ordering::Relaxed);
-            },
-
-            _ => {},
-        }
-    }
 }
 
 
@@ -73,7 +74,7 @@ impl<'a> clack_plugin::plugin::PluginAudioProcessor<'a, (), DemoPluginMainThread
 
     fn process(&mut self, _process: Process, mut audio: Audio, events: Events) -> Result<ProcessStatus, PluginError> {
         for event in events.input {
-            self.process_event(event);
+            self.parameters.process_event(event);
         }
 
         let gain = 10.0_f64.powf(self.parameters.gain.load(Ordering::Relaxed) / 20.0) as f32;
@@ -107,27 +108,13 @@ impl clack_extensions::params::implementation::PluginAudioProcessorParams for De
     )
     {
         for event in input_parameter_changes {
-            self.process_event(event);
+            self.parameters.process_event(event);
         }
     }
 }
 
 pub struct DemoPluginMainThread {
     parameters: Arc<DemoPluginParameters>,
-}
-
-impl DemoPluginMainThread {
-    fn process_event(&mut self, event: &UnknownEvent) {
-        match event.header().type_id() {
-            ParamValueEvent::TYPE_ID => {
-                let param_value_event = event.as_event::<ParamValueEvent>().unwrap();
-                assert_eq!(param_value_event.param_id(), 0);
-                self.parameters.gain.store(param_value_event.value(), Ordering::Relaxed);
-            },
-
-            _ => {},
-        }
-    }
 }
 
 impl<'a> clack_plugin::plugin::PluginMainThread<'a, ()> for DemoPluginMainThread {
@@ -205,7 +192,7 @@ impl clack_extensions::params::implementation::PluginMainThreadParams for DemoPl
     )
     {
         for event in input_parameter_changes {
-            self.process_event(event);
+            self.parameters.process_event(event);
         }
     }
 }
