@@ -4,6 +4,7 @@ members = [
     "examples/auv3-demo",
     "examples/clap-demo",
     "examples/demo",
+    "examples/vst3-demo",
     "nih_plug_slint",
     "plugin-canvas",
     "xtask",

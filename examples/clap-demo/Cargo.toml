@@ -11,7 +11,3 @@ clack-extensions = { git = "https://github.com/prokopyl/clack", features = ["aud
 clack-plugin = { git = "https://github.com/prokopyl/clack" }
 plugin-canvas.workspace = true
 portable-atomic = { version = "1.6", default-features = false, features = ["float"] }
-slint.workspace = true
-
-[build-dependencies]
-slint-build = "1.3"
