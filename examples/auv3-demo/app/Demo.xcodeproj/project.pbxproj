@@ -10,6 +10,7 @@
 		4AD131222B2DF37E008CD34E /* Demo.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 4AD131212B2DF37E008CD34E /* Demo.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		4AFD75882B321A8F001831D2 /* DemoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AFD75872B321A8F001831D2 /* DemoApp.swift */; };
 		4AFD758D2B321AA6001831D2 /* DemoExtension.m in Sources */ = {isa = PBXBuildFile; fileRef = 4AFD758A2B321AA6001831D2 /* DemoExtension.m */; };
+		4AFDCACE2B360946003EC6C2 /* libauv3_demo.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 4AFDCACD2B360929003EC6C2 /* libauv3_demo.a */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -42,6 +43,8 @@
 		4AFD75872B321A8F001831D2 /* DemoApp.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = DemoApp.swift; sourceTree = "<group>"; };
 		4AFD758A2B321AA6001831D2 /* DemoExtension.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DemoExtension.m; sourceTree = "<group>"; };
 		4AFD758C2B321AA6001831D2 /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		4AFDCACB2B3600FD003EC6C2 /* Factory.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Factory.h; sourceTree = "<group>"; };
+		4AFDCACD2B360929003EC6C2 /* libauv3_demo.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libauv3_demo.a; path = ../../../target/debug/libauv3_demo.a; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -56,6 +59,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				4AFDCACE2B360946003EC6C2 /* libauv3_demo.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,9 +69,11 @@
 		4AD130F12B2DF37D008CD34E = {
 			isa = PBXGroup;
 			children = (
+				4AFDCACB2B3600FD003EC6C2 /* Factory.h */,
 				4AFD75892B321AA6001831D2 /* Extension */,
 				4AFD75862B321A8F001831D2 /* App */,
 				4AD130FB2B2DF37D008CD34E /* Products */,
+				4AFDCACC2B360929003EC6C2 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -95,6 +101,14 @@
 				4AFD758C2B321AA6001831D2 /* Info.plist */,
 			);
 			path = Extension;
+			sourceTree = "<group>";
+		};
+		4AFDCACC2B360929003EC6C2 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				4AFDCACD2B360929003EC6C2 /* libauv3_demo.a */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -354,6 +368,7 @@
 					"@executable_path/../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
+				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/../../../target/debug";
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "viiri-audio.Demo.Extension";
 				PRODUCT_NAME = Demo;
@@ -382,6 +397,7 @@
 					"@executable_path/../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
+				LIBRARY_SEARCH_PATHS = "$(PROJECT_DIR)/../../../target/debug";
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "viiri-audio.Demo.Extension";
 				PRODUCT_NAME = Demo;
