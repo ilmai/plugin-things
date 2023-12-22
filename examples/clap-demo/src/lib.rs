@@ -2,7 +2,7 @@ use core::fmt::Write;
 use std::{ffi::CStr, sync::Arc, iter::zip};
 
 use clack_extensions::{audio_ports::{AudioPortInfoWriter, AudioPortInfoData, AudioPortFlags, AudioPortType}, params::{implementation::{ParamInfoWriter, ParamDisplayWriter}, info::{ParamInfoData, ParamInfoFlags}}};
-use clack_plugin::{prelude::*, utils::Cookie, events::{event_types::ParamValueEvent, Event, spaces::CoreEventSpace}};
+use clack_plugin::{prelude::*, utils::Cookie, events::spaces::CoreEventSpace};
 use portable_atomic::{AtomicF64, Ordering};
 
 pub struct DemoPlugin {
