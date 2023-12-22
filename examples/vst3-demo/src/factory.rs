@@ -30,7 +30,7 @@ impl IPluginFactoryTrait for Factory {
         info.vendor[..11].copy_from_slice(unsafe { transmute(b"Viiri Audio".as_slice()) });
         //info.email
         //info.url
-        info.flags = kUnicode;
+        info.flags = kUnicode as _;
 
         kResultOk
     }
@@ -46,7 +46,7 @@ impl IPluginFactoryTrait for Factory {
 
         let info = &mut *info;
         info.cid[..15].copy_from_slice(unsafe { transmute(b"viiri-audio.com".as_slice()) });
-        info.cardinality = kManyInstances;
+        info.cardinality = kManyInstances as _;
         //info.category
         info.name[..4].copy_from_slice(unsafe { transmute(b"Demo".as_slice()) });
         //info.category
@@ -73,7 +73,7 @@ impl IPluginFactory2Trait for Factory {
 
         let info = &mut *info;
         info.cid[..15].copy_from_slice(unsafe { transmute(b"viiri-audio.com".as_slice()) });
-        info.cardinality = kManyInstances;
+        info.cardinality = kManyInstances as _;
         //info.category
         info.name[..4].copy_from_slice(unsafe { transmute(b"Demo".as_slice()) });
         //info.category
@@ -94,7 +94,7 @@ impl IPluginFactory3Trait for Factory {
 
         let info = &mut *info;
         info.cid[..15].copy_from_slice(unsafe { transmute(b"viiri-audio.com".as_slice()) });
-        info.cardinality = kManyInstances;
+        info.cardinality = kManyInstances as _;
         //info.category
         info.name[..4].copy_from_slice(unsafe { transmute(b"Demo".as_slice()) });
         //info.category
