@@ -1,4 +1,4 @@
-use std::{sync::atomic::{Ordering, AtomicU8, AtomicUsize}, path::PathBuf};
+use std::{sync::atomic::{Ordering, AtomicUsize, AtomicBool}, path::PathBuf};
 
 use icrate::{AppKit::{NSView, NSEvent, NSResponder, NSTextInputClient, NSEventModifierFlagShift, NSEventModifierFlagCommand, NSEventModifierFlagControl, NSEventModifierFlagOption, NSDraggingDestination, NSDraggingInfo, NSDragOperation, NSDragOperationNone, NSDragOperationCopy, NSDragOperationMove, NSPasteboardTypeFileURL, NSDragOperationLink}, Foundation::{NSRect, NSArray, NSRange, NSRangePointer, NSPoint, NSAttributedStringKey, NSAttributedString, CGPoint, CGSize, NSURL}};
 use objc2::{declare_class, mutability, ClassType,  msg_send, runtime::{AnyObject, Sel, NSObject, NSObjectProtocol, ProtocolObject}, ffi::NSUInteger, rc::Id, DeclaredClass};
@@ -10,7 +10,7 @@ use super::{types::AtomicVoidPtr, window::OsWindow};
 pub struct Ivars {
     pub(super) os_window_ptr: AtomicVoidPtr,
     // AtomicBool isn't Encode, so let's use AtomicU8 instead
-    input_focus: AtomicU8,
+    input_focus: AtomicBool,
     modifier_flags: AtomicUsize,
 }
 
@@ -301,11 +301,10 @@ impl OsWindowView {
     }
 
     pub(crate) fn has_input_focus(&self) -> bool {
-        self.ivars().input_focus.load(Ordering::Relaxed) != 0
+        self.ivars().input_focus.load(Ordering::Relaxed)
     }
 
     pub(crate) fn set_input_focus(&self, focus: bool) {
-        let focus = if focus { 1 } else { 0 };
         self.ivars().input_focus.store(focus, Ordering::Relaxed);
     }
 
