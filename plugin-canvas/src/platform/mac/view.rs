@@ -1,27 +1,31 @@
 use std::{sync::atomic::{Ordering, AtomicU8, AtomicUsize}, path::PathBuf};
 
 use icrate::{AppKit::{NSView, NSEvent, NSResponder, NSTextInputClient, NSEventModifierFlagShift, NSEventModifierFlagCommand, NSEventModifierFlagControl, NSEventModifierFlagOption, NSDraggingDestination, NSDraggingInfo, NSDragOperation, NSDragOperationNone, NSDragOperationCopy, NSDragOperationMove, NSPasteboardTypeFileURL, NSDragOperationLink}, Foundation::{NSRect, NSArray, NSRange, NSRangePointer, NSPoint, NSAttributedStringKey, NSAttributedString, CGPoint, CGSize, NSURL}};
-use objc2::{declare_class, mutability, ClassType,  msg_send, declare::IvarEncode, runtime::{AnyObject, Sel, NSObject, NSObjectProtocol, ProtocolObject}, ffi::NSUInteger, rc::Id};
+use objc2::{declare_class, mutability, ClassType,  msg_send, runtime::{AnyObject, Sel, NSObject, NSObjectProtocol, ProtocolObject}, ffi::NSUInteger, rc::Id, DeclaredClass};
 
 use crate::{Event, MouseButton, LogicalPosition, event::EventResponse, drag_drop::{DropData, DropOperation}};
 
 use super::{types::AtomicVoidPtr, window::OsWindow};
 
+pub struct Ivars {
+    pub(super) os_window_ptr: AtomicVoidPtr,
+    // AtomicBool isn't Encode, so let's use AtomicU8 instead
+    input_focus: AtomicU8,
+    modifier_flags: AtomicUsize,
+}
+
 declare_class! {
-    pub(super) struct OsWindowView {
-        pub(super) os_window_ptr: IvarEncode<AtomicVoidPtr, "_os_window_ptr">,
-        // AtomicBool isn't Encode, so let's use AtomicU8 instead
-        input_focus: IvarEncode<AtomicU8, "_input_focus">,
-        modifier_flags: IvarEncode<AtomicUsize, "_modifier_flags">,
-    }
-    
-    mod ivars;
+    pub(super) struct OsWindowView;
 
     unsafe impl ClassType for OsWindowView {
         #[inherits(NSResponder, NSObject)]
         type Super = NSView;
-        type Mutability = mutability::InteriorMutable;
+        type Mutability = mutability::MainThreadOnly;
         const NAME: &'static str = "plugin-canvas-WindowView";
+    }
+
+    impl DeclaredClass for OsWindowView {
+        type Ivars = Ivars;
     }
 
     unsafe impl OsWindowView {
@@ -160,7 +164,7 @@ declare_class! {
         fn draw(&self) {
             // Window might have closed while the operation calling this function
             // was queued
-            if !self.os_window_ptr.load(Ordering::Relaxed).is_null() {
+            if !self.ivars().os_window_ptr.load(Ordering::Relaxed).is_null() {
                 self.os_window().send_event(Event::Draw);
             }
         }
@@ -291,18 +295,18 @@ unsafe impl NSObjectProtocol for OsWindowView {}
 
 impl OsWindowView {
     pub(crate) fn os_window(&self) -> &mut OsWindow {
-        let window_ptr = self.os_window_ptr.load(Ordering::Relaxed) as *mut OsWindow;
+        let window_ptr = self.ivars().os_window_ptr.load(Ordering::Relaxed) as *mut OsWindow;
         assert!(!window_ptr.is_null());
         unsafe { &mut *window_ptr }
     }
 
     pub(crate) fn has_input_focus(&self) -> bool {
-        self.input_focus.load(Ordering::Relaxed) != 0
+        self.ivars().input_focus.load(Ordering::Relaxed) != 0
     }
 
     pub(crate) fn set_input_focus(&self, focus: bool) {
         let focus = if focus { 1 } else { 0 };
-        self.input_focus.store(focus, Ordering::Relaxed);
+        self.ivars().input_focus.store(focus, Ordering::Relaxed);
     }
 
     fn key_event_text(&self, event: *const NSEvent) -> String {
@@ -325,9 +329,9 @@ impl OsWindowView {
     }
 
     fn handle_modifier_event(&self, event: *const NSEvent) {        
-        let old_flags = self.modifier_flags.load(Ordering::Relaxed);
+        let old_flags = self.ivars().modifier_flags.load(Ordering::Relaxed);
         let event_flags = unsafe { (*event).modifierFlags() };
-        self.modifier_flags.store(event_flags, Ordering::Relaxed);
+        self.ivars().modifier_flags.store(event_flags, Ordering::Relaxed);
 
         for (modifier, text) in [
             (NSEventModifierFlagCommand, "\u{0017}"),
@@ -395,7 +399,7 @@ impl OsWindowView {
     }
 
     fn window_point_to_position(&self, point_in_window: CGPoint) -> LogicalPosition {
-        let local_position = unsafe { self.convertPoint_fromView(point_in_window, None) };
+        let local_position = self.convertPoint_fromView(point_in_window, None);
         let user_scale = self.os_window().window_attributes().user_scale;
 
         LogicalPosition {

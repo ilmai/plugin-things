@@ -25,7 +25,7 @@ core-graphics = "0.23"
 objc2.workspace = true
 
 [target.'cfg(target_os="macos")'.dependencies.icrate]
-version = "0.0"
+version = "0.1"
 features = [
     "AppKit",
     "AppKit_NSCursor",
@@ -41,6 +41,7 @@ features = [
     "Foundation_NSData",
     "Foundation_NSInvocationOperation",
     "Foundation_NSOperationQueue",
+    "Foundation_NSThread",
     "Foundation_NSURL",
 ]
 

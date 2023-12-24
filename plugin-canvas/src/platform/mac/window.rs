@@ -2,8 +2,8 @@ use std::{ffi::c_void, sync::atomic::{Ordering, AtomicBool}, rc::Rc, cell::RefCe
 
 use core_graphics::display::CGDisplay;
 use cursor_icon::CursorIcon;
-use icrate::{AppKit::{NSTrackingArea, NSView, NSWindow, NSTrackingMouseEnteredAndExited, NSTrackingMouseMoved, NSTrackingActiveAlways, NSTrackingInVisibleRect, NSCursor, NSPasteboardTypeFileURL, NSScreen}, Foundation::{CGPoint, CGSize, CGRect, NSInvocationOperation, NSOperationQueue, NSArray}};
-use objc2::{ClassType, msg_send_id, rc::Id, sel};
+use icrate::{AppKit::{NSTrackingArea, NSView, NSWindow, NSTrackingMouseEnteredAndExited, NSTrackingMouseMoved, NSTrackingActiveAlways, NSTrackingInVisibleRect, NSCursor, NSPasteboardTypeFileURL, NSScreen}, Foundation::{CGPoint, CGSize, CGRect, NSInvocationOperation, NSOperationQueue, NSArray, MainThreadMarker}};
+use objc2::{ClassType, msg_send_id, rc::Id, sel, DeclaredClass};
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle, AppKitWindowHandle, HasRawDisplayHandle, RawDisplayHandle, AppKitDisplayHandle};
 
 use crate::{error::Error, platform::interface::{OsWindowInterface, OsWindowHandle, OsWindowBuilder}, event::{EventCallback, EventResponse}, window::WindowAttributes, Event, LogicalPosition};
@@ -63,7 +63,8 @@ impl OsWindowInterface for OsWindow {
         );
 
         let (view, window_handle) = unsafe {
-            let view: Id<OsWindowView> = msg_send_id![OsWindowView::alloc(), initWithFrame: view_rect];
+            let mtm = MainThreadMarker::new().expect("Must be on main thread");
+            let view: Id<OsWindowView> = msg_send_id![mtm.alloc(), initWithFrame: view_rect];
         
             let tracking_area = NSTrackingArea::initWithRect_options_owner_userInfo(
                 NSTrackingArea::alloc(),
@@ -106,7 +107,7 @@ impl OsWindowInterface for OsWindow {
         let window_clone = window.clone();
         let window_ptr = Rc::into_raw(window);
 
-        view.os_window_ptr.store(window_ptr as _, Ordering::Relaxed);
+        view.ivars().os_window_ptr.store(window_ptr as _, Ordering::Relaxed);
 
         let displays = display_link::get_displays_with_rect(view_rect);
         assert!(!displays.is_empty());
@@ -185,9 +186,11 @@ impl OsWindowInterface for OsWindow {
     }
 
     fn warp_mouse(&self, position: LogicalPosition) {
+        let mtm = MainThreadMarker::new().expect("Must be on main thread");
+
         let window_position = unsafe { self.view().convertPoint_toView(CGPoint::new(position.x, position.y), None) };
         let screen_position = unsafe { self.view().window().unwrap().convertPointToScreen(window_position) };
-        let screen_height = unsafe { NSScreen::mainScreen().unwrap().frame().size.height };
+        let screen_height = NSScreen::mainScreen(mtm).unwrap().frame().size.height;
         let cg_point = core_graphics::geometry::CGPoint::new(screen_position.x, screen_height - screen_position.y);
         CGDisplay::warp_mouse_cursor_position(cg_point).unwrap();
     }
@@ -195,7 +198,7 @@ impl OsWindowInterface for OsWindow {
 
 impl Drop for OsWindow {
     fn drop(&mut self) {
-        self.view().os_window_ptr.store(null_mut(), Ordering::Relaxed);
+        self.view().ivars().os_window_ptr.store(null_mut(), Ordering::Relaxed);
 
         if let Some(mut display_link) = self.display_link.take() {
             display_link::release(&mut display_link);
