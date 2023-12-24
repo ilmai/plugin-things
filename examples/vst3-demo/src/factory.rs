@@ -47,10 +47,8 @@ impl IPluginFactoryTrait for Factory {
         let info = &mut *info;
         info.cid[..15].copy_from_slice(unsafe { transmute(b"viiri-audio.com".as_slice()) });
         info.cardinality = kManyInstances as _;
-        //info.category
+        info.category[..18].copy_from_slice(unsafe { transmute(b"Audio Module Class".as_slice()) });
         info.name[..4].copy_from_slice(unsafe { transmute(b"Demo".as_slice()) });
-        //info.category
-        //info.subCategories
 
         kResultOk
     }
@@ -76,7 +74,7 @@ impl IPluginFactory2Trait for Factory {
         info.cardinality = kManyInstances as _;
         //info.category
         info.name[..4].copy_from_slice(unsafe { transmute(b"Demo".as_slice()) });
-        //info.category
+        info.category[..18].copy_from_slice(unsafe { transmute(b"Audio Module Class".as_slice()) });
         //info.subCategories
         info.version[..3].copy_from_slice(unsafe { transmute(b"0.0".as_slice()) });
         info.sdkVersion[..7].copy_from_slice(unsafe { transmute(b"VST 3.7".as_slice()) });
@@ -97,7 +95,7 @@ impl IPluginFactory3Trait for Factory {
         info.cardinality = kManyInstances as _;
         //info.category
         info.name[..4].copy_from_slice(unsafe { transmute(utf16str!("Demo").as_slice()) });
-        //info.category
+        info.category[..18].copy_from_slice(unsafe { transmute(b"Audio Module Class".as_slice()) });
         //info.subCategories
         info.version[..3].copy_from_slice(unsafe { transmute(utf16str!("0.0").as_slice()) });
         info.sdkVersion[..7].copy_from_slice(unsafe { transmute(utf16str!("VST 3.7").as_slice()) });
