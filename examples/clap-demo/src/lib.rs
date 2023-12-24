@@ -5,6 +5,10 @@ use clack_extensions::{audio_ports::{AudioPortInfoWriter, AudioPortInfoData, Aud
 use clack_plugin::{prelude::*, utils::Cookie, events::spaces::CoreEventSpace};
 use portable_atomic::{AtomicF64, Ordering};
 
+static FEATURES: [&CStr; 1] = [
+    unsafe { CStr::from_bytes_with_nul_unchecked(b"audio-effect\0") },
+];
+
 pub struct DemoPlugin {
 }
 
@@ -17,6 +21,7 @@ impl clack_plugin::plugin::Plugin for DemoPlugin {
         Box::new(StaticPluginDescriptor {
             id: CStr::from_bytes_with_nul(b"com.viiri-audio.plugin-things.clap-demo\0").unwrap(),
             name: CStr::from_bytes_with_nul(b"CLAP demo\0").unwrap(),
+            features: Some(&FEATURES),
 
             ..Default::default()
         })
