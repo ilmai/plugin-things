@@ -22,7 +22,7 @@ impl IAudioProcessorTrait for Processor {
     }
 
     unsafe fn canProcessSampleSize(&self, symbolicSampleSize: int32) -> tresult {
-        if symbolicSampleSize == kSample32 {
+        if symbolicSampleSize == kSample32 as _ {
             kResultOk
         } else {
             kResultFalse
@@ -70,10 +70,10 @@ impl IComponentTrait for Processor {
         }
 
         let bus = unsafe { &mut *bus };
-        bus.mediaType = MediaTypes_::kAudio;
+        bus.mediaType = MediaTypes_::kAudio as _;
         bus.direction = dir;
         bus.channelCount = 2;
-        bus.busType = BusTypes_::kMain;
+        bus.busType = BusTypes_::kMain as _;
         bus.flags = BusFlags_::kDefaultActive as _;
 
         kResultOk
