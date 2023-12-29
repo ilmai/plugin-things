@@ -8,7 +8,7 @@ description = "AUv3 plugin example"
 crate-type = ["lib", "cdylib", "staticlib"]
 
 [dependencies]
-icrate = { version = "0.0", features = ["AppKit", "AppKit_NSViewController", "Foundation"] }
+icrate.workspace = true
 objc2.workspace = true
 
 [package.metadata.bundle]

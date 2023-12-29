@@ -10,13 +10,13 @@
 			<array>
 				<dict>
 					<key>description</key>
-					<string>Demo</string>
+					<string>DemoExtension</string>
 					<key>factoryFunction</key>
-					<string>$(PRODUCT_MODULE_NAME).DemoExtension</string>
+					<string>$(PRODUCT_MODULE_NAME).AudioUnitViewController</string>
 					<key>manufacturer</key>
 					<string>Viir</string>
 					<key>name</key>
-					<string>Demo</string>
+					<string>Viiri Audio: DemoExtension</string>
 					<key>sandboxSafe</key>
 					<true/>
 					<key>subtype</key>
@@ -35,7 +35,7 @@
 		<key>NSExtensionPointIdentifier</key>
 		<string>com.apple.AudioUnit-UI</string>
 		<key>NSExtensionPrincipalClass</key>
-		<string>$(PRODUCT_MODULE_NAME).DemoExtension</string>
+		<string>$(PRODUCT_MODULE_NAME).AudioUnitViewController</string>
 	</dict>
 </dict>
 </plist>

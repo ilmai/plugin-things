@@ -23,3 +23,25 @@ slint = { version = "=1.3.2", default-features = false, features = ["accessibili
 # since they don't maintain semver compatibility
 i-slint-core = "=1.3.2"
 i-slint-renderer-skia = { version = "=1.3.2", features = ["x11"] }
+
+[workspace.dependencies.icrate]
+version = "0.1"
+features = [
+    "AppKit",
+    "AppKit_NSCursor",
+    "AppKit_NSEvent",
+    "AppKit_NSPasteboard",
+    "AppKit_NSPasteboardItem",
+    "AppKit_NSScreen",
+    "AppKit_NSTrackingArea",
+    "AppKit_NSView",
+    "AppKit_NSWindow",
+    "Foundation_NSArray",
+    "Foundation_NSAttributedString",
+    "Foundation_NSData",
+    "Foundation_NSInvocationOperation",
+    "Foundation_NSOperationQueue",
+    "Foundation_NSString",
+    "Foundation_NSThread",
+    "Foundation_NSURL",
+]
