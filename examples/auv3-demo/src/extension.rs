@@ -1,7 +1,7 @@
 use std::sync::RwLock;
 
-use icrate::Foundation::{NSError, NSArray};
-use objc2::{declare_class, mutability, ClassType, rc::{Id, Allocated}, DeclaredClass, msg_send_id};
+use icrate::Foundation::{NSError, NSArray, NSNumber};
+use objc2::{declare_class, mutability, ClassType, rc::{Id, Allocated}, DeclaredClass, msg_send_id, msg_send};
 
 use crate::audio_toolbox::{AUAudioUnit, AUAudioUnitBusArray, AudioComponentDescription, AUAudioUnitBusType, AVAudioFormat, AUAudioUnitBus};
 
@@ -25,13 +25,24 @@ declare_class!(
 
     unsafe impl DemoAudioUnit {
         #[method_id(inputBusses)]
-        fn __get_input_busses(&self) -> Option<Id<AUAudioUnitBusArray>> {
+        fn input_busses(&self) -> Option<Id<AUAudioUnitBusArray>> {
             self.ivars().input_busses.read().unwrap().clone()
         }
 
         #[method_id(outputBusses)]
-        fn __get_output_busses(&self) -> Option<Id<AUAudioUnitBusArray>> {
+        fn output_busses(&self) -> Option<Id<AUAudioUnitBusArray>> {
             self.ivars().output_busses.read().unwrap().clone()
+        }
+
+        #[method(shouldChangeToFormat:forBus:)]
+        fn should_change_to_format_for_bus(&self, format: &AVAudioFormat, _for_bus: &AUAudioUnitBus) -> bool {
+            let channel_count: u32 = unsafe { msg_send![format, channelCount] };
+            channel_count == 2
+        }
+
+        #[method_id(channelCapabilities)]
+        fn channel_capabilities(&self) -> Id<NSArray<NSNumber>> {
+            NSArray::from_vec(vec![NSNumber::new_usize(2), NSNumber::new_usize(2)])
         }
 
         #[method_id(initWithComponentDescription:error:)]
@@ -50,6 +61,23 @@ declare_class!(
                         initStandardFormatWithSampleRate:48000.0_f64,
                         channels:2_u32,
                     ];
+
+                    let input_bus: Result<Id<AUAudioUnitBus>, Id<NSError>> = msg_send_id![
+                        AUAudioUnitBus::alloc(),
+                        initWithFormat:Id::as_ptr(&format),
+                        error: _
+                    ];
+                    let input_bus = input_bus.unwrap();
+
+                    let input_bus_array = NSArray::from_vec(vec![input_bus]);
+                    let input_busses: Id<AUAudioUnitBusArray> = msg_send_id![
+                        AUAudioUnitBusArray::alloc(),
+                        initWithAudioUnit:Id::as_ptr(this),
+                        busType:AUAudioUnitBusType::Input as isize,
+                        busses:Id::as_ptr(&input_bus_array),
+                    ];
+
+                    *this.ivars().input_busses.write().unwrap() = Some(input_busses);
 
                     let output_bus: Result<Id<AUAudioUnitBus>, Id<NSError>> = msg_send_id![
                         AUAudioUnitBus::alloc(),
