@@ -1,9 +1,9 @@
 use std::sync::RwLock;
 
-use icrate::Foundation::{NSError, NSArray, NSNumber};
+use icrate::{Foundation::{NSError, NSArray, NSNumber}, block2::ConcreteBlock};
 use objc2::{declare_class, mutability, ClassType, rc::{Id, Allocated}, DeclaredClass, msg_send_id, msg_send};
 
-use crate::audio_toolbox::{AUAudioUnit, AUAudioUnitBusArray, AudioComponentDescription, AUAudioUnitBusType, AVAudioFormat, AUAudioUnitBus};
+use crate::audio_toolbox::{AUAudioUnit, AUAudioUnitBusArray, AudioComponentDescription, AUAudioUnitBusType, AVAudioFormat, AUAudioUnitBus, AUInternalRenderBlock, AUAudioUnitStatus};
 
 pub struct Ivars {
     input_busses: RwLock<Option<Id<AUAudioUnitBusArray>>>,
@@ -43,6 +43,11 @@ declare_class!(
         #[method_id(channelCapabilities)]
         fn channel_capabilities(&self) -> Id<NSArray<NSNumber>> {
             NSArray::from_vec(vec![NSNumber::new_usize(2), NSNumber::new_usize(2)])
+        }
+
+        #[method(internalRenderBlock)]
+        fn internal_render_block(&self) -> AUInternalRenderBlock {
+            todo!()
         }
 
         #[method_id(initWithComponentDescription:error:)]
