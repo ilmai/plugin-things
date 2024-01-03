@@ -7,7 +7,7 @@ description = "AUv3 plugin example"
 [lib]
 crate-type = ["lib", "cdylib", "staticlib"]
 
-[dependencies]
+[target.'cfg(target_os="macos")'.dependencies]
 icrate.workspace = true
 objc2.workspace = true
 
