@@ -148,22 +148,18 @@ export component ParameterKnob inherits Rectangle {
 
             touch := TouchArea {
                 property <float> pressed-value;
-                property <duration> last-click-time;
         
+                double-clicked => {
+                    root.changed(root.parameter.default-value);
+                }
+
                 pointer-event(event) => {
                     if (event.button == PointerEventButton.left) {
                         if (event.kind == PointerEventKind.down) {
                             self.pressed-value = root.parameter.value;
                             root.start-change();
                             root.changing = true;
-        
-                            // Double click sets to default
-                            // TODO: Don't hardcode duration
-                            if (animation-tick() - last-click-time < 500ms) {
-                                root.changed(root.parameter.default-value);
-                            }
-                            self.last-click-time = animation-tick();
-        
+                
                             if (event.modifiers.control || event.modifiers.meta) {
                                 start-editing();
                             }
