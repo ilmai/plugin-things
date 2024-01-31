@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::{sync::Arc, num::NonZeroU32};
 
 use nih_plug::util::db_to_gain;
-use nih_plug::{nih_export_clap, nih_export_vst3, nih_debug_assert_eq};
+use nih_plug::{nih_export_clap, nih_export_vst3};
 use nih_plug::prelude::*;
 use nih_plug_slint::plugin_component_handle::{PluginComponentHandle, PluginComponentHandleParameterEvents};
 use nih_plug_slint::{WindowAttributes, editor::SlintEditor};

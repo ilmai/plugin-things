@@ -8,11 +8,10 @@ use std::sync::{Mutex, RwLock, Weak, mpsc};
 use nih_plug::prelude::*;
 use plugin_canvas::event::EventResponse;
 use plugin_canvas::{window::WindowAttributes, Event};
-use raw_window_handle_0_4::HasRawWindowHandle;
 
 use crate::plugin_component_handle::PluginComponentHandleParameterEvents;
 use crate::window_adapter::{Context, ParameterChangeSender, ParameterChange};
-use crate::{platform::PluginCanvasPlatform, window_adapter::{WINDOW_TO_SLINT, WINDOW_ADAPTER_FROM_SLINT, PluginCanvasWindowAdapter}, raw_window_handle_adapter::RawWindowHandleAdapter};
+use crate::{platform::PluginCanvasPlatform, window_adapter::{WINDOW_TO_SLINT, WINDOW_ADAPTER_FROM_SLINT, PluginCanvasWindowAdapter}};
 
 pub struct SlintEditor<C, B>
 where
@@ -54,14 +53,13 @@ where
 {
     fn spawn(&self, parent: ParentWindowHandle, gui_context: Arc<dyn GuiContext>) -> Box<dyn Any + Send> {
         let editor_handle = Arc::new(EditorHandle::new());
-        let raw_window_handle_adapter = RawWindowHandleAdapter::from(parent.raw_window_handle());
         let window_attributes = self.window_attributes.clone();
 
         let (parameter_change_sender, parameter_change_receiver) = mpsc::channel();
         *self.parameter_change_sender.borrow_mut() = Some(parameter_change_sender);
 
         plugin_canvas::Window::open(
-            raw_window_handle_adapter,
+            parent,
             window_attributes,
             *self.os_scale.read().unwrap() as f64,
             {
