@@ -8,6 +8,7 @@ use std::sync::{Mutex, RwLock, Weak, mpsc};
 use nih_plug::prelude::*;
 use plugin_canvas::event::EventResponse;
 use plugin_canvas::{window::WindowAttributes, Event};
+use raw_window_handle::HasRawWindowHandle;
 
 use crate::plugin_component_handle::PluginComponentHandleParameterEvents;
 use crate::window_adapter::{Context, ParameterChangeSender, ParameterChange};
@@ -59,7 +60,7 @@ where
         *self.parameter_change_sender.borrow_mut() = Some(parameter_change_sender);
 
         plugin_canvas::Window::open(
-            parent,
+            parent.raw_window_handle(),
             window_attributes,
             *self.os_scale.read().unwrap() as f64,
             {

@@ -46,14 +46,14 @@ pub struct Window {
 
 impl Window {
     pub fn open(
-        parent: impl HasRawWindowHandle,
+        parent: RawWindowHandle,
         attributes: WindowAttributes,
         os_scale: f64,
         event_callback: Box<EventCallback>,
         window_builder: WindowBuilder,
     ) -> Result<(), Error> {
         OsWindow::open(
-            parent.raw_window_handle(),
+            parent,
             attributes.clone(),
             os_scale,
             event_callback,
