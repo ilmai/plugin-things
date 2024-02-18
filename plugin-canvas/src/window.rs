@@ -38,8 +38,6 @@ impl WindowAttributes {
 
 pub struct Window {
     attributes: WindowAttributes,
-    os_scale: f64,
-
     os_window_handle: OsWindowHandle,
     active_tracker: Active,
 }
@@ -48,14 +46,12 @@ impl Window {
     pub fn open(
         parent: RawWindowHandle,
         attributes: WindowAttributes,
-        os_scale: f64,
         event_callback: Box<EventCallback>,
         window_builder: WindowBuilder,
     ) -> Result<(), Error> {
         OsWindow::open(
             parent,
             attributes.clone(),
-            os_scale,
             event_callback,
             {
                 Box::new(move |os_window_handle| {
@@ -64,7 +60,6 @@ impl Window {
 
                     let window = Self {
                         attributes,
-                        os_scale,
                         os_window_handle,
                         active_tracker: Active::new(),
                     };
@@ -78,10 +73,6 @@ impl Window {
 
     pub fn attributes(&self) -> &WindowAttributes {
         &self.attributes
-    }
-
-    pub fn os_scale(&self) -> f64 {
-        self.os_scale
     }
 
     pub fn set_cursor(&self, cursor: Option<CursorIcon>) {

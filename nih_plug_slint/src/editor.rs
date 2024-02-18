@@ -3,7 +3,7 @@ use std::ptr::null_mut;
 use std::sync::atomic::{AtomicPtr, Ordering};
 use std::thread::ThreadId;
 use std::{sync::Arc, any::Any, rc::Rc};
-use std::sync::{Mutex, RwLock, Weak, mpsc};
+use std::sync::{Mutex, Weak, mpsc};
 
 use nih_plug::prelude::*;
 use plugin_canvas::event::EventResponse;
@@ -20,7 +20,6 @@ where
     B: Fn(Arc<plugin_canvas::Window>, Arc<dyn GuiContext>) -> C,
 {
     window_attributes: WindowAttributes,
-    os_scale: RwLock<f32>,
     component_builder: B,
 
     editor_handle: Mutex<Option<Weak<EditorHandle>>>,
@@ -38,7 +37,6 @@ where
     ) -> Self {
         Self {
             window_attributes,
-            os_scale: RwLock::new(1.0),
             component_builder,
 
             editor_handle: Default::default(),
@@ -62,7 +60,6 @@ where
         plugin_canvas::Window::open(
             parent.raw_window_handle(),
             window_attributes,
-            *self.os_scale.read().unwrap() as f64,
             {
                 let editor_handle = Arc::downgrade(&editor_handle.clone());
 
@@ -166,9 +163,8 @@ where
         (size.width as u32, size.height as u32)
     }
 
-    fn set_scale_factor(&self, factor: f32) -> bool {
-        *self.os_scale.write().unwrap() = factor;
-        true
+    fn set_scale_factor(&self, _factor: f32) -> bool {
+        false
     }
 
     fn param_value_changed(&self, id: &str, _normalized_value: f32) {

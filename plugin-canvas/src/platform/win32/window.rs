@@ -11,7 +11,6 @@ use super::{PLUGIN_HINSTANCE, to_wstr, message_window::MessageWindow, cursors::C
 
 pub struct OsWindow {
     window_attributes: WindowAttributes,
-    os_scale: f64,
     
     window_class: u16,
     window_handle: Win32WindowHandle,
@@ -29,10 +28,6 @@ pub struct OsWindow {
 impl OsWindow {
     pub(super) fn window_attributes(&self) -> &WindowAttributes {
         &self.window_attributes
-    }
-
-    pub(super) fn os_scale(&self) -> f64 {
-        self.os_scale
     }
 
     pub(super) fn send_event(&self, event: Event) -> EventResponse {
@@ -69,7 +64,7 @@ impl OsWindow {
         PhysicalPosition {
             x: (lparam.0 & 0xFFFF) as i16 as i32,
             y: ((lparam.0 >> 16) & 0xFFFF) as i16 as i32,
-        }.to_logical(self.os_scale * user_scale)
+        }.to_logical(user_scale)
     }
 }
 
@@ -77,7 +72,6 @@ impl OsWindowInterface for OsWindow {
     fn open(
         parent_window_handle: RawWindowHandle,
         window_attributes: WindowAttributes,
-        os_scale: f64,
         event_callback: Box<EventCallback>,
         window_builder: OsWindowBuilder,
     ) -> Result<(), Error> {
@@ -86,7 +80,7 @@ impl OsWindowInterface for OsWindow {
         };
 
         let class_name = to_wstr("plugin-canvas-".to_string() + &Uuid::new_v4().simple().to_string());
-        let size = Size::with_logical_size(window_attributes.size, window_attributes.user_scale * os_scale);
+        let size = Size::with_logical_size(window_attributes.size, window_attributes.user_scale);
 
         let cursor = unsafe { LoadCursorW(HINSTANCE(0), IDC_ARROW).unwrap() };
 
@@ -165,7 +159,6 @@ impl OsWindowInterface for OsWindow {
 
         let window = Rc::new(Self {
             window_attributes,
-            os_scale,
 
             window_class,
             window_handle,
@@ -254,7 +247,7 @@ impl OsWindowInterface for OsWindow {
 
     fn warp_mouse(&self, position: LogicalPosition) {
         let user_scale: f64 = self.window_attributes.user_scale.into();
-        let physical_position = position.to_physical(self.os_scale * user_scale);
+        let physical_position = position.to_physical(user_scale);
 
         let mut point = POINT {
             x: physical_position.x,

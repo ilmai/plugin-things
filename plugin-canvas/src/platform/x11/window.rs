@@ -14,7 +14,6 @@ enum OsWindowEvent {
 
 struct Context {
     window_attributes: WindowAttributes,
-    os_scale: f64,
 
     event_callback: Box<EventCallback>,
     connection: xcb::Connection,
@@ -55,7 +54,6 @@ impl OsWindow {
     fn window_thread(
         parent_window_id: u32,
         window_attributes: WindowAttributes,
-        os_scale: f64,
         event_callback: Box<EventCallback>,
         window_event_sender: Sender<OsWindowEvent>,
         build_window: OsWindowBuilder,
@@ -63,7 +61,7 @@ impl OsWindow {
         let new_cursor: Arc<Mutex<Option<x::Cursor>>> = Default::default();
         let set_input_focus: Arc<Mutex<Option<bool>>> = Default::default();
 
-        let (connection, window_id, xkb_state, xkb_compose_state) = match Self::create_window(parent_window_id, window_attributes.clone(), os_scale, build_window, new_cursor.clone(), set_input_focus.clone()) {
+        let (connection, window_id, xkb_state, xkb_compose_state) = match Self::create_window(parent_window_id, window_attributes.clone(), build_window, new_cursor.clone(), set_input_focus.clone()) {
             Ok(connection) => connection,
             Err(error) => {
                 window_event_sender.send(OsWindowEvent::Error(error)).unwrap();
@@ -74,7 +72,6 @@ impl OsWindow {
 
         let mut context = Context {
             window_attributes,
-            os_scale,
 
             event_callback,
             connection,
@@ -143,13 +140,12 @@ impl OsWindow {
     fn create_window(
         parent_window_id: u32,
         window_attributes: WindowAttributes,
-        os_scale: f64,
         build_window: OsWindowBuilder,
         new_cursor: Arc<Mutex<Option<x::Cursor>>>,
         set_input_focus: Arc<Mutex<Option<bool>>>,
     ) -> Result<(xcb::Connection, x::Window, xkb::State, xkb::compose::State), Error> {
         let parent_window_id = unsafe { x::Window::new(parent_window_id) };
-        let size = Size::with_logical_size(window_attributes.size, window_attributes.user_scale * os_scale);
+        let size = Size::with_logical_size(window_attributes.size, window_attributes.user_scale);
     
         let (connection, screen_number) = xcb::Connection::connect_with_xlib_display_and_extensions(
             &[], // Mandatory
@@ -280,7 +276,7 @@ impl OsWindow {
                 let position = PhysicalPosition {
                     x: event.event_x() as i32,
                     y: event.event_y() as i32,
-                }.to_logical(context.os_scale * context.window_attributes.user_scale);
+                }.to_logical(context.window_attributes.user_scale);
 
                 if let Some(button) = Self::mouse_button_from_detail(event.detail()) {
                     (context.event_callback)(Event::MouseButtonDown {
@@ -306,7 +302,7 @@ impl OsWindow {
                 let position = PhysicalPosition {
                     x: event.event_x() as i32,
                     y: event.event_y() as i32,
-                }.to_logical(context.os_scale * context.window_attributes.user_scale);
+                }.to_logical(context.window_attributes.user_scale);
 
                 if let Some(button) = Self::mouse_button_from_detail(event.detail()) {
                     (context.event_callback)(Event::MouseButtonUp {
@@ -368,7 +364,7 @@ impl OsWindow {
                 let position = PhysicalPosition {
                     x: event.event_x() as i32,
                     y: event.event_y() as i32,
-                }.to_logical(context.os_scale * context.window_attributes.user_scale);
+                }.to_logical(context.window_attributes.user_scale);
 
                 (context.event_callback)(Event::MouseMoved { position });
             }
@@ -391,7 +387,6 @@ impl OsWindowInterface for OsWindow {
     fn open(
         parent_window_handle: RawWindowHandle,
         window_attributes: WindowAttributes,
-        os_scale: f64,
         event_callback: Box<EventCallback>,
         window_builder: OsWindowBuilder,
     ) -> Result<(), Error>
@@ -407,7 +402,6 @@ impl OsWindowInterface for OsWindow {
             move || Self::window_thread(
                 parent_window_id,
                 window_attributes,
-                os_scale,
                 event_callback,
                 event_sender,
                 Box::new(move |os_window_handle| window_builder(os_window_handle))
