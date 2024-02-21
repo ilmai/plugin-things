@@ -66,7 +66,8 @@ impl Window {
 
                     window_builder(window);
                 })
-            })?;
+            }
+        )?;
 
         Ok(())
     }
