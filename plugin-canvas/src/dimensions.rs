@@ -19,6 +19,18 @@ impl LogicalPosition {
     }
 }
 
+impl<T> From<(T, T)> for LogicalPosition
+where
+    f64: From<T>,
+{
+    fn from(value: (T, T)) -> Self {
+        Self {
+            x: value.0.into(),
+            y: value.1.into(),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct PhysicalPosition {
     pub x: i32,
@@ -35,6 +47,18 @@ impl PhysicalPosition {
 
     pub fn to_logical(&self, scale: f64) -> LogicalPosition {
         LogicalPosition::from_physical(self, scale)
+    }
+}
+
+impl<T> From<(T, T)> for PhysicalPosition
+where
+    i32: From<T>,
+{
+    fn from(value: (T, T)) -> Self {
+        Self {
+            x: value.0.into(),
+            y: value.1.into(),
+        }
     }
 }
 
@@ -58,6 +82,18 @@ impl LogicalSize {
 
     pub fn to_physical(&self, scale: f64) -> PhysicalSize {
         PhysicalSize::from_logical(self, scale)
+    }
+}
+
+impl<T> From<(T, T)> for LogicalSize
+where
+    f64: From<T>,
+{
+    fn from(value: (T, T)) -> Self {
+        Self {
+            width: value.0.into(),
+            height: value.1.into(),
+        }
     }
 }
 
@@ -95,6 +131,18 @@ impl PhysicalSize {
 
     pub fn to_logical(&self, scale: f64) -> LogicalSize {
         LogicalSize::from_physical(self, scale)
+    }
+}
+
+impl<T> From<(T, T)> for PhysicalSize
+where
+    u32: From<T>,
+{
+    fn from(value: (T, T)) -> Self {
+        Self {
+            width: value.0.into(),
+            height: value.1.into(),
+        }
     }
 }
 
