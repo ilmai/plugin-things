@@ -3,6 +3,11 @@ name = "plugin-canvas-slint"
 version = "0.1.0"
 edition = "2021"
 
+authors = ["Jussi Viiri <jussi@viiri-audio.com>"]
+readme = "README.md"
+repository = "https://github.com/ilmai/plugin-things"
+license = "MIT"
+
 [dependencies]
 cursor-icon.workspace = true
 i-slint-core.workspace = true
