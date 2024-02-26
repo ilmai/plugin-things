@@ -1,0 +1,12 @@
+[package]
+name = "plugin-canvas-slint"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+cursor-icon.workspace = true
+i-slint-core.workspace = true
+i-slint-renderer-skia.workspace = true
+plugin-canvas.workspace = true
+raw-window-handle.workspace = true
+slint.workspace = true

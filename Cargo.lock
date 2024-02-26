@@ -2622,6 +2622,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "plugin-canvas-slint"
+version = "0.1.0"
+dependencies = [
+ "cursor-icon",
+ "i-slint-core",
+ "i-slint-renderer-skia",
+ "plugin-canvas",
+ "raw-window-handle 0.5.2",
+ "slint",
+]
+
+[[package]]
 name = "png"
 version = "0.17.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
