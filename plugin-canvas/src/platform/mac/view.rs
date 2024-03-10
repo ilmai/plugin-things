@@ -57,7 +57,7 @@ declare_class! {
                 text = "\u{000a}".to_string();
             }
 
-            self.os_window().send_event(
+            self.send_event(
                 Event::KeyDown {
                     text,
                 }
@@ -70,7 +70,7 @@ declare_class! {
 
         #[method(keyUp:)]
         fn key_up(&self, event: *const NSEvent) {
-            self.os_window().send_event(
+            self.send_event(
                 Event::KeyUp {
                     text: self.key_event_text(event),
                 }
@@ -138,7 +138,7 @@ declare_class! {
 
         #[method(mouseExited:)]
         fn mouse_exited(&self, _event: *const NSEvent) {
-            self.os_window().send_event(Event::MouseExited);
+            self.send_event(Event::MouseExited);
         }
 
         #[method(scrollWheel:)]
@@ -147,7 +147,7 @@ declare_class! {
             let x: f64 = unsafe { (*event).deltaX() };
             let y: f64 = unsafe { (*event).deltaY() };
 
-            self.os_window().send_event(
+            self.send_event(
                 Event::MouseWheel {
                     position: self.mouse_event_position(event),
                     delta_x: x,
@@ -161,7 +161,7 @@ declare_class! {
             // Window might have closed while the operation calling this function
             // was queued
             if !self.os_window_ptr.load(Ordering::Relaxed).is_null() {
-                self.os_window().send_event(Event::Draw);
+                self.send_event(Event::Draw);
             }
         }
     }
@@ -247,7 +247,7 @@ declare_class! {
 
         #[method(draggingEntered:)]
         unsafe fn dragging_entered(&self, sender: &ProtocolObject<dyn NSDraggingInfo>) -> NSDragOperation {
-            let response = self.os_window().send_event(Event::DragEntered {
+            let response = self.send_event(Event::DragEntered {
                 position: self.drag_event_position(sender),
                 data: self.drag_event_data(sender),
             });
@@ -257,7 +257,7 @@ declare_class! {
 
         #[method(draggingUpdated:)]
         unsafe fn dragging_updated(&self, sender: &ProtocolObject<dyn NSDraggingInfo>) -> NSDragOperation {
-            let response = self.os_window().send_event(Event::DragMoved {
+            let response = self.send_event(Event::DragMoved {
                 position: self.drag_event_position(sender),
                 data: self.drag_event_data(sender),
             });
@@ -267,7 +267,7 @@ declare_class! {
 
         #[method(draggingExited:)]
         unsafe fn dragging_exited(&self, _sender: &ProtocolObject<dyn NSDraggingInfo>) {
-            self.os_window().send_event(Event::DragExited);
+            self.send_event(Event::DragExited);
         }
 
         #[method(prepareForDragOperation:)]
@@ -277,7 +277,7 @@ declare_class! {
 
         #[method(performDragOperation:)]
         unsafe fn perform_drag_operation(&self, sender: &ProtocolObject<dyn NSDraggingInfo>) -> bool {
-            let response = self.os_window().send_event(Event::DragDropped {
+            let response = self.send_event(Event::DragDropped {
                 position: self.drag_event_position(sender),
                 data: self.drag_event_data(sender),
             });
@@ -290,10 +290,14 @@ declare_class! {
 unsafe impl NSObjectProtocol for OsWindowView {}
 
 impl OsWindowView {
-    pub(crate) fn os_window(&self) -> &mut OsWindow {
+    pub(crate) fn with_os_window<T>(&self, f: impl FnOnce(&mut OsWindow) -> T) -> Option<T> {
         let window_ptr = self.os_window_ptr.load(Ordering::Relaxed) as *mut OsWindow;
-        assert!(!window_ptr.is_null());
-        unsafe { &mut *window_ptr }
+        if !window_ptr.is_null() {
+            let os_window = unsafe { &mut *window_ptr };
+            Some(f(os_window))
+        } else {
+            None
+        }
     }
 
     pub(crate) fn has_input_focus(&self) -> bool {
@@ -303,6 +307,13 @@ impl OsWindowView {
     pub(crate) fn set_input_focus(&self, focus: bool) {
         let focus = if focus { 1 } else { 0 };
         self.input_focus.store(focus, Ordering::Relaxed);
+    }
+
+    pub(super) fn send_event(&self, event: Event) -> EventResponse {
+        match self.with_os_window(move |os_window| os_window.send_event(event)) {
+            Some(response) => response,
+            None => EventResponse::Ignored,
+        }
     }
 
     fn key_event_text(&self, event: *const NSEvent) -> String {
@@ -339,15 +350,15 @@ impl OsWindowView {
             let is_down = event_flags & modifier > 0;
 
             if !was_down && is_down {
-                self.os_window().send_event(Event::KeyDown { text: text.to_string() });
+                self.send_event(Event::KeyDown { text: text.to_string() });
             } else if was_down && !is_down {
-                self.os_window().send_event(Event::KeyUp { text: text.to_string() });
+                self.send_event(Event::KeyUp { text: text.to_string() });
             }
         }
     }
     
     fn handle_mouse_move_event(&self, event: *const NSEvent) {
-        self.os_window().send_event(
+        self.send_event(
             Event::MouseMoved {
                 position: self.mouse_event_position(event)
             },
@@ -356,7 +367,7 @@ impl OsWindowView {
 
     fn handle_mouse_button_down_event(&self, event: *const NSEvent) {
         if let Some(button) = self.mouse_event_button(event) {
-            self.os_window().send_event(
+            self.send_event(
                 Event::MouseButtonDown {
                     button,
                     position: self.mouse_event_position(event)
@@ -367,7 +378,7 @@ impl OsWindowView {
 
     fn handle_mouse_button_up_event(&self, event: *const NSEvent) {
         if let Some(button) = self.mouse_event_button(event) {
-            self.os_window().send_event(
+            self.send_event(
                 Event::MouseButtonUp {
                     button,
                     position: self.mouse_event_position(event)
@@ -396,7 +407,10 @@ impl OsWindowView {
 
     fn window_point_to_position(&self, point_in_window: CGPoint) -> LogicalPosition {
         let local_position = unsafe { self.convertPoint_fromView(point_in_window, None) };
-        let user_scale = self.os_window().window_attributes().user_scale;
+        let user_scale = match self.with_os_window(|os_window| os_window.window_attributes().user_scale) {
+            Some(scale) => scale,
+            None => 1.0,
+        };
 
         LogicalPosition {
             x: local_position.x / user_scale,
