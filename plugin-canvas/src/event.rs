@@ -1,13 +1,13 @@
 use crate::{dimensions::LogicalPosition, drag_drop::{DropData, DropOperation}};
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum MouseButton {
     Left,
     Right,
     Middle,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Event {
     Close,
     Draw,
