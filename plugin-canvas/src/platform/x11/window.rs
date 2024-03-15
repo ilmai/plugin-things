@@ -1,12 +1,13 @@
 use std::{rc::Rc, sync::{mpsc::{self, Sender}, Arc, Mutex}, os::fd::{AsRawFd, BorrowedFd}, time::{Instant, Duration}, ffi::OsStr};
 
+use cursor_icon::CursorIcon;
 use nix::poll::{poll, PollFd, PollFlags};
 use raw_window_handle::{RawWindowHandle, HasRawWindowHandle, HasRawDisplayHandle, RawDisplayHandle, XlibWindowHandle, XlibDisplayHandle};
 use sys_locale::get_locale;
 use xcb::{x::{self, GrabStatus}, XidNew, Xid};
 use xkbcommon::xkb;
 
-use crate::{window::WindowAttributes, event::EventCallback, error::Error, platform::interface::{OsWindowInterface, OsWindowHandle, OsWindowBuilder}, dimensions::Size, Event, MouseButton, cursor::Cursor, PhysicalPosition};
+use crate::{dimensions::Size, error::Error, event::EventCallback, platform::interface::{OsWindowBuilder, OsWindowHandle, OsWindowInterface}, window::WindowAttributes, Event, LogicalPosition, MouseButton, PhysicalPosition};
 
 enum OsWindowEvent {
     Error(Error),
@@ -417,32 +418,34 @@ impl OsWindowInterface for OsWindow {
         Ok(())
     }
 
-    fn set_cursor(&self, cursor: Cursor) {
-        let cursor = match cursor {
-            Cursor::None => self.cursor_none,
-            Cursor::Arrow => self.cursor_arrow,
-            Cursor::Copy => self.cursor_plus,
-            Cursor::Crosshair => self.cursor_crosshair,
-            Cursor::Help => self.cursor_question_arrow,
-            Cursor::Move => self.cursor_fleur,
-            Cursor::NoDrop => self.cursor_x,
-            Cursor::NotAllowed => self.cursor_x,
-            Cursor::Pointer => self.cursor_pointer,
-            Cursor::Text => self.cursor_xterm,
-            Cursor::Wait => self.cursor_watch,
-
-            Cursor::ResizeNorth => self.cursor_top_side,
-            Cursor::ResizeNorthEast => self.cursor_top_right_corner,
-            Cursor::ResizeEast => self.cursor_right_side,
-            Cursor::ResizeSouthEast => self.cursor_bottom_left_corner,
-            Cursor::ResizeSouth => self.cursor_bottom_side,
-            Cursor::ResizeSouthWest => self.cursor_bottom_right_corner,
-            Cursor::ResizeWest => self.cursor_left_side,
-            Cursor::ResizeNorthWest => self.cursor_top_left_corner,
-            Cursor::ResizeEastWest => self.cursor_h_double_arrow,
-            Cursor::ResizeNorthSouth => self.cursor_double_arrow,
-
-            _ => self.cursor_arrow,
+    fn set_cursor(&self, cursor: Option<CursorIcon>) {
+        let cursor = if let Some(cursor) = cursor {
+            match cursor {
+                CursorIcon::Default => self.cursor_arrow,
+                CursorIcon::Help => self.cursor_question_arrow,
+                CursorIcon::Pointer => self.cursor_pointer,
+                CursorIcon::Wait => self.cursor_watch,
+                CursorIcon::Crosshair => self.cursor_crosshair,
+                CursorIcon::Text => self.cursor_xterm,
+                CursorIcon::Copy => self.cursor_plus,
+                CursorIcon::Move => self.cursor_fleur,
+                CursorIcon::NoDrop => self.cursor_x,
+                CursorIcon::NotAllowed => self.cursor_x,
+                CursorIcon::EResize => self.cursor_right_side,
+                CursorIcon::NResize => self.cursor_top_side,
+                CursorIcon::NeResize => self.cursor_top_right_corner,
+                CursorIcon::NwResize => self.cursor_top_left_corner,
+                CursorIcon::SResize => self.cursor_bottom_side,
+                CursorIcon::SeResize => self.cursor_bottom_right_corner,
+                CursorIcon::SwResize => self.cursor_bottom_left_corner,
+                CursorIcon::WResize => self.cursor_left_side,
+                CursorIcon::EwResize => self.cursor_h_double_arrow,
+                CursorIcon::NsResize => self.cursor_double_arrow,
+                
+                _ => self.cursor_arrow,
+            }
+        } else {
+            self.cursor_none
         };
 
         *self.new_cursor.lock().unwrap() = Some(cursor);
@@ -450,6 +453,11 @@ impl OsWindowInterface for OsWindow {
 
     fn set_input_focus(&self, focus: bool) {
         *self.set_input_focus.lock().unwrap() = Some(focus);
+    }
+
+    fn warp_mouse(&self, _position: LogicalPosition) {
+        // TODO: Warping the cursor isn't supported on Linux until the xcb crate implements XCB_NONE
+        // Otherwise the cursor can only be warped if it's already within the window
     }
 }
 
