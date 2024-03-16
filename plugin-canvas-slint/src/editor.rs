@@ -1,4 +1,4 @@
-use std::{ptr::null_mut, rc::Rc, sync::{atomic::{AtomicPtr, Ordering}, Arc}};
+use std::{ptr::null_mut, rc::Rc, sync::{atomic::{AtomicPtr, Ordering}, Arc, Mutex}, thread::ThreadId};
 
 use raw_window_handle::RawWindowHandle;
 use plugin_canvas::{event::EventResponse, window::WindowAttributes, Event};
@@ -68,24 +68,30 @@ impl SlintEditor {
 }
 
 pub struct EditorHandle {
+    window_adapter_thread: Mutex<Option<ThreadId>>,
     window_adapter_ptr: AtomicPtr<PluginCanvasWindowAdapter>,
 }
 
 impl EditorHandle {
     fn new() -> Self {
         Self {
+            window_adapter_thread: Default::default(),
             window_adapter_ptr: Default::default(),
         }
     }
 
     fn window_adapter(&self) -> &PluginCanvasWindowAdapter {
-        let window_adapter_ptr = self.window_adapter_ptr.load(Ordering::Acquire);
+        assert!(*self.window_adapter_thread.lock().unwrap() == Some(std::thread::current().id()));
+
+        let window_adapter_ptr = self.window_adapter_ptr.load(Ordering::Relaxed);
         assert!(!window_adapter_ptr.is_null());
         unsafe { &*window_adapter_ptr }
     }
 
     fn set_window_adapter(&self, window_adapter: Rc<PluginCanvasWindowAdapter>) {
-        self.window_adapter_ptr.store(Rc::into_raw(window_adapter) as _, Ordering::Release);
+        // Store thread id as we should never call anything in window adapter from other threads
+        *self.window_adapter_thread.lock().unwrap() = Some(std::thread::current().id());
+        self.window_adapter_ptr.store(Rc::into_raw(window_adapter) as _, Ordering::Relaxed);
     }
 
     fn on_event(&self, event: &Event) -> EventResponse {
@@ -95,9 +101,7 @@ impl EditorHandle {
 
 impl Drop for EditorHandle {
     fn drop(&mut self) {
-        self.on_event(&Event::Close);
-
-        let window_adapter_ptr = self.window_adapter_ptr.swap(null_mut(), Ordering::AcqRel);
+        let window_adapter_ptr = self.window_adapter_ptr.swap(null_mut(), Ordering::Relaxed);
         unsafe { Rc::from_raw(window_adapter_ptr) };
     }
 }

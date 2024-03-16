@@ -194,6 +194,7 @@ struct EditorHandle {
 
 impl EditorHandle {
     fn new() -> Self {
+        println!("New editor handle");
         Self {
             window_adapter_thread: Default::default(),
             window_adapter_ptr: Default::default(),
@@ -201,7 +202,12 @@ impl EditorHandle {
     }
 
     fn window_adapter(&self) -> &PluginCanvasWindowAdapter {
-        assert!(*self.window_adapter_thread.lock().unwrap() == Some(std::thread::current().id()));
+        assert!(
+            *self.window_adapter_thread.lock().unwrap() == Some(std::thread::current().id()),
+            "Tried to access window adapter from thread {:?} when expecting access from thread {:?}",
+            self.window_adapter_thread.lock().unwrap().unwrap(),
+            std::thread::current().id(),
+        );
 
         let window_adapter_ptr = self.window_adapter_ptr.load(Ordering::Relaxed);
         assert!(!window_adapter_ptr.is_null());
@@ -221,8 +227,6 @@ impl EditorHandle {
 
 impl Drop for EditorHandle {
     fn drop(&mut self) {
-        self.on_event(&Event::Close);
-
         let window_adapter_ptr = self.window_adapter_ptr.swap(null_mut(), Ordering::Relaxed);
         unsafe { Rc::from_raw(window_adapter_ptr) };
     }
