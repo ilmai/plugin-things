@@ -1,12 +1,12 @@
-use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle, XcbDisplayHandle, XcbWindowHandle};
+use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle, XlibDisplayHandle, XlibWindowHandle};
 use x11rb::{connection::Connection, protocol::xproto::{ConnectionExt, CreateWindowAux, EventMask, WindowClass}, xcb_ffi::XCBConnection, COPY_DEPTH_FROM_PARENT, COPY_FROM_PARENT};
 
 use crate::{dimensions::Size, error::Error, event::EventCallback, platform::interface::{OsWindowBuilder, OsWindowHandle, OsWindowInterface}, window::WindowAttributes};
 
 pub struct OsWindow {
     connection: XCBConnection,
-    display_handle: XcbDisplayHandle,
-    window_handle: XcbWindowHandle,
+    display_handle: XlibDisplayHandle,
+    window_handle: XlibWindowHandle,
 }
 
 impl OsWindowInterface for OsWindow {
@@ -55,12 +55,14 @@ impl OsWindowInterface for OsWindow {
                 ),
         )?;
 
-        let mut display_handle = XcbDisplayHandle::empty();
-        display_handle.connection = connection.get_raw_xcb_connection();
+        connection.map_window(window_id)?;
+
+        let mut display_handle = XlibDisplayHandle::empty();
+        display_handle.display = xcb_connection.get_raw_dpy() as _;
         display_handle.screen = screen_number;
 
-        let mut window_handle = XcbWindowHandle::empty();
-        window_handle.window = window_id;
+        let mut window_handle = XlibWindowHandle::empty();
+        window_handle.window = window_id as _;
         window_handle.visual_id = 0;
 
         let window = Self {
@@ -70,8 +72,8 @@ impl OsWindowInterface for OsWindow {
         };
 
         let os_window_handle = OsWindowHandle::new(
-            RawWindowHandle::Xcb(window_handle),
-            RawDisplayHandle::Xcb(display_handle),
+            RawWindowHandle::Xlib(window_handle),
+            RawDisplayHandle::Xlib(display_handle),
             window.into(),
         );
 
@@ -95,12 +97,12 @@ impl OsWindowInterface for OsWindow {
 
 unsafe impl HasRawDisplayHandle for OsWindow {
     fn raw_display_handle(&self) -> RawDisplayHandle {
-        RawDisplayHandle::Xcb(self.display_handle)
+        RawDisplayHandle::Xlib(self.display_handle)
     }
 }
 
 unsafe impl HasRawWindowHandle for OsWindow {
     fn raw_window_handle(&self) -> RawWindowHandle {
-        RawWindowHandle::Xcb(self.window_handle)
+        RawWindowHandle::Xlib(self.window_handle)
     }
 }
