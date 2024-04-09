@@ -11,8 +11,6 @@ pub enum Error {
     X11Error(x11_utils::X11Error),
     #[cfg(target_os="linux")]
     X11IdsExhausted,
-    #[cfg(target_os="linux")]
-    XcbConnectionError(xcb::ConnError),
     #[cfg(target_os="windows")]
     WindowsError(windows::core::Error),
 }
@@ -39,13 +37,6 @@ impl From<x11rb::errors::ReplyOrIdError> for Error {
             x11rb::errors::ReplyOrIdError::ConnectionError(error) => Self::X11ConnectionError(error),
             x11rb::errors::ReplyOrIdError::X11Error(error) => Self::X11Error(error),
         }
-    }
-}
-
-#[cfg(target_os="linux")]
-impl From<xcb::ConnError> for Error {
-    fn from(error: xcb::ConnError) -> Self {
-        Self::XcbConnectionError(error)
     }
 }
 

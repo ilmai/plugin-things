@@ -17,19 +17,27 @@ impl OsWindowInterface for OsWindow {
         window_builder: OsWindowBuilder,
     ) -> Result<(), Error>
     {
-        // We first need to connect using Xlib to support OpenGL
-        let (xcb_connection, screen_number) = xcb::Connection::connect_with_xlib_display()?;
-        xcb_connection.set_event_queue_owner(xcb::EventQueueOwner::Xcb);
-
-        let connection = unsafe { XCBConnection::from_raw_xcb_connection(xcb_connection.get_raw_conn() as _, true)? };
-
-        // Then we can proceed with creating the window
         let parent_window_id = match parent_window_handle {
             RawWindowHandle::Xlib(parent_window_handle) => parent_window_handle.window as u32,
             RawWindowHandle::Xcb(parent_window_handle) => parent_window_handle.window,
             _ => { return Err(Error::PlatformError("Not an X11 window".into())); }
         };
 
+        // Create a connection through Xlib for OpenGL to work
+        let dpy = unsafe { x11::xlib::XOpenDisplay(std::ptr::null()) };
+        assert!(!dpy.is_null());
+
+        let xcb_connection = unsafe { x11::xlib_xcb::XGetXCBConnection(dpy) };
+        assert!(!xcb_connection.is_null());
+
+        let screen = unsafe { x11::xlib::XDefaultScreen(dpy) } as i32;
+        unsafe {
+            x11::xlib_xcb::XSetEventQueueOwner(dpy, x11::xlib_xcb::XEventQueueOwner::XCBOwnsEventQueue)
+        };
+        
+        let connection = unsafe { XCBConnection::from_raw_xcb_connection(xcb_connection as _, true)? };
+
+        // Then we can proceed with creating the window
         let size = Size::with_logical_size(window_attributes.size, window_attributes.user_scale);
 
         let window_id = connection.generate_id()?;
@@ -56,10 +64,11 @@ impl OsWindowInterface for OsWindow {
         )?;
 
         connection.map_window(window_id)?;
+        connection.flush()?;
 
         let mut display_handle = XlibDisplayHandle::empty();
-        display_handle.display = xcb_connection.get_raw_dpy() as _;
-        display_handle.screen = screen_number;
+        display_handle.display = dpy as _;
+        display_handle.screen = screen;
 
         let mut window_handle = XlibWindowHandle::empty();
         window_handle.window = window_id as _;
