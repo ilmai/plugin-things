@@ -17,6 +17,8 @@ pub(crate) trait OsWindowInterface: HasRawDisplayHandle + HasRawWindowHandle + S
         window_builder: OsWindowBuilder,
     ) -> Result<(), Error>;
 
+    fn poll_events(&self) -> Result<(), Error>;
+
     fn set_cursor(&self, cursor: Option<CursorIcon>);
     fn set_input_focus(&self, focus: bool);
     fn warp_mouse(&self, position: LogicalPosition);
