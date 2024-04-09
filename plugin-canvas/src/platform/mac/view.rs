@@ -1,312 +1,118 @@
-use std::{sync::atomic::{Ordering, AtomicU8, AtomicUsize}, path::PathBuf};
+use std::{ffi::c_void, ops::{Deref, DerefMut}, path::PathBuf, sync::atomic::{AtomicU8, AtomicUsize, Ordering}};
 
-use icrate::{AppKit::{NSView, NSEvent, NSResponder, NSTextInputClient, NSEventModifierFlagShift, NSEventModifierFlagCommand, NSEventModifierFlagControl, NSEventModifierFlagOption, NSDraggingDestination, NSDraggingInfo, NSDragOperation, NSDragOperationNone, NSDragOperationCopy, NSDragOperationMove, NSPasteboardTypeFileURL, NSDragOperationLink}, Foundation::{NSRect, NSArray, NSRange, NSRangePointer, NSPoint, NSAttributedStringKey, NSAttributedString, CGPoint, CGSize, NSURL}};
-use objc2::{declare_class, mutability, ClassType,  msg_send, declare::IvarEncode, runtime::{AnyObject, Sel, NSObject, NSObjectProtocol, ProtocolObject}, ffi::NSUInteger, rc::Id};
+use icrate::{AppKit::{NSView, NSEvent, NSEventModifierFlagShift, NSEventModifierFlagCommand, NSEventModifierFlagControl, NSEventModifierFlagOption, NSDraggingInfo, NSDragOperation, NSDragOperationNone, NSDragOperationCopy, NSDragOperationMove, NSPasteboardTypeFileURL, NSDragOperationLink}, Foundation::{NSRect, NSArray, CGPoint, NSURL}};
+use objc2::{declare::ClassBuilder, ffi::objc_disposeClassPair, msg_send, runtime::{AnyClass, Bool}, sel, ClassType, Encode, Encoding, Message, RefEncode};
+use objc2::runtime::{Sel, ProtocolObject};
+use uuid::Uuid;
 
 use crate::{Event, MouseButton, LogicalPosition, event::EventResponse, drag_drop::{DropData, DropOperation}};
 
 use super::{types::AtomicVoidPtr, window::OsWindow};
 
-declare_class! {
-    pub(super) struct OsWindowView {
-        pub(super) os_window_ptr: IvarEncode<AtomicVoidPtr, "_os_window_ptr">,
-        // AtomicBool isn't Encode, so let's use AtomicU8 instead
-        input_focus: IvarEncode<AtomicU8, "_input_focus">,
-        modifier_flags: IvarEncode<AtomicUsize, "_modifier_flags">,
-    }
-    
-    mod ivars;
-
-    unsafe impl ClassType for OsWindowView {
-        #[inherits(NSResponder, NSObject)]
-        type Super = NSView;
-        type Mutability = mutability::InteriorMutable;
-        const NAME: &'static str = "plugin-canvas-WindowView";
-    }
-
-    unsafe impl OsWindowView {
-        #[method(initWithFrame:)]
-        fn init_with_frame(&self, rect: NSRect) -> Option<&Self> {
-            unsafe { msg_send![super(self), initWithFrame: rect] }
-        }
-
-        #[method(acceptsFirstMouse:)]
-        fn accepts_first_mouse(&self, _event: *const NSEvent) -> bool {
-            true
-        }
-
-        #[method(acceptsFirstResponder)]
-        fn accepts_first_responser(&self) -> bool {
-            true
-        }
-
-        #[method(isFlipped)]
-        fn is_flipped(&self) -> bool {
-            true
-        }
-
-        #[method(keyDown:)]
-        fn key_down(&self, event: *const NSEvent) {
-            unsafe {
-                let events = NSArray::arrayWithObject(&*event);
-                self.interpretKeyEvents(&events);
-            }
-
-            let mut text = self.key_event_text(event);
-            if text == "\r" {
-                text = "\u{000a}".to_string();
-            }
-
-            self.send_event(
-                Event::KeyDown {
-                    text,
-                }
-            );
-
-            if !self.has_input_focus() {
-                unsafe { msg_send![super(self), keyDown: event] }
-            }
-        }
-
-        #[method(keyUp:)]
-        fn key_up(&self, event: *const NSEvent) {
-            self.send_event(
-                Event::KeyUp {
-                    text: self.key_event_text(event),
-                }
-            );
-
-            if !self.has_input_focus() {
-                unsafe { msg_send![super(self), keyUp: event] }
-            }
-        }
-
-        #[method(flagsChanged:)]
-        fn flags_changed(&self, event: *const NSEvent) {
-            self.handle_modifier_event(event);
-        }
-
-        #[method(mouseMoved:)]
-        fn mouse_moved(&self, event: *const NSEvent) {
-            self.handle_mouse_move_event(event);
-        }
-
-        #[method(mouseDragged:)]
-        fn mouse_dragged(&self, event: *const NSEvent) {
-            self.handle_mouse_move_event(event);
-        }
-
-        #[method(rightMouseDragged:)]
-        fn right_mouse_dragged(&self, event: *const NSEvent) {
-            self.handle_mouse_move_event(event);
-        }
-
-        #[method(otherMouseDragged:)]
-        fn other_mouse_dragged(&self, event: *const NSEvent) {
-            self.handle_mouse_move_event(event);
-        }
-
-        #[method(mouseDown:)]
-        fn mouse_down(&self, event: *const NSEvent) {
-            self.handle_mouse_button_down_event(event);
-        }
-
-        #[method(mouseUp:)]
-        fn mouse_up(&self, event: *const NSEvent) {
-            self.handle_mouse_button_up_event(event);
-        }
-
-        #[method(rightMouseDown:)]
-        fn right_mouse_down(&self, event: *const NSEvent) {
-            self.handle_mouse_button_down_event(event);
-        }
-
-        #[method(rightMouseUp:)]
-        fn right_mouse_up(&self, event: *const NSEvent) {
-            self.handle_mouse_button_up_event(event);
-        }
-
-        #[method(otherMouseDown:)]
-        fn other_mouse_down(&self, event: *const NSEvent) {
-            self.handle_mouse_button_down_event(event);
-        }
-
-        #[method(otherMouseUp:)]
-        fn other_mouse_up(&self, event: *const NSEvent) {
-            self.handle_mouse_button_up_event(event);
-        }
-
-        #[method(mouseExited:)]
-        fn mouse_exited(&self, _event: *const NSEvent) {
-            self.send_event(Event::MouseExited);
-        }
-
-        #[method(scrollWheel:)]
-        fn scroll_wheel(&self, event: *const NSEvent) {
-            assert!(!event.is_null());
-            let x: f64 = unsafe { (*event).deltaX() };
-            let y: f64 = unsafe { (*event).deltaY() };
-
-            self.send_event(
-                Event::MouseWheel {
-                    position: self.mouse_event_position(event),
-                    delta_x: x,
-                    delta_y: y,
-                }
-            );
-        }
-
-        #[method(draw)]
-        fn draw(&self) {
-            // Window might have closed while the operation calling this function
-            // was queued
-            if !self.os_window_ptr.load(Ordering::Relaxed).is_null() {
-                self.send_event(Event::Draw);
-            }
-        }
-    }
-
-    unsafe impl NSTextInputClient for OsWindowView {
-        #[method(insertText:replacementRange:)]
-        unsafe fn insert_text_replacement_range(
-            &self,
-            _string: &AnyObject,
-            _replacement_range: NSRange,
-        ) {
-        }        
-
-        #[method(doCommandBySelector:)]
-        unsafe fn do_command_by_selector(&self, _selector: Sel) {
-        }
-
-        #[method(setMarkedText:selectedRange:replacementRange:)]
-        unsafe fn set_marked_text_selected_range_replacement_range(
-            &self,
-            _string: &AnyObject,
-            _selected_range: NSRange,
-            _replacement_range: NSRange,
-        ) {
-        }
-
-        #[method(unmarkText)]
-        unsafe fn unmark_text(&self) {            
-        }
-
-        #[method(selectedRange)]
-        unsafe fn selected_range(&self) -> NSRange {
-            NSRange::new(0, 0)
-        }
-
-        #[method(markedRange)]
-        unsafe fn marked_range(&self) -> NSRange {
-            NSRange::new(0, 0)
-        }
-
-        #[method(hasMarkedText)]
-        unsafe fn has_marked_text(&self) -> bool {
-            false
-        }
-
-        #[method_id(attributedSubstringForProposedRange:actualRange:)]
-        unsafe fn attributed_substring_for_proposed_range_actual_range(
-            &self,
-            _range: NSRange,
-            _actual_range: NSRangePointer,
-        ) -> Option<Id<NSAttributedString>> {
-            None
-        }
-
-        #[method_id(validAttributesForMarkedText)]
-        unsafe fn valid_attributes_for_marked_text(&self) -> Id<NSArray<NSAttributedStringKey>> {
-            NSArray::new()
-        }
-
-        #[method(firstRectForCharacterRange:actualRange:)]
-        unsafe fn first_rect_for_character_range_actual_range(
-            &self,
-            _range: NSRange,
-            _actual_range: NSRangePointer,
-        ) -> NSRect {
-            NSRect::new(
-                CGPoint::new(0.0, 0.0),
-                CGSize::new(0.0, 0.0),
-            )
-        }
-
-        #[method(characterIndexForPoint:)]
-        unsafe fn character_index_for_point(&self, _point: NSPoint) -> NSUInteger {
-            0
-        }
-    }
-
-    unsafe impl NSDraggingDestination for OsWindowView {
-        #[method(wantsPeriodicDraggingUpdates)]
-        unsafe fn wants_periodic_dragging_updates(&self) -> bool {
-            false
-        }
-
-        #[method(draggingEntered:)]
-        unsafe fn dragging_entered(&self, sender: &ProtocolObject<dyn NSDraggingInfo>) -> NSDragOperation {
-            let response = self.send_event(Event::DragEntered {
-                position: self.drag_event_position(sender),
-                data: self.drag_event_data(sender),
-            });
-
-            self.convert_drag_operation(response)
-        }
-
-        #[method(draggingUpdated:)]
-        unsafe fn dragging_updated(&self, sender: &ProtocolObject<dyn NSDraggingInfo>) -> NSDragOperation {
-            let response = self.send_event(Event::DragMoved {
-                position: self.drag_event_position(sender),
-                data: self.drag_event_data(sender),
-            });
-
-            self.convert_drag_operation(response)
-        }
-
-        #[method(draggingExited:)]
-        unsafe fn dragging_exited(&self, _sender: &ProtocolObject<dyn NSDraggingInfo>) {
-            self.send_event(Event::DragExited);
-        }
-
-        #[method(prepareForDragOperation:)]
-        unsafe fn prepare_for_drag_operation(&self, _sender: &ProtocolObject<dyn NSDraggingInfo>) -> bool {
-            true
-        }
-
-        #[method(performDragOperation:)]
-        unsafe fn perform_drag_operation(&self, sender: &ProtocolObject<dyn NSDraggingInfo>) -> bool {
-            let response = self.send_event(Event::DragDropped {
-                position: self.drag_event_position(sender),
-                data: self.drag_event_data(sender),
-            });
-
-            self.convert_drag_operation(response) != NSDragOperationNone
-        }
-    }
+pub struct OsWindowView {
+    superclass: NSView,
 }
 
-unsafe impl NSObjectProtocol for OsWindowView {}
+struct Context {
+    os_window_ptr: AtomicVoidPtr,
+    input_focus: AtomicU8,
+    modifier_flags: AtomicUsize,
+}
+
+unsafe impl Encode for Context {
+    const ENCODING: Encoding = Encoding::Struct(
+        "Encode",
+        &[
+            AtomicVoidPtr::ENCODING,
+            AtomicU8::ENCODING,
+            AtomicUsize::ENCODING,
+        ]
+    );
+}
+
+unsafe impl RefEncode for OsWindowView {
+    const ENCODING_REF: Encoding = NSView::ENCODING_REF;
+}
+
+unsafe impl Message for OsWindowView {}
 
 impl OsWindowView {
-    pub(crate) fn with_os_window<T>(&self, f: impl FnOnce(&mut OsWindow) -> T) -> Option<T> {
-        let window_ptr = self.os_window_ptr.load(Ordering::Relaxed) as *mut OsWindow;
-        if !window_ptr.is_null() {
-            let os_window = unsafe { &mut *window_ptr };
-            Some(f(os_window))
-        } else {
-            None
+    pub(crate) fn register_class() -> &'static AnyClass {
+        let class_name = format!("plugin-canvas-OsWindowView-{}", Uuid::new_v4().simple().to_string());
+
+        let mut builder = ClassBuilder::new(&class_name, NSView::class())
+            .expect(&format!("Class failed to register: {class_name}"));
+
+        builder.add_ivar::<Context>("_context");
+
+        unsafe {
+            // NSView
+            builder.add_method(sel!(initWithFrame:), Self::init_with_frame as unsafe extern "C" fn(_, _, _) -> _);
+            builder.add_method(sel!(acceptsFirstMouse:), Self::accepts_first_mouse as unsafe extern "C" fn(_, _, _) -> _);
+            builder.add_method(sel!(acceptsFirstResponder), Self::accepts_first_responder as unsafe extern "C" fn(_, _) -> _);
+            builder.add_method(sel!(isFlipped), Self::is_flipped as unsafe extern "C" fn(_, _) -> _);
+            builder.add_method(sel!(keyDown:), Self::key_down as unsafe extern "C" fn(_, _, _) -> _);
+            builder.add_method(sel!(keyUp:), Self::key_up as unsafe extern "C" fn(_, _, _) -> _);
+            builder.add_method(sel!(flagsChanged:), Self::flags_changed as unsafe extern "C" fn(_, _, _) -> _);
+            builder.add_method(sel!(mouseMoved:), Self::mouse_moved as unsafe extern "C" fn(_, _, _) -> _);
+            builder.add_method(sel!(mouseDragged:), Self::mouse_dragged as unsafe extern "C" fn(_, _, _) -> _);
+            builder.add_method(sel!(rightMouseDragged:), Self::right_mouse_dragged as unsafe extern "C" fn(_, _, _) -> _);
+            builder.add_method(sel!(otherMouseDragged:), Self::other_mouse_dragged as unsafe extern "C" fn(_, _, _) -> _);
+            builder.add_method(sel!(mouseDown:), Self::mouse_down as unsafe extern "C" fn(_, _, _) -> _);
+            builder.add_method(sel!(mouseUp:), Self::mouse_up as unsafe extern "C" fn(_, _, _) -> _);
+            builder.add_method(sel!(rightMouseDown:), Self::right_mouse_down as unsafe extern "C" fn(_, _, _) -> _);
+            builder.add_method(sel!(rightMouseUp:), Self::right_mouse_up as unsafe extern "C" fn(_, _, _) -> _);
+            builder.add_method(sel!(otherMouseDown:), Self::other_mouse_down as unsafe extern "C" fn(_, _, _) -> _);
+            builder.add_method(sel!(otherMouseUp:), Self::other_mouse_up as unsafe extern "C" fn(_, _, _) -> _);
+            builder.add_method(sel!(mouseExited:), Self::mouse_exited as unsafe extern "C" fn(_, _, _) -> _);
+            builder.add_method(sel!(scrollWheel:), Self::scroll_wheel as unsafe extern "C" fn(_, _, _) -> _);
+            builder.add_method(sel!(drawRect:), Self::draw_rect as unsafe extern "C" fn(_, _, _) -> _);
+
+            // NSDraggingDestination
+            builder.add_method(sel!(wantsPeriodicDraggingUpdates), Self::wants_periodic_dragging_updates as unsafe extern "C" fn(_, _) -> _);
+            builder.add_method(sel!(draggingEntered:), Self::dragging_entered as unsafe extern "C" fn(_, _, _) -> _);
+            builder.add_method(sel!(draggingUpdated:), Self::dragging_updated as unsafe extern "C" fn(_, _, _) -> _);
+            builder.add_method(sel!(draggingExited:), Self::dragging_exited as unsafe extern "C" fn(_, _, _) -> _);
+            builder.add_method(sel!(prepareForDragOperation:), Self::prepare_for_drag_operation as unsafe extern "C" fn(_, _, _) -> _);
+            builder.add_method(sel!(performDragOperation:), Self::perform_drag_operation as unsafe extern "C" fn(_, _, _) -> _);
         }
+
+        builder.register()
+    }
+
+    pub(crate) fn unregister_class(class: &'static AnyClass) {
+        unsafe { objc_disposeClassPair(class as *const _ as _) };
+    }
+
+    pub(crate) fn set_os_window_ptr(&self, ptr: *mut c_void) {
+        self.with_context(|context| context.os_window_ptr.store(ptr, Ordering::Release));
+    }
+
+    pub(crate) fn with_os_window<T>(&self, f: impl FnOnce(&mut OsWindow) -> T) -> Option<T> {
+        self.with_context(|context| {
+            let window_ptr = context.os_window_ptr.load(Ordering::Acquire) as *mut OsWindow;
+            if !window_ptr.is_null() {
+                let os_window = unsafe { &mut *window_ptr };
+                Some(f(os_window))
+            } else {
+                None
+            }
+        })
+    }
+
+    fn with_context<T>(&self, f: impl FnOnce(&Context) -> T) -> T {
+        let ivar = self.class().instance_variable("_context").unwrap();
+        let context: &Context = unsafe { ivar.load(self) };
+        f(context)
     }
 
     pub(crate) fn has_input_focus(&self) -> bool {
-        self.input_focus.load(Ordering::Relaxed) != 0
+        self.with_context(|context| context.input_focus.load(Ordering::Relaxed) != 0)
     }
 
     pub(crate) fn set_input_focus(&self, focus: bool) {
         let focus = if focus { 1 } else { 0 };
-        self.input_focus.store(focus, Ordering::Relaxed);
+        self.with_context(|context| context.input_focus.store(focus, Ordering::Relaxed));
     }
 
     pub(super) fn send_event(&self, event: Event) -> EventResponse {
@@ -335,10 +141,14 @@ impl OsWindowView {
         }
     }
 
-    fn handle_modifier_event(&self, event: *const NSEvent) {        
-        let old_flags = self.modifier_flags.load(Ordering::Relaxed);
-        let event_flags = unsafe { (*event).modifierFlags() };
-        self.modifier_flags.store(event_flags, Ordering::Relaxed);
+    fn handle_modifier_event(&self, event: *const NSEvent) {
+        let (old_flags, event_flags) = self.with_context(|context| {
+            let old_flags = context.modifier_flags.load(Ordering::Relaxed);
+            let event_flags = unsafe { (*event).modifierFlags() };
+            context.modifier_flags.store(event_flags, Ordering::Relaxed);
+
+            (old_flags, event_flags)
+        });
 
         for (modifier, text) in [
             (NSEventModifierFlagCommand, "\u{0017}"),
@@ -406,7 +216,7 @@ impl OsWindowView {
     }
 
     fn window_point_to_position(&self, point_in_window: CGPoint) -> LogicalPosition {
-        let local_position = unsafe { self.convertPoint_fromView(point_in_window, None) };
+        let local_position = self.convertPoint_fromView(point_in_window, None);
         let user_scale = match self.with_os_window(|os_window| os_window.window_attributes().user_scale) {
             Some(scale) => scale,
             None => 1.0,
@@ -462,5 +272,180 @@ impl OsWindowView {
         } else {
             NSDragOperationNone
         }
+    }
+
+    // NSView
+    unsafe extern "C" fn init_with_frame(&self, _cmd: Sel, rect: NSRect) -> Option<&Self> {
+        unsafe { msg_send![super(self, NSView::class()), initWithFrame: rect] }
+    }
+
+    unsafe extern "C" fn accepts_first_mouse(&self, _cmd: Sel, _event: *const NSEvent) -> Bool {
+        Bool::YES
+    }
+
+    unsafe extern "C" fn accepts_first_responder(&self, _cmd: Sel) -> Bool {
+        Bool::YES
+    }
+
+    unsafe extern "C" fn is_flipped(&self, _cmd: Sel) -> Bool {
+        Bool::YES
+    }
+
+    unsafe extern "C" fn key_down(&self, _cmd: Sel, event: *const NSEvent) {
+        unsafe {
+            let events = NSArray::arrayWithObject(&*event);
+            self.interpretKeyEvents(&events);
+        }
+
+        let mut text = self.key_event_text(event);
+        if text == "\r" {
+            text = "\u{000a}".to_string();
+        }
+
+        self.send_event(
+            Event::KeyDown {
+                text,
+            }
+        );
+
+        if !self.has_input_focus() {
+            unsafe { msg_send![super(self, NSView::class()), keyDown: event] }
+        }
+    }
+
+    unsafe extern "C" fn key_up(&self, _cmd: Sel, event: *const NSEvent) {
+        self.send_event(
+            Event::KeyUp {
+                text: self.key_event_text(event),
+            }
+        );
+
+        if !self.has_input_focus() {
+            unsafe { msg_send![super(self, NSView::class()), keyUp: event] }
+        }
+    }
+
+    unsafe extern "C" fn flags_changed(&self, _cmd: Sel, event: *const NSEvent) {
+        self.handle_modifier_event(event);
+    }
+
+    unsafe extern "C" fn mouse_moved(&self, _cmd: Sel, event: *const NSEvent) {
+        self.handle_mouse_move_event(event);
+    }
+
+    unsafe extern "C" fn mouse_dragged(&self, _cmd: Sel, event: *const NSEvent) {
+        self.handle_mouse_move_event(event);
+    }
+
+    unsafe extern "C" fn right_mouse_dragged(&self, _cmd: Sel, event: *const NSEvent) {
+        self.handle_mouse_move_event(event);
+    }
+
+    unsafe extern "C" fn other_mouse_dragged(&self, _cmd: Sel, event: *const NSEvent) {
+        self.handle_mouse_move_event(event);
+    }
+
+    unsafe extern "C" fn mouse_down(&self, _cmd: Sel, event: *const NSEvent) {
+        self.handle_mouse_button_down_event(event);
+    }
+
+    unsafe extern "C" fn mouse_up(&self, _cmd: Sel, event: *const NSEvent) {
+        self.handle_mouse_button_up_event(event);
+    }
+
+    unsafe extern "C" fn right_mouse_down(&self, _cmd: Sel, event: *const NSEvent) {
+        self.handle_mouse_button_down_event(event);
+    }
+
+    unsafe extern "C" fn right_mouse_up(&self, _cmd: Sel, event: *const NSEvent) {
+        self.handle_mouse_button_up_event(event);
+    }
+
+    unsafe extern "C" fn other_mouse_down(&self, _cmd: Sel, event: *const NSEvent) {
+        self.handle_mouse_button_down_event(event);
+    }
+
+    unsafe extern "C" fn other_mouse_up(&self, _cmd: Sel, event: *const NSEvent) {
+        self.handle_mouse_button_up_event(event);
+    }
+
+    unsafe extern "C" fn mouse_exited(&self, _cmd: Sel, _event: *const NSEvent) {
+        self.send_event(Event::MouseExited);
+    }
+
+    unsafe extern "C" fn scroll_wheel(&self, _cmd: Sel, event: *const NSEvent) {
+        assert!(!event.is_null());
+        let x: f64 = unsafe { (*event).deltaX() };
+        let y: f64 = unsafe { (*event).deltaY() };
+
+        self.send_event(
+            Event::MouseWheel {
+                position: self.mouse_event_position(event),
+                delta_x: x,
+                delta_y: y,
+            }
+        );
+    }
+
+    unsafe extern "C" fn draw_rect(&self, _cmd: Sel, _rect: NSRect) {
+        self.send_event(Event::Draw);
+    }
+
+    // NSDraggingDestination
+    unsafe extern "C" fn wants_periodic_dragging_updates(&self, _cmd: Sel) -> Bool {
+        Bool::NO
+    }
+
+    unsafe extern "C" fn dragging_entered(&self, _cmd: Sel, sender: &ProtocolObject<dyn NSDraggingInfo>) -> NSDragOperation {
+        let response = self.send_event(Event::DragEntered {
+            position: self.drag_event_position(sender),
+            data: self.drag_event_data(sender),
+        });
+
+        self.convert_drag_operation(response)
+    }
+
+    unsafe extern "C" fn dragging_updated(&self, _cmd: Sel, sender: &ProtocolObject<dyn NSDraggingInfo>) -> NSDragOperation {
+        let response = self.send_event(Event::DragMoved {
+            position: self.drag_event_position(sender),
+            data: self.drag_event_data(sender),
+        });
+
+        self.convert_drag_operation(response)
+    }
+
+    unsafe extern "C" fn dragging_exited(&self, _cmd: Sel, _sender: &ProtocolObject<dyn NSDraggingInfo>) {
+        self.send_event(Event::DragExited);
+    }
+
+    unsafe extern "C" fn prepare_for_drag_operation(&self, _cmd: Sel, _sender: &ProtocolObject<dyn NSDraggingInfo>) -> Bool {
+        Bool::YES
+    }
+
+    unsafe extern "C" fn perform_drag_operation(&self, _cmd: Sel, sender: &ProtocolObject<dyn NSDraggingInfo>) -> Bool {
+        let response = self.send_event(Event::DragDropped {
+            position: self.drag_event_position(sender),
+            data: self.drag_event_data(sender),
+        });
+
+        if self.convert_drag_operation(response) != NSDragOperationNone {
+            Bool::YES
+        } else {
+            Bool::NO
+        }
+    }
+}
+
+impl Deref for OsWindowView {
+    type Target = NSView;
+
+    fn deref(&self) -> &Self::Target {
+        &self.superclass
+    }
+}
+
+impl DerefMut for OsWindowView {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.superclass
     }
 }
