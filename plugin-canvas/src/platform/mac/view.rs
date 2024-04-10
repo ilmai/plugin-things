@@ -1,4 +1,4 @@
-use std::{ffi::c_void, ops::{Deref, DerefMut}, path::PathBuf, sync::atomic::{AtomicU8, AtomicUsize, Ordering}};
+use std::{ffi::c_void, ops::{Deref, DerefMut}, path::PathBuf, sync::atomic::{AtomicPtr, AtomicU8, AtomicUsize, Ordering}};
 
 use icrate::{AppKit::{NSView, NSEvent, NSEventModifierFlagShift, NSEventModifierFlagCommand, NSEventModifierFlagControl, NSEventModifierFlagOption, NSDraggingInfo, NSDragOperation, NSDragOperationNone, NSDragOperationCopy, NSDragOperationMove, NSPasteboardTypeFileURL, NSDragOperationLink}, Foundation::{NSRect, NSArray, CGPoint, NSURL}};
 use objc2::{declare::ClassBuilder, ffi::objc_disposeClassPair, msg_send, runtime::{AnyClass, Bool}, sel, ClassType, Encode, Encoding, Message, RefEncode};
@@ -7,14 +7,14 @@ use uuid::Uuid;
 
 use crate::{Event, MouseButton, LogicalPosition, event::EventResponse, drag_drop::{DropData, DropOperation}};
 
-use super::{types::AtomicVoidPtr, window::OsWindow};
+use super::window::OsWindow;
 
 pub struct OsWindowView {
     superclass: NSView,
 }
 
 struct Context {
-    os_window_ptr: AtomicVoidPtr,
+    os_window_ptr: AtomicPtr<c_void>,
     input_focus: AtomicU8,
     modifier_flags: AtomicUsize,
 }
@@ -23,7 +23,7 @@ unsafe impl Encode for Context {
     const ENCODING: Encoding = Encoding::Struct(
         "Encode",
         &[
-            AtomicVoidPtr::ENCODING,
+            AtomicPtr::<c_void>::ENCODING,
             AtomicU8::ENCODING,
             AtomicUsize::ENCODING,
         ]
