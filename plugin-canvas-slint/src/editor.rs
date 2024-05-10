@@ -73,6 +73,10 @@ pub struct EditorHandle {
 }
 
 impl EditorHandle {
+    pub fn on_frame(&self) {
+        self.on_event(&Event::Draw);
+    }
+
     fn new() -> Self {
         Self {
             window_adapter_thread: Default::default(),
