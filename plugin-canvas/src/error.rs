@@ -1,3 +1,4 @@
+#[cfg(target_os="linux")]
 use x11rb::x11_utils;
 
 #[derive(Debug)]
