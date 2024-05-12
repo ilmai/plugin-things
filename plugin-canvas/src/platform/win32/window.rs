@@ -259,6 +259,10 @@ impl OsWindowInterface for OsWindow {
             SetCursorPos(point.x, point.y).unwrap();
         }
     }
+    
+    fn poll_events(&self) -> Result<(), Error> {
+        Ok(())
+    }
 }
 
 impl Drop for OsWindow {
