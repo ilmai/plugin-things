@@ -2,8 +2,8 @@ use std::{ffi::c_void, sync::atomic::{Ordering, AtomicBool}, rc::Rc, cell::RefCe
 
 use core_graphics::display::CGDisplay;
 use cursor_icon::CursorIcon;
-use icrate::{AppKit::{NSTrackingArea, NSView, NSWindow, NSTrackingMouseEnteredAndExited, NSTrackingMouseMoved, NSTrackingActiveAlways, NSTrackingInVisibleRect, NSCursor, NSPasteboardTypeFileURL, NSScreen}, Foundation::{CGPoint, CGSize, CGRect, NSInvocationOperation, NSOperationQueue, NSArray}};
-use objc2::{ClassType, msg_send_id, rc::Id, sel};
+use icrate::{AppKit::{NSCursor, NSPasteboardTypeFileURL, NSScreen, NSTrackingActiveAlways, NSTrackingArea, NSTrackingInVisibleRect, NSTrackingMouseEnteredAndExited, NSTrackingMouseMoved, NSView, NSWindow}, Foundation::{CGPoint, CGRect, CGSize, MainThreadMarker, NSArray, NSInvocationOperation, NSOperationQueue}};
+use objc2::{msg_send_id, rc::{Allocated, Id}, runtime::AnyClass, sel, ClassType};
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle, AppKitWindowHandle, HasRawDisplayHandle, RawDisplayHandle, AppKitDisplayHandle};
 
 use crate::{error::Error, platform::interface::{OsWindowInterface, OsWindowHandle, OsWindowBuilder}, event::{EventCallback, EventResponse}, window::WindowAttributes, Event, LogicalPosition};
@@ -12,6 +12,8 @@ use super::display_link::{CVDisplayLinkRef, CVTimeStamp, CVReturn, self};
 use super::view::OsWindowView;
 
 pub struct OsWindow {
+    view_class: &'static AnyClass,
+
     window_attributes: WindowAttributes,
 
     window_handle: AppKitWindowHandle,
@@ -19,6 +21,8 @@ pub struct OsWindow {
     event_callback: Box<EventCallback>,
 
     cursor_hidden: AtomicBool,
+
+    main_thread_marker: MainThreadMarker,
 }
 
 impl OsWindow {
@@ -54,6 +58,8 @@ impl OsWindowInterface for OsWindow {
             return Err(Error::PlatformError("Not an AppKit window".into()));
         };
 
+        let view_class = OsWindowView::register_class();
+
         let physical_size = crate::PhysicalSize::from_logical(&window_attributes.size, window_attributes.user_scale);
 
         let view_rect = CGRect::new(
@@ -62,7 +68,8 @@ impl OsWindowInterface for OsWindow {
         );
 
         let (view, window_handle) = unsafe {
-            let view: Id<OsWindowView> = msg_send_id![OsWindowView::alloc(), initWithFrame: view_rect];
+            let view: Allocated<OsWindowView> = msg_send_id![view_class, alloc];
+            let view: Id<OsWindowView> = msg_send_id![view, initWithFrame: view_rect];
         
             let tracking_area = NSTrackingArea::initWithRect_options_owner_userInfo(
                 NSTrackingArea::alloc(),
@@ -92,7 +99,11 @@ impl OsWindowInterface for OsWindow {
         let raw_window_handle = RawWindowHandle::AppKit(window_handle);
         let raw_display_handle = RawDisplayHandle::AppKit(AppKitDisplayHandle::empty());
 
+        let main_thread_marker = MainThreadMarker::new().unwrap();
+
         let window = Rc::new(Self {
+            view_class,
+
             window_attributes,
 
             window_handle,
@@ -100,12 +111,14 @@ impl OsWindowInterface for OsWindow {
             event_callback,
 
             cursor_hidden: Default::default(),
+
+            main_thread_marker,
         });
 
         let window_clone = window.clone();
         let window_ptr = Rc::into_raw(window);
 
-        view.os_window_ptr.store(window_ptr as _, Ordering::Relaxed);
+        view.set_os_window_ptr(window_ptr as _);
 
         let displays = display_link::get_displays_with_rect(view_rect);
         assert!(!displays.is_empty());
@@ -186,7 +199,7 @@ impl OsWindowInterface for OsWindow {
     fn warp_mouse(&self, position: LogicalPosition) {
         let window_position = unsafe { self.view().convertPoint_toView(CGPoint::new(position.x, position.y), None) };
         let screen_position = unsafe { self.view().window().unwrap().convertPointToScreen(window_position) };
-        let screen_height = unsafe { NSScreen::mainScreen().unwrap().frame().size.height };
+        let screen_height = NSScreen::mainScreen(self.main_thread_marker).unwrap().frame().size.height;
         let cg_point = core_graphics::geometry::CGPoint::new(screen_position.x, screen_height - screen_position.y);
         CGDisplay::warp_mouse_cursor_position(cg_point).unwrap();
     }
@@ -198,11 +211,13 @@ impl OsWindowInterface for OsWindow {
 
 impl Drop for OsWindow {
     fn drop(&mut self) {
-        self.view().os_window_ptr.store(null_mut(), Ordering::Relaxed);
+        self.view().set_os_window_ptr(null_mut());
 
         if let Some(mut display_link) = self.display_link.take() {
             display_link::release(&mut display_link);
         }
+
+        OsWindowView::unregister_class(self.view_class);
     }
 }
 
@@ -232,7 +247,7 @@ unsafe extern "C" fn display_link_callback(
     let operation = NSInvocationOperation::initWithTarget_selector_object(
         NSInvocationOperation::alloc(),
         &*view,
-        sel!(draw),
+        sel!(drawRect:),
         None,
     ).unwrap();
 
