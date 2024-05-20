@@ -5,7 +5,7 @@ use sys_locale::get_locale;
 use x11rb::{connection::Connection, protocol::xproto::{ConnectionExt, CreateWindowAux, EventMask, WindowClass}, xcb_ffi::XCBConnection, COPY_DEPTH_FROM_PARENT, COPY_FROM_PARENT};
 use xkbcommon::xkb;
 
-use crate::{dimensions::Size, error::Error, event::EventCallback, platform::interface::{OsWindowBuilder, OsWindowHandle, OsWindowInterface}, window::WindowAttributes, Event, MouseButton, PhysicalPosition};
+use crate::{dimensions::Size, error::Error, event::{EventCallback, EventResponse}, platform::interface::{OsWindowBuilder, OsWindowHandle, OsWindowInterface}, window::WindowAttributes, Event, MouseButton, PhysicalPosition};
 
 pub struct OsWindow {
     window_attributes: WindowAttributes,
@@ -20,6 +20,10 @@ pub struct OsWindow {
 }
 
 impl OsWindow {
+    pub(super) fn send_event(&self, event: Event) -> EventResponse {
+        (self.event_callback)(event)
+    }
+
     fn handle_event(&self, event: x11rb::protocol::Event) -> Result<(), Error> {
         match event {
             x11rb::protocol::Event::ButtonPress(event) => {
@@ -29,7 +33,7 @@ impl OsWindow {
                 }.to_logical(self.window_attributes.user_scale);
 
                 if let Some(button) = Self::mouse_button_from_detail(event.detail) {
-                    (self.event_callback)(Event::MouseButtonDown {
+                    self.send_event(Event::MouseButtonDown {
                         button,
                         position,
                     });    
@@ -40,7 +44,7 @@ impl OsWindow {
                         1.0
                     };
 
-                    (self.event_callback)(Event::MouseWheel {
+                    self.send_event(Event::MouseWheel {
                         position,
                         delta_x: 0.0,
                         delta_y,
@@ -55,7 +59,7 @@ impl OsWindow {
                 }.to_logical(self.window_attributes.user_scale);
 
                 if let Some(button) = Self::mouse_button_from_detail(event.detail) {
-                    (self.event_callback)(Event::MouseButtonUp {
+                    self.send_event(Event::MouseButtonUp {
                         button,
                         position,
                     });    
@@ -77,7 +81,7 @@ impl OsWindow {
                     _ => None,
                 } {
                     let text = text.to_string();
-                    (self.event_callback)(Event::KeyDown { text });
+                    self.send_event(Event::KeyDown { text });
                 }
 
                 for keysym in xkb_state.key_get_syms(keycode) {
@@ -95,7 +99,7 @@ impl OsWindow {
                 xkb_state.update_key(keycode, xkb::KeyDirection::Down);
 
                 if !text.is_empty() {
-                    (self.event_callback)(Event::KeyDown { text });
+                    self.send_event(Event::KeyDown { text });
                 }
             }
 
@@ -107,12 +111,12 @@ impl OsWindow {
                 xkb_state.update_key(keycode, xkb::KeyDirection::Up);
                 
                 if !text.is_empty() {
-                    (self.event_callback)(Event::KeyUp { text });
+                    self.send_event(Event::KeyUp { text });
                 }
             }
 
             x11rb::protocol::Event::LeaveNotify(_) => {
-                (self.event_callback)(Event::MouseExited);
+                self.send_event(Event::MouseExited);
             }
 
             x11rb::protocol::Event::MotionNotify(event) => {
@@ -121,7 +125,7 @@ impl OsWindow {
                     y: event.event_y as i32,
                 }.to_logical(self.window_attributes.user_scale);
 
-                (self.event_callback)(Event::MouseMoved { position });
+                self.send_event(Event::MouseMoved { position });
             }
             
             _ => {},
