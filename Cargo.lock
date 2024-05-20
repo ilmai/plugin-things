@@ -2440,7 +2440,6 @@ version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "559c5a40fdd30eb5e344fbceacf7595a81e242529fb4e21cf5f43fb4f11ff98d"
 dependencies = [
- "malloc_buf 1.0.0",
  "objc-sys",
  "objc2-encode 3.0.0",
 ]
@@ -2451,6 +2450,7 @@ version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9a9c7f0d511a4ce26b078183179dca908171cfc69f88986fe36c5138e1834476"
 dependencies = [
+ "malloc_buf 1.0.0",
  "objc-sys",
  "objc2-encode 4.0.0",
 ]
@@ -2637,11 +2637,11 @@ version = "0.0.0"
 dependencies = [
  "core-graphics",
  "cursor-icon",
- "icrate 0.0.4",
+ "icrate 0.1.0",
  "lazy_static",
  "libloading 0.8.3",
  "nix 0.27.1",
- "objc2 0.4.1",
+ "objc2 0.5.0",
  "raw-window-handle 0.5.2",
  "sys-locale",
  "uuid",
