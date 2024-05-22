@@ -2,7 +2,7 @@ use std::{cell::RefCell, ffi::OsStr};
 
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle, XlibDisplayHandle, XlibWindowHandle};
 use sys_locale::get_locale;
-use x11rb::{connection::Connection, protocol::xproto::{ConnectionExt, CreateWindowAux, EventMask, WindowClass}, xcb_ffi::XCBConnection, COPY_DEPTH_FROM_PARENT, COPY_FROM_PARENT};
+use x11rb::{connection::Connection, protocol::xproto::{ConnectionExt, CreateWindowAux, EventMask, GrabMode, WindowClass}, xcb_ffi::XCBConnection, COPY_DEPTH_FROM_PARENT, COPY_FROM_PARENT};
 use xkbcommon::xkb;
 
 use crate::{dimensions::Size, error::Error, event::{EventCallback, EventResponse}, platform::interface::{OsWindowBuilder, OsWindowHandle, OsWindowInterface}, window::WindowAttributes, Event, MouseButton, PhysicalPosition};
@@ -254,8 +254,18 @@ impl OsWindowInterface for OsWindow {
         // TODO
     }
 
-    fn set_input_focus(&self, _focus: bool) {
-        // TODO
+    fn set_input_focus(&self, focus: bool) {
+        if focus {
+            self.connection.grab_keyboard(
+                false,
+                self.window_handle.window as u32,
+                x11rb::CURRENT_TIME,
+                GrabMode::ASYNC,
+                GrabMode::ASYNC,
+            ).unwrap();
+        } else {
+            self.connection.ungrab_keyboard(x11rb::CURRENT_TIME).unwrap();
+        }
     }
 
     fn warp_mouse(&self, _position: crate::LogicalPosition) {
