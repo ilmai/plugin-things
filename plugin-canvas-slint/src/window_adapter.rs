@@ -121,6 +121,9 @@ impl PluginCanvasWindowAdapter {
                 //     }
                 // }
 
+                // TODO: Error handling
+                self.plugin_canvas_window.poll_events().unwrap();
+
                 i_slint_core::platform::update_timers_and_animations();
                 
                 if self.pending_draw.swap(false, Ordering::Relaxed) {

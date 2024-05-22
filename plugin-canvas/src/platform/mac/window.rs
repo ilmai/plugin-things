@@ -203,6 +203,10 @@ impl OsWindowInterface for OsWindow {
         let cg_point = core_graphics::geometry::CGPoint::new(screen_position.x, screen_height - screen_position.y);
         CGDisplay::warp_mouse_cursor_position(cg_point).unwrap();
     }
+    
+    fn poll_events(&self) -> Result<(), Error> {
+        Ok(())
+    }
 }
 
 impl Drop for OsWindow {

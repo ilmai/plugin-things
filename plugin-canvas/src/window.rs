@@ -76,6 +76,11 @@ impl Window {
         &self.attributes
     }
 
+    /// This only needs to be called on Linux
+    pub fn poll_events(&self) -> Result<(), Error> {
+        self.os_window_handle.window().poll_events()
+    }
+
     pub fn set_cursor(&self, cursor: Option<CursorIcon>) {
         self.os_window_handle.window().set_cursor(cursor);
     }
