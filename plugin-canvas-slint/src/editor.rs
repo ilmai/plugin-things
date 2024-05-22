@@ -16,7 +16,7 @@ impl SlintEditor {
     ) -> Arc<EditorHandle>
     where
         C: PluginComponentHandle + 'static,
-        B: Fn(Arc<plugin_canvas::Window>) -> C + Send + 'static,
+        B: Fn(Arc<plugin_canvas::Window>) -> C + 'static,
     {
         let editor_handle = Arc::new(EditorHandle::new());
 

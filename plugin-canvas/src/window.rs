@@ -3,7 +3,7 @@ use raw_window_handle::{RawWindowHandle, HasRawWindowHandle, HasWindowHandle, Ac
 
 use crate::{platform::{window::OsWindow, interface::{OsWindowInterface, OsWindowHandle}}, error::Error, event::EventCallback, dimensions::LogicalSize, LogicalPosition};
 
-pub type WindowBuilder = Box<dyn FnOnce(Window) + Send>;
+pub type WindowBuilder = Box<dyn FnOnce(Window)>;
 
 #[derive(Clone)]
 pub struct WindowAttributes {
@@ -122,5 +122,3 @@ impl HasDisplayHandle for Window {
         Ok(display_handle)
     }
 }
-
-unsafe impl Send for Window {}

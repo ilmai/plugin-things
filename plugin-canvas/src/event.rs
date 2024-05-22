@@ -66,4 +66,4 @@ pub enum EventResponse {
     DropAccepted(DropOperation),
 }
 
-pub type EventCallback = dyn Fn(Event) -> EventResponse + Send;
+pub type EventCallback = dyn Fn(Event) -> EventResponse;

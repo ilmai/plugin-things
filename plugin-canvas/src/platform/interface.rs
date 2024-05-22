@@ -7,7 +7,7 @@ use crate::{error::Error, window::WindowAttributes, event::EventCallback, Logica
 
 use super::window::OsWindow;
 
-pub type OsWindowBuilder = Box<dyn FnOnce(OsWindowHandle) + Send>;
+pub type OsWindowBuilder = Box<dyn FnOnce(OsWindowHandle)>;
 
 pub(crate) trait OsWindowInterface: HasRawDisplayHandle + HasRawWindowHandle + Sized {
     fn open(
