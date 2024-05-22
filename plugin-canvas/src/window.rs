@@ -49,25 +49,22 @@ impl Window {
         event_callback: Box<EventCallback>,
         window_builder: WindowBuilder,
     ) -> Result<(), Error> {
-        OsWindow::open(
+        let os_window_handle = OsWindow::open(
             parent,
             attributes.clone(),
             event_callback,
-            {
-                Box::new(move |os_window_handle| {
-                    let active = Active::new();
-                    unsafe { active.set_active(); }
-
-                    let window = Self {
-                        attributes,
-                        os_window_handle,
-                        active_tracker: Active::new(),
-                    };
-
-                    window_builder(window);
-                })
-            }
         )?;
+
+        let active = Active::new();
+        unsafe { active.set_active(); }
+
+        let window = Self {
+            attributes,
+            os_window_handle,
+            active_tracker: Active::new(),
+        };
+
+        window_builder(window);
 
         Ok(())
     }

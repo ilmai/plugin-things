@@ -7,15 +7,12 @@ use crate::{error::Error, window::WindowAttributes, event::EventCallback, Logica
 
 use super::window::OsWindow;
 
-pub type OsWindowBuilder = Box<dyn FnOnce(OsWindowHandle)>;
-
 pub(crate) trait OsWindowInterface: HasRawDisplayHandle + HasRawWindowHandle + Sized {
     fn open(
         parent_window_handle: RawWindowHandle,
         window_attributes: WindowAttributes,
         event_callback: Box<EventCallback>,
-        window_builder: OsWindowBuilder,
-    ) -> Result<(), Error>;
+    ) -> Result<OsWindowHandle, Error>;
 
     fn poll_events(&self) -> Result<(), Error>;
 

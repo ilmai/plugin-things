@@ -5,7 +5,7 @@ use raw_window_handle::{HasRawWindowHandle, RawWindowHandle, WindowsDisplayHandl
 use uuid::Uuid;
 use windows::{Win32::{UI::{WindowsAndMessaging::{WNDCLASSW, RegisterClassW, HICON, LoadCursorW, IDC_ARROW, CS_OWNDC, CreateWindowExW, WS_CHILD, WS_VISIBLE, HMENU, DefWindowProcW, PostMessageW, SetWindowLongPtrW, GWLP_USERDATA, GetWindowLongPtrW, UnregisterClassW, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOVE, DestroyWindow, SetCursor, WM_MOUSEMOVE, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_RBUTTONDOWN, WM_RBUTTONUP, SetWindowsHookExW, WH_MOUSE, CallNextHookEx, HHOOK, WM_MOUSEWHEEL, MOUSEHOOKSTRUCTEX, UnhookWindowsHookEx, ShowCursor, WINDOW_EX_STYLE, SendMessageW, SetCursorPos}, Input::KeyboardAndMouse::{SetCapture, TRACKMOUSEEVENT, TME_LEAVE, TrackMouseEvent}, Controls::WM_MOUSELEAVE}, Foundation::{HWND, WPARAM, LPARAM, LRESULT, HINSTANCE, POINT}, Graphics::{Gdi::{HBRUSH, MonitorFromWindow, MONITOR_DEFAULTTOPRIMARY, ScreenToClient, ClientToScreen}, Dxgi::{CreateDXGIFactory, IDXGIFactory, DXGI_OUTPUT_DESC, IDXGIOutput}, Dwm::{DwmIsCompositionEnabled, DwmFlush}}, System::{Threading::GetCurrentThreadId, Ole::{OleInitialize, RegisterDragDrop, IDropTarget, RevokeDragDrop}}}, core::PCWSTR};
 
-use crate::{error::Error, platform::interface::{OsWindowInterface, OsWindowHandle, OsWindowBuilder}, event::{Event, MouseButton, EventCallback, EventResponse}, window::WindowAttributes, dimensions::Size, LogicalPosition, PhysicalPosition};
+use crate::{error::Error, platform::interface::{OsWindowInterface, OsWindowHandle}, event::{Event, MouseButton, EventCallback, EventResponse}, window::WindowAttributes, dimensions::Size, LogicalPosition, PhysicalPosition};
 
 use super::{PLUGIN_HINSTANCE, to_wstr, message_window::MessageWindow, cursors::Cursors, WM_USER_KEY_DOWN, WM_USER_FRAME_TIMER, version::is_windows10_or_greater, drop_target::DropTarget, message_hook::MessageHook, WM_USER_KEY_UP};
 
@@ -73,8 +73,7 @@ impl OsWindowInterface for OsWindow {
         parent_window_handle: RawWindowHandle,
         window_attributes: WindowAttributes,
         event_callback: Box<EventCallback>,
-        window_builder: OsWindowBuilder,
-    ) -> Result<(), Error> {
+    ) -> Result<OsWindowHandle, Error> {
         let RawWindowHandle::Win32(parent_window_handle) = parent_window_handle else {
             return Err(Error::PlatformError("Not a win32 window".into()));
         };
@@ -187,9 +186,7 @@ impl OsWindowInterface for OsWindow {
         
         let window = unsafe { Rc::from_raw(window_ptr) };
 
-        window_builder(OsWindowHandle::new(raw_window_handle, raw_display_handle, window));
-
-        Ok(())
+        Ok(OsWindowHandle::new(raw_window_handle, raw_display_handle, window))
     }
 
     fn set_cursor(&self, cursor: Option<CursorIcon>) {
