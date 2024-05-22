@@ -22,20 +22,14 @@ pub(crate) trait OsWindowInterface: HasRawDisplayHandle + HasRawWindowHandle + S
 }
 
 pub struct OsWindowHandle {
-    raw_window_handle: RawWindowHandle,
-    raw_display_handle: RawDisplayHandle,
     os_window: Option<Rc<OsWindow>>,
 }
 
 impl OsWindowHandle {
     pub(super) fn new(
-        raw_window_handle: RawWindowHandle,
-        raw_display_handle: RawDisplayHandle,
         os_window: Rc<OsWindow>
     ) -> Self {
         Self {
-            raw_window_handle,
-            raw_display_handle,
             os_window: Some(os_window),
         }
     }
@@ -65,12 +59,12 @@ impl Drop for OsWindowHandle {
 
 unsafe impl HasRawWindowHandle for OsWindowHandle {
     fn raw_window_handle(&self) -> RawWindowHandle {
-        self.raw_window_handle
+        self.os_window.as_ref().unwrap().raw_window_handle()
     }
 }
 
 unsafe impl HasRawDisplayHandle for OsWindowHandle {
     fn raw_display_handle(&self) -> RawDisplayHandle {
-        self.raw_display_handle
+        self.os_window.as_ref().unwrap().raw_display_handle()
     }
 }

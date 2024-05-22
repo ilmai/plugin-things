@@ -128,9 +128,6 @@ impl OsWindowInterface for OsWindow {
         window_handle.hinstance = PLUGIN_HINSTANCE.0 as *mut c_void;
         window_handle.hwnd = hwnd.0 as *mut c_void;
 
-        let raw_window_handle = RawWindowHandle::Win32(window_handle);
-        let raw_display_handle = RawDisplayHandle::Windows(WindowsDisplayHandle::empty());
-
         let moved: Arc<AtomicBool> = Default::default();
 
         let hook_handle = unsafe {
@@ -184,7 +181,7 @@ impl OsWindowInterface for OsWindow {
         
         let window = unsafe { Rc::from_raw(window_ptr) };
 
-        Ok(OsWindowHandle::new(raw_window_handle, raw_display_handle, window))
+        Ok(OsWindowHandle::new(window))
     }
 
     fn set_cursor(&self, cursor: Option<CursorIcon>) {
