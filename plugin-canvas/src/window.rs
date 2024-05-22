@@ -3,8 +3,6 @@ use raw_window_handle::{RawWindowHandle, HasRawWindowHandle, HasWindowHandle, Ac
 
 use crate::{platform::{window::OsWindow, interface::{OsWindowInterface, OsWindowHandle}}, error::Error, event::EventCallback, dimensions::LogicalSize, LogicalPosition};
 
-pub type WindowBuilder = Box<dyn FnOnce(Window)>;
-
 #[derive(Clone)]
 pub struct WindowAttributes {
     pub(crate) size: LogicalSize,
@@ -47,8 +45,7 @@ impl Window {
         parent: RawWindowHandle,
         attributes: WindowAttributes,
         event_callback: Box<EventCallback>,
-        window_builder: WindowBuilder,
-    ) -> Result<(), Error> {
+    ) -> Result<Window, Error> {
         let os_window_handle = OsWindow::open(
             parent,
             attributes.clone(),
@@ -58,15 +55,11 @@ impl Window {
         let active = Active::new();
         unsafe { active.set_active(); }
 
-        let window = Self {
+        Ok(Self {
             attributes,
             os_window_handle,
             active_tracker: Active::new(),
-        };
-
-        window_builder(window);
-
-        Ok(())
+        })
     }
 
     pub fn attributes(&self) -> &WindowAttributes {

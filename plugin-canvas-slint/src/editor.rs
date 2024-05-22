@@ -20,7 +20,7 @@ impl SlintEditor {
     {
         let editor_handle = Arc::new(EditorHandle::new());
 
-        plugin_canvas::Window::open(
+        let window = plugin_canvas::Window::open(
             parent,
             window_attributes.clone(),
             {
@@ -38,31 +38,27 @@ impl SlintEditor {
                     }
                 })
             },
-            {
-                let editor_handle = editor_handle.clone();
-
-                Box::new(move |window| {
-                    // It's ok if this fails as it just means it has already been set
-                    slint::platform::set_platform(Box::new(PluginCanvasPlatform)).ok();
-
-                    let window = Arc::new(window);
-                    WINDOW_TO_SLINT.set(Some(window.clone()));
-
-                    let component = component_builder(window);
-                    component.window().show().unwrap();
-
-                    let context = Context {
-                        component: Box::new(component),
-                    };
-
-                    let window_adapter = WINDOW_ADAPTER_FROM_SLINT.take().unwrap();
-                    window_adapter.set_context(context);
-
-                    editor_handle.set_window_adapter(window_adapter);
-                })
-            }
         ).unwrap();
 
+        let editor_handle = editor_handle.clone();
+
+        // It's ok if this fails as it just means it has already been set
+        slint::platform::set_platform(Box::new(PluginCanvasPlatform)).ok();
+
+        let window = Arc::new(window);
+        WINDOW_TO_SLINT.set(Some(window.clone()));
+
+        let component = component_builder(window);
+        component.window().show().unwrap();
+
+        let context = Context {
+            component: Box::new(component),
+        };
+
+        let window_adapter = WINDOW_ADAPTER_FROM_SLINT.take().unwrap();
+        window_adapter.set_context(context);
+
+        editor_handle.set_window_adapter(window_adapter);
         editor_handle
     }
 }
