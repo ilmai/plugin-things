@@ -1,8 +1,6 @@
 [workspace]
 resolver = "2"
 members = [
-    "examples/demo",
-    "nih_plug_slint",
     "plugin-canvas",
     "plugin-canvas-slint",
     "xtask",
@@ -10,8 +8,6 @@ members = [
 
 [workspace.dependencies]
 cursor-icon = "1.1"
-nih_plug = { git = "https://github.com/robbert-vdh/nih-plug/" }
-nih_plug_slint = { path = "nih_plug_slint" }
 plugin-canvas = { path = "plugin-canvas" }
 plugin-canvas-slint = { path = "plugin-canvas-slint" }
 raw-window-handle = "0.5"
