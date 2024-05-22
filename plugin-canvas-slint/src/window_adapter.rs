@@ -82,10 +82,6 @@ impl PluginCanvasWindowAdapter {
     }
 
     pub fn set_context(&self, context: Context) {
-        // Initialize parameter values
-        // TODO
-        // context.component.update_all_parameters();
-
         *self.context.borrow_mut() = Some(context);
     }
 
@@ -100,27 +96,6 @@ impl PluginCanvasWindowAdapter {
             },
 
             plugin_canvas::Event::Draw => {
-                // TODO
-                // let context = self.context.borrow();
-                // let context = context.as_ref().unwrap();
-
-                // Update property values for all changed plugin parameters
-                // while let Ok(parameter_change) = context.parameter_change_receiver.try_recv() {
-                //     match parameter_change {
-                //         ParameterChange::ValueChanged { id } => {
-                //             context.component.update_parameter_value(id);
-                //         }
-
-                //         ParameterChange::ModulationChanged { id } => {
-                //             context.component.update_parameter_modulation(id);
-                //         }
-
-                //         ParameterChange::AllValuesChanged => {
-                //             context.component.update_all_parameters();
-                //         },
-                //     }
-                // }
-
                 // TODO: Error handling
                 self.plugin_canvas_window.poll_events().unwrap();
 
