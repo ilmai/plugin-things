@@ -250,15 +250,15 @@ impl OsWindowInterface for OsWindow {
         Ok(())
     }
 
-    fn set_cursor(&self, cursor: Option<cursor_icon::CursorIcon>) {
+    fn set_cursor(&self, _cursor: Option<cursor_icon::CursorIcon>) {
         // TODO
     }
 
-    fn set_input_focus(&self, focus: bool) {
+    fn set_input_focus(&self, _focus: bool) {
         // TODO
     }
 
-    fn warp_mouse(&self, position: crate::LogicalPosition) {
+    fn warp_mouse(&self, _position: crate::LogicalPosition) {
         // TODO
     }
 }
