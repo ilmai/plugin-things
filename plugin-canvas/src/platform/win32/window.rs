@@ -7,7 +7,7 @@ use windows::{Win32::{UI::{WindowsAndMessaging::{WNDCLASSW, RegisterClassW, HICO
 
 use crate::{error::Error, platform::interface::{OsWindowInterface, OsWindowHandle}, event::{Event, MouseButton, EventCallback, EventResponse}, window::WindowAttributes, dimensions::Size, LogicalPosition, PhysicalPosition};
 
-use super::{PLUGIN_HINSTANCE, to_wstr, message_window::MessageWindow, cursors::Cursors, WM_USER_KEY_DOWN, WM_USER_FRAME_TIMER, version::is_windows10_or_greater, drop_target::DropTarget, message_hook::MessageHook, WM_USER_KEY_UP};
+use super::{PLUGIN_HINSTANCE, to_wstr, message_window::MessageWindow, cursors::Cursors, WM_USER_KEY_DOWN, WM_USER_FRAME_TIMER, version::is_windows10_or_greater, drop_target::DropTarget, WM_USER_KEY_UP};
 
 pub struct OsWindow {
     window_attributes: WindowAttributes,
@@ -147,8 +147,6 @@ impl OsWindowInterface for OsWindow {
             move || frame_pacing_thread(hwnd, moved)
         });
 
-        MessageHook::install(hwnd);
-
         let message_window = Arc::new(MessageWindow::new(hwnd).unwrap());
 
         std::thread::spawn({
@@ -265,8 +263,6 @@ impl OsWindowInterface for OsWindow {
 impl Drop for OsWindow {
     fn drop(&mut self) {
         unsafe {
-            MessageHook::uninstall();
-
             RevokeDragDrop(self.hwnd()).unwrap();
             SetWindowLongPtrW(self.hwnd(), GWLP_USERDATA, 0);
             UnhookWindowsHookEx(self.hook_handle).unwrap();

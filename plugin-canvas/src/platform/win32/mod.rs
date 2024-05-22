@@ -6,7 +6,6 @@ use windows::Win32::{System::SystemServices::IMAGE_DOS_HEADER, Foundation::HINST
 pub mod cursors;
 pub mod drop_target;
 pub mod key_codes;
-pub mod message_hook;
 pub mod message_window;
 pub mod version;
 pub mod window;
