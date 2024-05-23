@@ -6,7 +6,7 @@ use icrate::{AppKit::{NSCursor, NSPasteboardTypeFileURL, NSScreen, NSTrackingAct
 use objc2::{msg_send_id, rc::{Allocated, Id}, runtime::AnyClass, sel, ClassType};
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle, AppKitWindowHandle, HasRawDisplayHandle, RawDisplayHandle, AppKitDisplayHandle};
 
-use crate::{error::Error, platform::interface::{OsWindowInterface, OsWindowHandle, OsWindowBuilder}, event::{EventCallback, EventResponse}, window::WindowAttributes, Event, LogicalPosition};
+use crate::{error::Error, platform::interface::{OsWindowInterface, OsWindowHandle}, event::{EventCallback, EventResponse}, window::WindowAttributes, Event, LogicalPosition};
 
 use super::display_link::{CVDisplayLinkRef, CVTimeStamp, CVReturn, self};
 use super::view::OsWindowView;
@@ -52,8 +52,7 @@ impl OsWindowInterface for OsWindow {
         parent_window_handle: RawWindowHandle,
         window_attributes: WindowAttributes,
         event_callback: Box<EventCallback>,
-        window_builder: OsWindowBuilder,
-    ) -> Result<(), Error> {
+    ) -> Result<OsWindowHandle, Error> {
         let RawWindowHandle::AppKit(parent_window_handle) = parent_window_handle else {
             return Err(Error::PlatformError("Not an AppKit window".into()));
         };
@@ -96,9 +95,6 @@ impl OsWindowInterface for OsWindow {
             (view, window_handle)
         };
 
-        let raw_window_handle = RawWindowHandle::AppKit(window_handle);
-        let raw_display_handle = RawDisplayHandle::AppKit(AppKitDisplayHandle::empty());
-
         let main_thread_marker = MainThreadMarker::new().unwrap();
 
         let window = Rc::new(Self {
@@ -133,9 +129,7 @@ impl OsWindowInterface for OsWindow {
             *window.display_link.borrow_mut() = Some(cv_display_link);
         }
 
-        window_builder(OsWindowHandle::new(raw_window_handle, raw_display_handle, window_clone));
-
-        Ok(())
+        Ok(OsWindowHandle::new(window_clone))
     }
 
     fn set_cursor(&self, cursor: Option<CursorIcon>) {
