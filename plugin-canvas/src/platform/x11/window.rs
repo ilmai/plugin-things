@@ -5,7 +5,7 @@ use sys_locale::get_locale;
 use x11rb::{connection::Connection, protocol::xproto::{ConnectionExt, CreateWindowAux, EventMask, GrabMode, WindowClass}, xcb_ffi::XCBConnection, COPY_DEPTH_FROM_PARENT, COPY_FROM_PARENT};
 use xkbcommon::xkb;
 
-use crate::{dimensions::Size, error::Error, event::{EventCallback, EventResponse}, platform::interface::{OsWindowBuilder, OsWindowHandle, OsWindowInterface}, window::WindowAttributes, Event, MouseButton, PhysicalPosition};
+use crate::{dimensions::Size, error::Error, event::{EventCallback, EventResponse}, platform::interface::{OsWindowHandle, OsWindowInterface}, window::WindowAttributes, Event, MouseButton, PhysicalPosition};
 
 pub struct OsWindow {
     window_attributes: WindowAttributes,
@@ -149,8 +149,7 @@ impl OsWindowInterface for OsWindow {
         parent_window_handle: RawWindowHandle,
         window_attributes: WindowAttributes,
         event_callback: Box<EventCallback>,
-        window_builder: OsWindowBuilder,
-    ) -> Result<(), Error>
+    ) -> Result<OsWindowHandle, Error>
     {
         let parent_window_id = match parent_window_handle {
             RawWindowHandle::Xlib(parent_window_handle) => parent_window_handle.window as u32,
@@ -231,15 +230,7 @@ impl OsWindowInterface for OsWindow {
             window_handle,
         };
 
-        let os_window_handle = OsWindowHandle::new(
-            RawWindowHandle::Xlib(window_handle),
-            RawDisplayHandle::Xlib(display_handle),
-            window.into(),
-        );
-
-        window_builder(os_window_handle);
-
-        Ok(())
+        Ok(OsWindowHandle::new(window.into()))
     }
 
     fn poll_events(&self) -> Result<(), Error> {
