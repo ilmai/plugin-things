@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc, sync::{atomic::{AtomicBool, Ordering, AtomicUsize}, Arc}};
+use std::{cell::RefCell, rc::Rc, sync::atomic::{AtomicBool, Ordering, AtomicUsize}};
 
 use cursor_icon::CursorIcon;
 use i_slint_core::{window::{WindowAdapter, WindowAdapterInternal}, renderer::Renderer, platform::{PlatformError, WindowEvent}};
@@ -9,7 +9,7 @@ use raw_window_handle::{HasWindowHandle, HasDisplayHandle};
 use crate::plugin_component_handle::PluginComponentHandle;
 
 thread_local! {
-    pub static WINDOW_TO_SLINT: RefCell<Option<Arc<plugin_canvas::Window>>> = Default::default();
+    pub static WINDOW_TO_SLINT: RefCell<Option<Rc<plugin_canvas::Window>>> = Default::default();
     pub static WINDOW_ADAPTER_FROM_SLINT: RefCell<Option<Rc<PluginCanvasWindowAdapter>>> = Default::default();
 }
 
@@ -18,7 +18,7 @@ pub struct Context {
 }
 
 pub struct PluginCanvasWindowAdapter {
-    plugin_canvas_window: Arc<plugin_canvas::Window>,
+    plugin_canvas_window: Rc<plugin_canvas::Window>,
     slint_window: slint::Window,
     renderer: SkiaRenderer,
 

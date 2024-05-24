@@ -1,4 +1,4 @@
-use std::{ptr::null_mut, rc::Rc, sync::{atomic::{AtomicPtr, Ordering}, Arc, Mutex}, thread::ThreadId};
+use std::{ptr::null_mut, rc::Rc, sync::{atomic::{AtomicPtr, Ordering}, Mutex}, thread::ThreadId};
 
 use raw_window_handle::RawWindowHandle;
 use plugin_canvas::{event::EventResponse, window::WindowAttributes, Event};
@@ -13,18 +13,18 @@ impl SlintEditor {
         parent: RawWindowHandle,
         window_attributes: WindowAttributes,
         component_builder: B
-    ) -> Arc<EditorHandle>
+    ) -> Rc<EditorHandle>
     where
         C: PluginComponentHandle + 'static,
-        B: Fn(Arc<plugin_canvas::Window>) -> C + 'static,
+        B: Fn(Rc<plugin_canvas::Window>) -> C + 'static,
     {
-        let editor_handle = Arc::new(EditorHandle::new());
+        let editor_handle = Rc::new(EditorHandle::new());
 
         let window = plugin_canvas::Window::open(
             parent,
             window_attributes.clone(),
             {
-                let editor_handle = Arc::downgrade(&editor_handle.clone());
+                let editor_handle = Rc::downgrade(&editor_handle.clone());
 
                 Box::new(move |event| {
                     if let Some(editor_handle) = editor_handle.upgrade() {
@@ -45,7 +45,7 @@ impl SlintEditor {
         // It's ok if this fails as it just means it has already been set
         slint::platform::set_platform(Box::new(PluginCanvasPlatform)).ok();
 
-        let window = Arc::new(window);
+        let window = Rc::new(window);
         WINDOW_TO_SLINT.set(Some(window.clone()));
 
         let component = component_builder(window);
