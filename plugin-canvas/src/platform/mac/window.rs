@@ -59,7 +59,7 @@ impl OsWindowInterface for OsWindow {
 
         let view_class = OsWindowView::register_class();
 
-        let physical_size = crate::PhysicalSize::from_logical(&window_attributes.size, window_attributes.user_scale);
+        let physical_size = crate::PhysicalSize::from_logical(&window_attributes.size, window_attributes.scale);
 
         let view_rect = CGRect::new(
             CGPoint { x: 0.0, y: 0.0 },

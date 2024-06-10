@@ -5,15 +5,16 @@ use std::ptr::null_mut;
 use std::rc::Rc;
 
 use windows::Win32::Foundation::{POINTL, POINT};
-use windows::Win32::Graphics::Gdi::ScreenToClient;
+use windows::Win32::Graphics::Gdi::MapWindowPoints;
 use windows::Win32::System::Com::{IDataObject, FORMATETC, DVASPECT_CONTENT, TYMED_HGLOBAL};
 use windows::Win32::System::SystemServices::MODIFIERKEYS_FLAGS;
 use windows::Win32::UI::Shell::{DragQueryFileW, HDROP};
 use windows::core::implement;
 use windows::Win32::System::Ole::{IDropTarget, IDropTarget_Impl, DROPEFFECT, CF_HDROP, DROPEFFECT_NONE, DROPEFFECT_COPY, DROPEFFECT_MOVE, DROPEFFECT_LINK};
+use windows::Win32::UI::WindowsAndMessaging::HWND_DESKTOP;
 
 use crate::event::EventResponse;
-use crate::LogicalPosition;
+use crate::{LogicalPosition, PhysicalPosition};
 use crate::drag_drop::{DropData, DropOperation};
 use super::window::OsWindow;
 
@@ -88,19 +89,19 @@ impl DropTarget {
     }
 
     fn convert_coordinates(&self, point: &POINTL) -> LogicalPosition {
-        let user_scale: f64 = self.window.window_attributes().user_scale.into();
+        let scale: f64 = self.window.window_attributes().scale.into();
 
-        let mut point = POINT {
-            x: (point.x as f64) as i32,
-            y: (point.y as f64) as i32
-        };
+        // It looks like MapWindowPoints isn't DPI aware (and neither is ScreenToClient),
+        // so we need to pre-scale the point here?
+        // TODO: Find out what's going on
+        let mut points = [POINT { x: (point.x as f64 / scale) as i32, y: (point.y as f64 / scale) as i32 }];
 
-        unsafe { ScreenToClient(self.window.hwnd(), &mut point); }
+        unsafe { MapWindowPoints(HWND_DESKTOP, self.window.hwnd(), &mut points) as u32; }
 
-        LogicalPosition {
-            x: point.x as f64 / user_scale,
-            y: point.y as f64 / user_scale,
-        }
+        PhysicalPosition {
+            x: points[0].x,
+            y: points[0].y,
+        }.to_logical(1.0)
     }
 }
 

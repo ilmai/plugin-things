@@ -6,14 +6,14 @@ use crate::{platform::{window::OsWindow, interface::{OsWindowInterface, OsWindow
 #[derive(Clone)]
 pub struct WindowAttributes {
     pub(crate) size: LogicalSize,
-    pub(crate) user_scale: f64,
+    pub(crate) scale: f64,
 }
 
 impl WindowAttributes {
-    pub fn new(size: LogicalSize, user_scale: f64) -> Self {
+    pub fn new(size: LogicalSize, scale: f64) -> Self {
         Self {
             size,
-            user_scale,
+            scale,
         }
     }
 
@@ -25,12 +25,12 @@ impl WindowAttributes {
         self.size
     }
 
-    pub fn user_scale(&self) -> f64 {
-        self.user_scale
+    pub fn scale(&self) -> f64 {
+        self.scale
     }
 
     pub fn scaled_size(&self) -> LogicalSize {
-        self.size * self.user_scale
+        self.size * self.scale
     }
 }
 

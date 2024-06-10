@@ -30,7 +30,7 @@ impl OsWindow {
                 let position = PhysicalPosition {
                     x: event.event_x as i32,
                     y: event.event_y as i32,
-                }.to_logical(self.window_attributes.user_scale);
+                }.to_logical(self.window_attributes.scale);
 
                 if let Some(button) = Self::mouse_button_from_detail(event.detail) {
                     self.send_event(Event::MouseButtonDown {
@@ -56,7 +56,7 @@ impl OsWindow {
                 let position = PhysicalPosition {
                     x: event.event_x as i32,
                     y: event.event_y as i32,
-                }.to_logical(self.window_attributes.user_scale);
+                }.to_logical(self.window_attributes.scale);
 
                 if let Some(button) = Self::mouse_button_from_detail(event.detail) {
                     self.send_event(Event::MouseButtonUp {
@@ -123,7 +123,7 @@ impl OsWindow {
                 let position = PhysicalPosition {
                     x: event.event_x as i32,
                     y: event.event_y as i32,
-                }.to_logical(self.window_attributes.user_scale);
+                }.to_logical(self.window_attributes.scale);
 
                 self.send_event(Event::MouseMoved { position });
             }
@@ -172,7 +172,7 @@ impl OsWindowInterface for OsWindow {
         let connection = unsafe { XCBConnection::from_raw_xcb_connection(xcb_connection as _, true)? };
 
         // Then we can proceed with creating the window
-        let size = Size::with_logical_size(window_attributes.size, window_attributes.user_scale);
+        let size = Size::with_logical_size(window_attributes.size, window_attributes.scale);
 
         let window_id = connection.generate_id()?;
         connection.create_window(

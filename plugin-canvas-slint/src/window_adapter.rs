@@ -39,7 +39,7 @@ impl PluginCanvasWindowAdapter {
         
         let window_attributes = plugin_canvas_window.attributes();
 
-        let scale = window_attributes.user_scale();
+        let scale = window_attributes.scale();
         let plugin_canvas_size = window_attributes.size() * scale;
 
         let slint_size = slint::PhysicalSize {
@@ -179,8 +179,10 @@ impl PluginCanvasWindowAdapter {
                 EventResponse::Ignored
             },
 
-            plugin_canvas::Event::DragMoved { .. } => {
-                EventResponse::Ignored
+            plugin_canvas::Event::DragMoved { position, .. } => {
+                let position = self.convert_logical_position(position);
+                self.slint_window.dispatch_event(WindowEvent::PointerMoved { position });
+                EventResponse::Handled
             },
 
             plugin_canvas::Event::DragDropped { .. } => {
@@ -200,7 +202,7 @@ impl PluginCanvasWindowAdapter {
     fn convert_logical_position(&self, position: &plugin_canvas::LogicalPosition) -> slint::LogicalPosition {
         slint::LogicalPosition {
             x: position.x as f32,
-                y: position.y as f32,
+            y: position.y as f32,
         }
     }
 }
