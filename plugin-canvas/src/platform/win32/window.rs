@@ -189,7 +189,7 @@ impl OsWindowInterface for OsWindow {
             let cursor = match cursor {
                 CursorIcon::Default => self.cursors.arrow,
                 CursorIcon::ContextMenu => self.cursors.arrow, // TODO
-                CursorIcon::Help => self.cursors.arrow, // TODO
+                CursorIcon::Help => self.cursors.help,
                 CursorIcon::Pointer => self.cursors.hand,
                 CursorIcon::Progress => self.cursors.app_starting,
                 CursorIcon::Wait => self.cursors.wait,
