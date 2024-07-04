@@ -1,13 +1,13 @@
-use std::{ptr::null, ffi::{OsString, c_void}, os::windows::prelude::OsStringExt, time::Duration, sync::{atomic::{AtomicBool, Ordering, AtomicUsize}, Arc}, rc::Rc, mem::{self, size_of}, cell::RefCell};
+use std::{cell::RefCell, collections::HashMap, ffi::{c_void, OsString}, mem::{self, size_of}, os::windows::prelude::OsStringExt, ptr::null, rc::Rc, sync::{atomic::{AtomicBool, AtomicUsize, Ordering}, Arc}, time::Duration};
 
 use cursor_icon::CursorIcon;
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle, WindowsDisplayHandle, RawDisplayHandle, Win32WindowHandle, HasRawDisplayHandle};
 use uuid::Uuid;
-use windows::{Win32::{UI::{WindowsAndMessaging::{WNDCLASSW, RegisterClassW, HICON, LoadCursorW, IDC_ARROW, CS_OWNDC, CreateWindowExW, WS_CHILD, WS_VISIBLE, HMENU, DefWindowProcW, PostMessageW, SetWindowLongPtrW, GWLP_USERDATA, GetWindowLongPtrW, UnregisterClassW, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOVE, DestroyWindow, SetCursor, WM_MOUSEMOVE, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_RBUTTONDOWN, WM_RBUTTONUP, SetWindowsHookExW, WH_MOUSE, CallNextHookEx, HHOOK, WM_MOUSEWHEEL, MOUSEHOOKSTRUCTEX, UnhookWindowsHookEx, ShowCursor, WINDOW_EX_STYLE, SendMessageW, SetCursorPos}, Input::KeyboardAndMouse::{SetCapture, TRACKMOUSEEVENT, TME_LEAVE, TrackMouseEvent}, Controls::WM_MOUSELEAVE}, Foundation::{HWND, WPARAM, LPARAM, LRESULT, HINSTANCE, POINT}, Graphics::{Gdi::{HBRUSH, MonitorFromWindow, MONITOR_DEFAULTTOPRIMARY, ScreenToClient, ClientToScreen}, Dxgi::{CreateDXGIFactory, IDXGIFactory, DXGI_OUTPUT_DESC, IDXGIOutput}, Dwm::{DwmIsCompositionEnabled, DwmFlush}}, System::{Threading::GetCurrentThreadId, Ole::{OleInitialize, RegisterDragDrop, IDropTarget, RevokeDragDrop}}}, core::PCWSTR};
+use windows::{core::PCWSTR, Win32::{Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, POINT, WPARAM}, Graphics::{Dwm::{DwmFlush, DwmIsCompositionEnabled}, Dxgi::{CreateDXGIFactory, IDXGIFactory, IDXGIOutput, DXGI_OUTPUT_DESC}, Gdi::{ClientToScreen, MonitorFromWindow, ScreenToClient, HBRUSH, MONITOR_DEFAULTTOPRIMARY}}, System::{Ole::{IDropTarget, OleInitialize, RegisterDragDrop, RevokeDragDrop}, Threading::GetCurrentThreadId}, UI::{Controls::WM_MOUSELEAVE, Input::KeyboardAndMouse::{GetAsyncKeyState, SetCapture, TrackMouseEvent, TME_LEAVE, TRACKMOUSEEVENT, VK_CONTROL, VK_MENU, VK_SHIFT}, WindowsAndMessaging::{CallNextHookEx, CreateWindowExW, DefWindowProcW, DestroyWindow, GetWindowLongPtrW, LoadCursorW, PostMessageW, RegisterClassW, SendMessageW, SetCursor, SetCursorPos, SetWindowLongPtrW, SetWindowsHookExW, ShowCursor, UnhookWindowsHookEx, UnregisterClassW, CS_OWNDC, GWLP_USERDATA, HHOOK, HICON, HMENU, IDC_ARROW, MOUSEHOOKSTRUCTEX, WH_MOUSE, WINDOW_EX_STYLE, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEMOVE, WM_MOUSEWHEEL, WM_MOVE, WM_RBUTTONDOWN, WM_RBUTTONUP, WNDCLASSW, WS_CHILD, WS_VISIBLE}}}};
 
 use crate::{error::Error, platform::interface::{OsWindowInterface, OsWindowHandle}, event::{Event, MouseButton, EventCallback, EventResponse}, window::WindowAttributes, dimensions::Size, LogicalPosition, PhysicalPosition};
 
-use super::{PLUGIN_HINSTANCE, to_wstr, message_window::MessageWindow, cursors::Cursors, WM_USER_KEY_DOWN, WM_USER_FRAME_TIMER, version::is_windows10_or_greater, drop_target::DropTarget, WM_USER_KEY_UP};
+use super::{cursors::Cursors, drop_target::DropTarget, key_codes::MODIFIERS, message_window::MessageWindow, to_wstr, version::is_windows10_or_greater, PLUGIN_HINSTANCE, WM_USER_FRAME_TIMER, WM_USER_KEY_DOWN, WM_USER_KEY_UP};
 
 pub struct OsWindow {
     window_attributes: WindowAttributes,
@@ -23,6 +23,8 @@ pub struct OsWindow {
     buttons_down: AtomicUsize,
 
     moved: Arc<AtomicBool>,
+
+    modifier_pressed: HashMap<u16, bool>,
 }
 
 impl OsWindow {
@@ -151,6 +153,11 @@ impl OsWindowInterface for OsWindow {
             move || message_window.run()
         });
 
+        let modifier_pressed = [VK_SHIFT, VK_CONTROL, VK_MENU]
+            .iter()
+            .map(|key| (key.0, false))
+            .collect();
+
         let window = Rc::new(Self {
             window_attributes,
 
@@ -165,6 +172,8 @@ impl OsWindowInterface for OsWindow {
             buttons_down: Default::default(),
 
             moved,
+
+            modifier_pressed,
         });
 
         let drop_target: Box<IDropTarget> = Box::new(DropTarget::new(window.clone()).into());
@@ -287,7 +296,7 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
         return DefWindowProcW(hwnd, msg, wparam, lparam);
     }
 
-    let window = unsafe { &*window_ptr };
+    let window = unsafe { &mut *window_ptr };
 
     match msg {
         WM_LBUTTONDOWN => {
@@ -354,18 +363,37 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
         },
 
         WM_USER_KEY_DOWN => {
-            let string = OsString::from_wide(&[wparam.0 as u16]);
+            let string = OsString::from_wide(&[wparam.0 as _]);
             window.send_event(Event::KeyDown { text: string.to_string_lossy().to_string() });
             LRESULT(0)
         },
 
         WM_USER_KEY_UP => {
-            let string = OsString::from_wide(&[wparam.0 as u16]);
+            let string = OsString::from_wide(&[wparam.0 as _]);
             window.send_event(Event::KeyUp { text: string.to_string_lossy().to_string() });
             LRESULT(0)
         },
 
         WM_USER_FRAME_TIMER => {
+            // Check modifiers
+            for &key in MODIFIERS.iter() {
+                let pressed = GetAsyncKeyState(key.0 as _) != 0;
+                let was_pressed = window.modifier_pressed[&key.0];
+                
+                if pressed != was_pressed {
+                    window.modifier_pressed.insert(key.0, pressed);
+
+                    let string = OsString::from_wide(&[key.0 as _]);
+                    let text = string.to_string_lossy().to_string();
+
+                    if pressed {
+                        window.send_event(Event::KeyDown { text });
+                    } else {
+                        window.send_event(Event::KeyUp { text });
+                    }
+                }
+            }
+
             window.send_event(Event::Draw);
             LRESULT(0)
         },
