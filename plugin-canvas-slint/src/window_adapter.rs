@@ -133,12 +133,13 @@ impl PluginCanvasWindowAdapter {
                 let button = Self::convert_button(button);
                 let position = self.convert_logical_position(position);
                 
+                self.slint_window.dispatch_event(WindowEvent::PointerReleased { position, button });
+
                 let buttons_down = self.buttons_down.fetch_sub(1, Ordering::Relaxed);
                 if buttons_down == 1 && self.pending_mouse_exit.swap(false, Ordering::Relaxed) {
                     self.slint_window.dispatch_event(WindowEvent::PointerExited);
                 }
 
-                self.slint_window.dispatch_event(WindowEvent::PointerReleased { position, button });
                 EventResponse::Handled
             },
 
