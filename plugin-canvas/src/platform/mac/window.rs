@@ -1,10 +1,10 @@
-use std::{ffi::c_void, sync::atomic::{Ordering, AtomicBool}, rc::Rc, cell::RefCell, ptr::null_mut};
+use std::{cell::RefCell, ffi::c_void, ptr::{null_mut, NonNull}, rc::Rc, sync::atomic::{AtomicBool, Ordering}};
 
 use core_graphics::display::CGDisplay;
 use cursor_icon::CursorIcon;
 use icrate::{AppKit::{NSCursor, NSPasteboardTypeFileURL, NSScreen, NSTrackingActiveAlways, NSTrackingArea, NSTrackingInVisibleRect, NSTrackingMouseEnteredAndExited, NSTrackingMouseMoved, NSView, NSWindow}, Foundation::{CGPoint, CGRect, CGSize, MainThreadMarker, NSArray, NSInvocationOperation, NSOperationQueue}};
 use objc2::{msg_send_id, rc::{Allocated, Id}, runtime::AnyClass, sel, ClassType};
-use raw_window_handle::{HasRawWindowHandle, RawWindowHandle, AppKitWindowHandle, HasRawDisplayHandle, RawDisplayHandle, AppKitDisplayHandle};
+use raw_window_handle::{AppKitWindowHandle, HasDisplayHandle, HasWindowHandle, RawWindowHandle};
 
 use crate::{error::Error, platform::interface::{OsWindowInterface, OsWindowHandle}, event::{EventCallback, EventResponse}, window::WindowAttributes, Event, LogicalPosition};
 
@@ -41,8 +41,7 @@ impl OsWindow {
     }
 
     fn view(&self) -> &OsWindowView {
-        assert!(!self.window_handle.ns_view.is_null());
-        let window_view: *const OsWindowView = self.window_handle.ns_view as _;
+        let window_view: *const OsWindowView = self.window_handle.ns_view.as_ptr() as _;
         unsafe { &*window_view }
     }
 }
@@ -85,12 +84,12 @@ impl OsWindowInterface for OsWindow {
             let dragged_types = NSArray::arrayWithObject(NSPasteboardTypeFileURL);
             view.registerForDraggedTypes(&dragged_types);
 
-            let parent_view: &mut NSView = &mut *(parent_window_handle.ns_view as *mut NSView);
+            let parent_view: &mut NSView = &mut *(parent_window_handle.ns_view.as_ptr() as *mut NSView);
             parent_view.addSubview(&view);
     
-            let mut window_handle = AppKitWindowHandle::empty();
-            window_handle.ns_window = parent_view.window().unwrap().as_ref() as *const NSWindow as _;
-            window_handle.ns_view = view.as_ref() as *const OsWindowView as _;
+            let window_handle = AppKitWindowHandle::new(
+                NonNull::new(view.as_ref() as *const OsWindowView as _).unwrap()
+            );
     
             (view, window_handle)
         };
@@ -215,15 +214,16 @@ impl Drop for OsWindow {
     }
 }
 
-unsafe impl HasRawDisplayHandle for OsWindow {
-    fn raw_display_handle(&self) -> raw_window_handle::RawDisplayHandle {
-        RawDisplayHandle::AppKit(AppKitDisplayHandle::empty())
+impl HasDisplayHandle for OsWindow {
+    fn display_handle(&self) -> Result<raw_window_handle::DisplayHandle<'_>, raw_window_handle::HandleError> {
+        Ok(raw_window_handle::DisplayHandle::appkit())
     }
 }
 
-unsafe impl HasRawWindowHandle for OsWindow {
-    fn raw_window_handle(&self) -> RawWindowHandle {
-        RawWindowHandle::AppKit(self.window_handle)
+impl HasWindowHandle for OsWindow {
+    fn window_handle(&self) -> Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError> {
+        let raw_window_handle = RawWindowHandle::AppKit(self.window_handle);
+        Ok(unsafe { raw_window_handle::WindowHandle::borrow_raw(raw_window_handle) })
     }
 }
 
@@ -236,7 +236,7 @@ unsafe extern "C" fn display_link_callback(
     display_link_context: *mut c_void,
 ) -> CVReturn {
     let window = unsafe { OsWindow::from_ptr(display_link_context) };
-    let view = window.window_handle.ns_view as *const OsWindowView;
+    let view = window.window_handle.ns_view.as_ptr() as *const OsWindowView;
 
     let operation = NSInvocationOperation::initWithTarget_selector_object(
         NSInvocationOperation::alloc(),

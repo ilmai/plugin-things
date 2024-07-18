@@ -1,5 +1,5 @@
 use cursor_icon::CursorIcon;
-use raw_window_handle::{RawWindowHandle, HasRawWindowHandle, HasWindowHandle, Active, HasDisplayHandle, HasRawDisplayHandle};
+use raw_window_handle::{RawWindowHandle, HasWindowHandle, HasDisplayHandle};
 
 use crate::{platform::{window::OsWindow, interface::{OsWindowInterface, OsWindowHandle}}, error::Error, event::EventCallback, dimensions::LogicalSize, LogicalPosition};
 
@@ -37,7 +37,6 @@ impl WindowAttributes {
 pub struct Window {
     attributes: WindowAttributes,
     os_window_handle: OsWindowHandle,
-    active_tracker: Active,
 }
 
 impl Window {
@@ -52,13 +51,9 @@ impl Window {
             event_callback,
         )?;
 
-        let active = Active::new();
-        unsafe { active.set_active(); }
-
         Ok(Self {
             attributes,
             os_window_handle,
-            active_tracker: Active::new(),
         })
     }
 
@@ -84,31 +79,14 @@ impl Window {
     }
 }
 
-unsafe impl HasRawWindowHandle for Window {
-    fn raw_window_handle(&self) -> RawWindowHandle {
-        self.os_window_handle.raw_window_handle()
-    }
-}
-
-unsafe impl HasRawDisplayHandle for Window {
-    fn raw_display_handle(&self) -> raw_window_handle::RawDisplayHandle {
-        self.os_window_handle.raw_display_handle()
-    }
-}
-
 impl HasWindowHandle for Window {
     fn window_handle(&self) -> Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError> {
-        let active_handle = self.active_tracker.handle().unwrap();
-        let raw_window_handle = self.raw_window_handle();
-        let window_handle = unsafe { raw_window_handle::WindowHandle::borrow_raw(raw_window_handle, active_handle) };
-        Ok(window_handle)
+        self.os_window_handle.window_handle()
     }
 }
 
 impl HasDisplayHandle for Window {
     fn display_handle(&self) -> Result<raw_window_handle::DisplayHandle<'_>, raw_window_handle::HandleError> {
-        let raw_display_handle = self.raw_display_handle();
-        let display_handle = unsafe { raw_window_handle::DisplayHandle::borrow_raw(raw_display_handle) };
-        Ok(display_handle)
+        self.os_window_handle.display_handle()
     }
 }

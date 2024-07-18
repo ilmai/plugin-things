@@ -1,13 +1,13 @@
 use std::rc::Rc;
 
 use cursor_icon::CursorIcon;
-use raw_window_handle::{RawWindowHandle, HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle};
+use raw_window_handle::{HasDisplayHandle, HasWindowHandle, RawWindowHandle};
 
 use crate::{error::Error, window::WindowAttributes, event::EventCallback, LogicalPosition};
 
 use super::window::OsWindow;
 
-pub(crate) trait OsWindowInterface: HasRawDisplayHandle + HasRawWindowHandle + Sized {
+pub(crate) trait OsWindowInterface: HasDisplayHandle + HasWindowHandle + Sized {
     fn open(
         parent_window_handle: RawWindowHandle,
         window_attributes: WindowAttributes,
@@ -57,14 +57,14 @@ impl Drop for OsWindowHandle {
     }
 }
 
-unsafe impl HasRawWindowHandle for OsWindowHandle {
-    fn raw_window_handle(&self) -> RawWindowHandle {
-        self.os_window.as_ref().unwrap().raw_window_handle()
+impl HasWindowHandle for OsWindowHandle {
+    fn window_handle(&self) -> Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError> {
+        self.os_window.as_ref().unwrap().window_handle()
     }
 }
 
-unsafe impl HasRawDisplayHandle for OsWindowHandle {
-    fn raw_display_handle(&self) -> RawDisplayHandle {
-        self.os_window.as_ref().unwrap().raw_display_handle()
+impl HasDisplayHandle for OsWindowHandle {
+    fn display_handle(&self) -> Result<raw_window_handle::DisplayHandle<'_>, raw_window_handle::HandleError> {
+        self.os_window.as_ref().unwrap().display_handle()
     }
 }

@@ -10,10 +10,10 @@ members = [
 cursor-icon = "1.1"
 plugin-canvas = { path = "plugin-canvas" }
 plugin-canvas-slint = { path = "plugin-canvas-slint" }
-raw-window-handle = "0.5"
-slint = { version = "1.6.0", default-features = false, features = ["accessibility", "compat-1-2", "std"] }
+raw-window-handle = "0.6"
+slint = { version = "1.7.0", default-features = false, features = ["accessibility", "compat-1-2", "std"] }
 
 # Internal slint crate versions need to be pinned
 # since they don't maintain semver compatibility
-i-slint-core = "1.6.0"
-i-slint-renderer-skia = { version = "1.6.0", features = ["x11"] }
+i-slint-core = "1.7.0"
+i-slint-renderer-skia = { version = "1.7.0", features = ["x11"] }

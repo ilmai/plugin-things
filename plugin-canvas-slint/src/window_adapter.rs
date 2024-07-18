@@ -47,7 +47,7 @@ impl PluginCanvasWindowAdapter {
             height: plugin_canvas_size.height as u32,
         };
 
-        let renderer = SkiaRenderer::new(window_handle, display_handle, slint_size)?;
+        let renderer = SkiaRenderer::new(plugin_canvas_window.clone(), plugin_canvas_window.clone(), slint_size)?;
 
         let self_rc = Rc::new_cyclic(|self_weak| {
             let slint_window = slint::Window::new(self_weak.clone() as _);
