@@ -2,8 +2,9 @@ use std::{cell::RefCell, ffi::c_void, ptr::{null_mut, NonNull}, rc::Rc, sync::at
 
 use core_graphics::display::CGDisplay;
 use cursor_icon::CursorIcon;
-use icrate::{AppKit::{NSCursor, NSPasteboardTypeFileURL, NSScreen, NSTrackingActiveAlways, NSTrackingArea, NSTrackingInVisibleRect, NSTrackingMouseEnteredAndExited, NSTrackingMouseMoved, NSView, NSWindow}, Foundation::{CGPoint, CGRect, CGSize, MainThreadMarker, NSArray, NSInvocationOperation, NSOperationQueue}};
 use objc2::{msg_send_id, rc::{Allocated, Id}, runtime::AnyClass, sel, ClassType};
+use objc2_app_kit::{NSCursor, NSPasteboardTypeFileURL, NSScreen, NSTrackingArea, NSTrackingAreaOptions, NSView};
+use objc2_foundation::{CGPoint, CGRect, CGSize, MainThreadMarker, NSArray, NSInvocationOperation, NSOperationQueue};
 use raw_window_handle::{AppKitWindowHandle, HasDisplayHandle, HasWindowHandle, RawWindowHandle};
 
 use crate::{error::Error, platform::interface::{OsWindowInterface, OsWindowHandle}, event::{EventCallback, EventResponse}, window::WindowAttributes, Event, LogicalPosition};
@@ -72,10 +73,10 @@ impl OsWindowInterface for OsWindow {
             let tracking_area = NSTrackingArea::initWithRect_options_owner_userInfo(
                 NSTrackingArea::alloc(),
                 view_rect,
-                NSTrackingMouseEnteredAndExited |
-                NSTrackingMouseMoved |
-                NSTrackingActiveAlways |
-                NSTrackingInVisibleRect,
+                NSTrackingAreaOptions::NSTrackingMouseEnteredAndExited |
+                NSTrackingAreaOptions::NSTrackingMouseMoved |
+                NSTrackingAreaOptions::NSTrackingActiveAlways |
+                NSTrackingAreaOptions::NSTrackingInVisibleRect,
                 Some(&view),
                 None,
             );

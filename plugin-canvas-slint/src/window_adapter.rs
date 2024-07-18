@@ -4,7 +4,6 @@ use cursor_icon::CursorIcon;
 use i_slint_core::{window::{WindowAdapter, WindowAdapterInternal}, renderer::Renderer, platform::{PlatformError, WindowEvent}};
 use i_slint_renderer_skia::SkiaRenderer;
 use plugin_canvas::event::EventResponse;
-use raw_window_handle::{HasWindowHandle, HasDisplayHandle};
 
 use crate::plugin_component_handle::PluginComponentHandle;
 
@@ -34,8 +33,6 @@ pub struct PluginCanvasWindowAdapter {
 impl PluginCanvasWindowAdapter {
     pub fn new() -> Result<Rc<dyn WindowAdapter>, PlatformError> {
         let plugin_canvas_window = WINDOW_TO_SLINT.take().unwrap();
-        let window_handle = plugin_canvas_window.window_handle().unwrap();
-        let display_handle = plugin_canvas_window.display_handle().unwrap();
         
         let window_attributes = plugin_canvas_window.attributes();
 

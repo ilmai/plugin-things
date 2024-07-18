@@ -1,6 +1,6 @@
 use std::{ptr::null_mut, ffi::{c_void, c_double}};
 
-use icrate::Foundation::CGRect;
+use objc2_foundation::CGRect;
 
 pub(super) fn get_displays_with_rect(rect: CGRect) -> Vec<u32> {
     const MAX_DISPLAYS: usize = 10;

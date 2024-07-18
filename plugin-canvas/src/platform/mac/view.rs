@@ -1,8 +1,9 @@
 use std::{ffi::c_void, ops::{Deref, DerefMut}, path::PathBuf, sync::atomic::{AtomicPtr, AtomicU8, AtomicUsize, Ordering}};
 
-use icrate::{AppKit::{NSView, NSEvent, NSEventModifierFlagShift, NSEventModifierFlagCommand, NSEventModifierFlagControl, NSEventModifierFlagOption, NSDraggingInfo, NSDragOperation, NSDragOperationNone, NSDragOperationCopy, NSDragOperationMove, NSPasteboardTypeFileURL, NSDragOperationLink}, Foundation::{NSRect, NSArray, CGPoint, NSURL}};
 use objc2::{declare::ClassBuilder, ffi::objc_disposeClassPair, msg_send, runtime::{AnyClass, Bool}, sel, ClassType, Encode, Encoding, Message, RefEncode};
 use objc2::runtime::{Sel, ProtocolObject};
+use objc2_app_kit::{NSDragOperation, NSDraggingInfo, NSEvent, NSEventModifierFlags, NSPasteboardTypeFileURL, NSView};
+use objc2_foundation::{CGPoint, NSArray, NSRect, NSURL};
 use uuid::Uuid;
 
 use crate::{Event, MouseButton, LogicalPosition, event::EventResponse, drag_drop::{DropData, DropOperation}};
@@ -145,19 +146,19 @@ impl OsWindowView {
         let (old_flags, event_flags) = self.with_context(|context| {
             let old_flags = context.modifier_flags.load(Ordering::Relaxed);
             let event_flags = unsafe { (*event).modifierFlags() };
-            context.modifier_flags.store(event_flags, Ordering::Relaxed);
+            context.modifier_flags.store(event_flags.bits(), Ordering::Relaxed);
 
             (old_flags, event_flags)
         });
 
         for (modifier, text) in [
-            (NSEventModifierFlagCommand, "\u{0017}"),
-            (NSEventModifierFlagControl, "\u{0011}"),
-            (NSEventModifierFlagOption, "\u{0012}"),
-            (NSEventModifierFlagShift, "\u{0010}"),
+            (NSEventModifierFlags::NSEventModifierFlagCommand, "\u{0017}"),
+            (NSEventModifierFlags::NSEventModifierFlagControl, "\u{0011}"),
+            (NSEventModifierFlags::NSEventModifierFlagOption, "\u{0012}"),
+            (NSEventModifierFlags::NSEventModifierFlagShift, "\u{0010}"),
         ] {
-            let was_down = old_flags & modifier > 0;
-            let is_down = event_flags & modifier > 0;
+            let was_down = old_flags & modifier.bits() > 0;
+            let is_down = !(event_flags & modifier).is_empty();
 
             if !was_down && is_down {
                 self.send_event(Event::KeyDown { text: text.to_string() });
@@ -264,13 +265,13 @@ impl OsWindowView {
     fn convert_drag_operation(&self, response: EventResponse) -> NSDragOperation {
         if let EventResponse::DropAccepted(operation) = response {
             match operation {
-                DropOperation::None => NSDragOperationNone,
-                DropOperation::Copy => NSDragOperationCopy,
-                DropOperation::Move => NSDragOperationMove,
-                DropOperation::Link => NSDragOperationLink,
+                DropOperation::None => NSDragOperation::None,
+                DropOperation::Copy => NSDragOperation::Copy,
+                DropOperation::Move => NSDragOperation::Move,
+                DropOperation::Link => NSDragOperation::Link,
             }
         } else {
-            NSDragOperationNone
+            NSDragOperation::None
         }
     }
 
@@ -428,7 +429,7 @@ impl OsWindowView {
             data: self.drag_event_data(sender),
         });
 
-        if self.convert_drag_operation(response) != NSDragOperationNone {
+        if self.convert_drag_operation(response) != NSDragOperation::None {
             Bool::YES
         } else {
             Bool::NO

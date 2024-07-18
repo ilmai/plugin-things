@@ -24,27 +24,8 @@ xkbcommon = { version = "0.7", features = ["x11"] }
 [target.'cfg(target_os="macos")'.dependencies]
 core-graphics = "0.23"
 objc2 = { version = "0.5", features = ["verify"] }
-
-[target.'cfg(target_os="macos")'.dependencies.icrate]
-version = "0.1"
-features = [
-    "AppKit",
-    "AppKit_NSCursor",
-    "AppKit_NSEvent",
-    "AppKit_NSPasteboard",
-    "AppKit_NSPasteboardItem",
-    "AppKit_NSScreen",
-    "AppKit_NSTrackingArea",
-    "AppKit_NSView",
-    "AppKit_NSWindow",
-    "Foundation_NSArray",
-    "Foundation_NSAttributedString",
-    "Foundation_NSData",
-    "Foundation_NSInvocationOperation",
-    "Foundation_NSOperationQueue",
-    "Foundation_NSThread",
-    "Foundation_NSURL",
-]
+objc2-app-kit = { version = "0.2", features = ["NSCursor", "NSDragging", "NSEvent", "NSPasteboard", "NSPasteboardItem", "NSScreen", "NSTrackingArea"] }
+objc2-foundation = { version = "0.2", features = ["NSOperation"] }
 
 [target.'cfg(target_os="windows")'.dependencies]
 libloading = "0.8"
