@@ -1,7 +1,7 @@
-use std::{cell::RefCell, collections::HashMap, ffi::{c_void, OsString}, mem::{self, size_of}, os::windows::prelude::OsStringExt, ptr::null, rc::Rc, sync::{atomic::{AtomicBool, AtomicUsize, Ordering}, Arc}, time::Duration};
+use std::{cell::RefCell, collections::HashMap, ffi::OsString, mem::{self, size_of}, num::NonZeroIsize, os::windows::prelude::OsStringExt, ptr::null, rc::Rc, sync::{atomic::{AtomicBool, AtomicUsize, Ordering}, Arc}, time::Duration};
 
 use cursor_icon::CursorIcon;
-use raw_window_handle::{HasRawWindowHandle, RawWindowHandle, WindowsDisplayHandle, RawDisplayHandle, Win32WindowHandle, HasRawDisplayHandle};
+use raw_window_handle::{HasDisplayHandle, HasWindowHandle, RawWindowHandle, Win32WindowHandle};
 use uuid::Uuid;
 use windows::{core::PCWSTR, Win32::{Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, POINT, WPARAM}, Graphics::{Dwm::{DwmFlush, DwmIsCompositionEnabled}, Dxgi::{CreateDXGIFactory, IDXGIFactory, IDXGIOutput, DXGI_OUTPUT_DESC}, Gdi::{ClientToScreen, MonitorFromWindow, ScreenToClient, HBRUSH, MONITOR_DEFAULTTOPRIMARY}}, System::{Ole::{IDropTarget, OleInitialize, RegisterDragDrop, RevokeDragDrop}, Threading::GetCurrentThreadId}, UI::{Controls::WM_MOUSELEAVE, Input::KeyboardAndMouse::{GetAsyncKeyState, SetCapture, TrackMouseEvent, TME_LEAVE, TRACKMOUSEEVENT, VK_CONTROL, VK_MENU, VK_SHIFT}, WindowsAndMessaging::{CallNextHookEx, CreateWindowExW, DefWindowProcW, DestroyWindow, GetWindowLongPtrW, LoadCursorW, PostMessageW, RegisterClassW, SendMessageW, SetCursor, SetCursorPos, SetWindowLongPtrW, SetWindowsHookExW, ShowCursor, UnhookWindowsHookEx, UnregisterClassW, CS_OWNDC, GWLP_USERDATA, HHOOK, HICON, HMENU, IDC_ARROW, MOUSEHOOKSTRUCTEX, WH_MOUSE, WINDOW_EX_STYLE, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEMOVE, WM_MOUSEWHEEL, WM_MOVE, WM_RBUTTONDOWN, WM_RBUTTONUP, WNDCLASSW, WS_CHILD, WS_VISIBLE}}}};
 
@@ -37,11 +37,11 @@ impl OsWindow {
     }
     
     pub(super) fn hinstance(&self) -> HINSTANCE {
-        HINSTANCE(self.window_handle.hinstance as isize)
+        HINSTANCE(self.window_handle.hinstance.unwrap().get())
     }
 
     pub(super) fn hwnd(&self) -> HWND {
-        HWND(self.window_handle.hwnd as isize)
+        HWND(self.window_handle.hwnd.get())
     }
 
     fn button_down(&self, button: MouseButton, position: LogicalPosition) {
@@ -112,7 +112,7 @@ impl OsWindowInterface for OsWindow {
             0,
             size.physical_size().width as i32,
             size.physical_size().height as i32,
-            HWND(parent_window_handle.hwnd as _),
+            HWND(parent_window_handle.hwnd.get()),
             HMENU(0),
             *PLUGIN_HINSTANCE,
             None,
@@ -126,9 +126,7 @@ impl OsWindowInterface for OsWindow {
         };
         unsafe { TrackMouseEvent(&mut tracking_info).unwrap() };
 
-        let mut window_handle = Win32WindowHandle::empty();
-        window_handle.hinstance = PLUGIN_HINSTANCE.0 as *mut c_void;
-        window_handle.hwnd = hwnd.0 as *mut c_void;
+        let window_handle = Win32WindowHandle::new(NonZeroIsize::new(hwnd.0).unwrap());
 
         let moved: Arc<AtomicBool> = Default::default();
 
@@ -278,15 +276,16 @@ impl Drop for OsWindow {
     }
 }
 
-unsafe impl HasRawWindowHandle for OsWindow {
-    fn raw_window_handle(&self) -> RawWindowHandle {
-        RawWindowHandle::Win32(self.window_handle)
+impl HasWindowHandle for OsWindow {
+    fn window_handle(&self) -> Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError> {
+        let raw_window_handle = RawWindowHandle::Win32(self.window_handle);
+        Ok(unsafe { raw_window_handle::WindowHandle::borrow_raw(raw_window_handle) })
     }
 }
 
-unsafe impl HasRawDisplayHandle for OsWindow {
-    fn raw_display_handle(&self) -> RawDisplayHandle {
-        RawDisplayHandle::Windows(WindowsDisplayHandle::empty())
+impl HasDisplayHandle for OsWindow {
+    fn display_handle(&self) -> Result<raw_window_handle::DisplayHandle<'_>, raw_window_handle::HandleError> {
+        Ok(raw_window_handle::DisplayHandle::windows())
     }
 }
 
