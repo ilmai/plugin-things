@@ -1,6 +1,6 @@
-use std::{cell::RefCell, ffi::OsStr};
+use std::{cell::RefCell, ffi::OsStr, ptr::NonNull};
 
-use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle, XlibDisplayHandle, XlibWindowHandle};
+use raw_window_handle::{HasDisplayHandle, HasWindowHandle, RawDisplayHandle, RawWindowHandle, XlibDisplayHandle, XlibWindowHandle};
 use sys_locale::get_locale;
 use x11rb::{connection::Connection, protocol::xproto::{ConnectionExt, CreateWindowAux, EventMask, GrabMode, WindowClass}, xcb_ffi::XCBConnection, COPY_DEPTH_FROM_PARENT, COPY_FROM_PARENT};
 use xkbcommon::xkb;
@@ -153,7 +153,7 @@ impl OsWindowInterface for OsWindow {
     {
         let parent_window_id = match parent_window_handle {
             RawWindowHandle::Xlib(parent_window_handle) => parent_window_handle.window as u32,
-            RawWindowHandle::Xcb(parent_window_handle) => parent_window_handle.window,
+            RawWindowHandle::Xcb(parent_window_handle) => parent_window_handle.window.get(),
             _ => { return Err(Error::PlatformError("Not an X11 window".into())); }
         };
 
@@ -210,13 +210,8 @@ impl OsWindowInterface for OsWindow {
         let compose_table = xkb::compose::Table::new_from_locale(&xkb_context, OsStr::new(&locale), 0).unwrap();
         let xkb_compose_state = xkb::compose::State::new(&compose_table, 0);
 
-        let mut display_handle = XlibDisplayHandle::empty();
-        display_handle.display = dpy as _;
-        display_handle.screen = screen;
-
-        let mut window_handle = XlibWindowHandle::empty();
-        window_handle.window = window_id as _;
-        window_handle.visual_id = 0;
+        let display_handle = XlibDisplayHandle::new(Some(NonNull::new(dpy as _).unwrap()), screen);
+        let window_handle = XlibWindowHandle::new(window_id as _);
 
         let window = Self {
             window_attributes,
@@ -264,14 +259,16 @@ impl OsWindowInterface for OsWindow {
     }
 }
 
-unsafe impl HasRawDisplayHandle for OsWindow {
-    fn raw_display_handle(&self) -> RawDisplayHandle {
-        RawDisplayHandle::Xlib(self.display_handle)
+impl HasDisplayHandle for OsWindow {
+    fn display_handle(&self) -> Result<raw_window_handle::DisplayHandle<'_>, raw_window_handle::HandleError> {
+        let raw_display_handle = RawDisplayHandle::Xlib(self.display_handle);
+        Ok(unsafe { raw_window_handle::DisplayHandle::borrow_raw(raw_display_handle) })
     }
 }
 
-unsafe impl HasRawWindowHandle for OsWindow {
-    fn raw_window_handle(&self) -> RawWindowHandle {
-        RawWindowHandle::Xlib(self.window_handle)
+impl HasWindowHandle for OsWindow {
+    fn window_handle(&self) -> Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError> {
+        let raw_window_handle = RawWindowHandle::Xlib(self.window_handle);
+        Ok(unsafe { raw_window_handle::WindowHandle::borrow_raw(raw_window_handle) })
     }
 }
