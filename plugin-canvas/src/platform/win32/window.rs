@@ -1,9 +1,9 @@
-use std::{cell::RefCell, collections::HashMap, ffi::OsString, mem::{self, size_of}, num::NonZeroIsize, os::windows::prelude::OsStringExt, ptr::null, rc::Rc, sync::{atomic::{AtomicBool, AtomicUsize, Ordering}, Arc}, time::Duration};
+use std::{cell::RefCell, collections::HashMap, ffi::OsString, mem::{self, size_of}, num::NonZeroIsize, os::windows::prelude::OsStringExt, ptr::{null, null_mut}, rc::Rc, sync::{atomic::{AtomicBool, AtomicUsize, Ordering}, Arc}, time::Duration};
 
 use cursor_icon::CursorIcon;
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle, RawWindowHandle, Win32WindowHandle};
 use uuid::Uuid;
-use windows::{core::PCWSTR, Win32::{Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, POINT, WPARAM}, Graphics::{Dwm::{DwmFlush, DwmIsCompositionEnabled}, Dxgi::{CreateDXGIFactory, IDXGIFactory, IDXGIOutput, DXGI_OUTPUT_DESC}, Gdi::{ClientToScreen, MonitorFromWindow, ScreenToClient, HBRUSH, MONITOR_DEFAULTTOPRIMARY}}, System::{Ole::{IDropTarget, OleInitialize, RegisterDragDrop, RevokeDragDrop}, Threading::GetCurrentThreadId}, UI::{Controls::WM_MOUSELEAVE, Input::KeyboardAndMouse::{GetAsyncKeyState, SetCapture, TrackMouseEvent, TME_LEAVE, TRACKMOUSEEVENT, VK_CONTROL, VK_MENU, VK_SHIFT}, WindowsAndMessaging::{CallNextHookEx, CreateWindowExW, DefWindowProcW, DestroyWindow, GetWindowLongPtrW, LoadCursorW, PostMessageW, RegisterClassW, SendMessageW, SetCursor, SetCursorPos, SetWindowLongPtrW, SetWindowsHookExW, ShowCursor, UnhookWindowsHookEx, UnregisterClassW, CS_OWNDC, GWLP_USERDATA, HHOOK, HICON, HMENU, IDC_ARROW, MOUSEHOOKSTRUCTEX, WH_MOUSE, WINDOW_EX_STYLE, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEMOVE, WM_MOUSEWHEEL, WM_MOVE, WM_RBUTTONDOWN, WM_RBUTTONUP, WNDCLASSW, WS_CHILD, WS_VISIBLE}}}};
+use windows::{core::PCWSTR, Win32::{Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, POINT, WPARAM}, Graphics::{Dwm::{DwmFlush, DwmIsCompositionEnabled}, Dxgi::{CreateDXGIFactory, IDXGIFactory, IDXGIOutput}, Gdi::{ClientToScreen, MonitorFromWindow, ScreenToClient, HBRUSH, MONITOR_DEFAULTTOPRIMARY}}, System::{Ole::{IDropTarget, OleInitialize, RegisterDragDrop, RevokeDragDrop}, Threading::GetCurrentThreadId}, UI::{Controls::WM_MOUSELEAVE, Input::KeyboardAndMouse::{GetAsyncKeyState, SetCapture, TrackMouseEvent, TME_LEAVE, TRACKMOUSEEVENT, VK_CONTROL, VK_MENU, VK_SHIFT}, WindowsAndMessaging::{CallNextHookEx, CreateWindowExW, DefWindowProcW, DestroyWindow, GetWindowLongPtrW, LoadCursorW, PostMessageW, RegisterClassW, SendMessageW, SetCursor, SetCursorPos, SetWindowLongPtrW, SetWindowsHookExW, ShowCursor, UnhookWindowsHookEx, UnregisterClassW, CS_OWNDC, GWLP_USERDATA, HHOOK, HICON, HMENU, IDC_ARROW, MOUSEHOOKSTRUCTEX, WH_MOUSE, WINDOW_EX_STYLE, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEMOVE, WM_MOUSEWHEEL, WM_MOVE, WM_RBUTTONDOWN, WM_RBUTTONUP, WNDCLASSW, WS_CHILD, WS_VISIBLE}}}};
 
 use crate::{error::Error, platform::interface::{OsWindowInterface, OsWindowHandle}, event::{Event, MouseButton, EventCallback, EventResponse}, window::WindowAttributes, dimensions::Size, LogicalPosition, PhysicalPosition};
 
@@ -37,11 +37,11 @@ impl OsWindow {
     }
     
     pub(super) fn hinstance(&self) -> HINSTANCE {
-        HINSTANCE(self.window_handle.hinstance.unwrap().get())
+        HINSTANCE(self.window_handle.hinstance.unwrap().get() as _)
     }
 
     pub(super) fn hwnd(&self) -> HWND {
-        HWND(self.window_handle.hwnd.get())
+        HWND(self.window_handle.hwnd.get() as _)
     }
 
     fn button_down(&self, button: MouseButton, position: LogicalPosition) {
@@ -54,7 +54,7 @@ impl OsWindow {
 
     fn button_up(&self, button: MouseButton, position: LogicalPosition) {
         if self.buttons_down.fetch_sub(1, Ordering::Relaxed) == 1 {
-            unsafe { SetCapture(HWND(0)); }
+            unsafe { SetCapture(HWND(null_mut())); }
         }
 
         self.send_event(Event::MouseButtonUp { button, position });    
@@ -83,17 +83,17 @@ impl OsWindowInterface for OsWindow {
         let class_name = to_wstr("plugin-canvas-".to_string() + &Uuid::new_v4().simple().to_string());
         let size = Size::with_logical_size(window_attributes.size, window_attributes.scale);
 
-        let cursor = unsafe { LoadCursorW(HINSTANCE(0), IDC_ARROW).unwrap() };
+        let cursor = unsafe { LoadCursorW(HINSTANCE(null_mut()), IDC_ARROW).unwrap() };
 
         let window_class_attributes = WNDCLASSW {
             style: CS_OWNDC,
             lpfnWndProc: Some(wnd_proc),
             cbClsExtra: 0,
             cbWndExtra: 0,
-            hInstance: *PLUGIN_HINSTANCE,
-            hIcon: HICON(0),
+            hInstance: PLUGIN_HINSTANCE.with(|hinstance| hinstance.clone()),
+            hIcon: HICON(null_mut()),
             hCursor: cursor,
-            hbrBackground: HBRUSH(0),
+            hbrBackground: HBRUSH(null_mut()),
             lpszMenuName: PCWSTR(null()),
             lpszClassName: PCWSTR(class_name.as_ptr()),
         };
@@ -112,11 +112,11 @@ impl OsWindowInterface for OsWindow {
             0,
             size.physical_size().width as i32,
             size.physical_size().height as i32,
-            HWND(parent_window_handle.hwnd.get()),
-            HMENU(0),
-            *PLUGIN_HINSTANCE,
+            HWND(parent_window_handle.hwnd.get() as _),
+            HMENU(null_mut()),
+            PLUGIN_HINSTANCE.with(|hinstance| hinstance.clone()),
             None,
-        ) };
+        ).unwrap() };
 
         let mut tracking_info = TRACKMOUSEEVENT {
             cbSize: size_of::<TRACKMOUSEEVENT>() as u32,
@@ -126,7 +126,7 @@ impl OsWindowInterface for OsWindow {
         };
         unsafe { TrackMouseEvent(&mut tracking_info).unwrap() };
 
-        let window_handle = Win32WindowHandle::new(NonZeroIsize::new(hwnd.0).unwrap());
+        let window_handle = Win32WindowHandle::new(NonZeroIsize::new(hwnd.0 as _).unwrap());
 
         let moved: Arc<AtomicBool> = Default::default();
 
@@ -134,12 +134,13 @@ impl OsWindowInterface for OsWindow {
             SetWindowsHookExW(
                 WH_MOUSE,
                 Some(hook_proc),
-                HINSTANCE(0),
+                HINSTANCE(null_mut()),
                 GetCurrentThreadId(),
             ).unwrap()
         };
 
         std::thread::spawn({
+            let hwnd = hwnd.0 as usize;
             let moved = moved.clone();
             move || frame_pacing_thread(hwnd, moved)
         });
@@ -254,7 +255,9 @@ impl OsWindowInterface for OsWindow {
         };
 
         unsafe {
-            ClientToScreen(self.hwnd(), &mut point);
+            let result = ClientToScreen(self.hwnd(), &mut point);
+            assert!(result.as_bool());
+
             SetCursorPos(point.x, point.y).unwrap();
         }
     }
@@ -403,7 +406,7 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
 
 unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     if code < 0 {
-        return CallNextHookEx(HHOOK(0), code, wparam, lparam);
+        return CallNextHookEx(HHOOK(null_mut()), code, wparam, lparam);
     }
 
     let mouse_hook_struct_ptr: *const MOUSEHOOKSTRUCTEX = lparam.0 as _;
@@ -424,10 +427,11 @@ unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -
         _ => {},
     }
 
-    CallNextHookEx(HHOOK(0), code, wparam, lparam)
+    CallNextHookEx(HHOOK(null_mut()), code, wparam, lparam)
 }
 
-fn frame_pacing_thread(hwnd: HWND, moved: Arc<AtomicBool>) {
+fn frame_pacing_thread(hwnd: usize, moved: Arc<AtomicBool>) {
+    let hwnd = HWND(hwnd as _);
     let mut maybe_output: Option<IDXGIOutput> = None;
 
     loop {
@@ -464,11 +468,7 @@ fn wait_for_vblank_dxgi(hwnd: HWND, maybe_output: &mut Option<IDXGIOutput>) -> b
             'outer: while let Ok(adapter) = dxgi_factory.EnumAdapters(adapter_index) {
                 let mut output_index = 0;
                 while let Ok(output) = adapter.EnumOutputs(output_index) {
-                    let mut desc = DXGI_OUTPUT_DESC {
-                        ..std::mem::zeroed()
-                    };
-    
-                    output.GetDesc(&mut desc as _).unwrap();
+                    let desc = output.GetDesc().unwrap();
                     if desc.Monitor == monitor {
                         *maybe_output = Some(output);
                         break 'outer;

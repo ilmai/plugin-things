@@ -10,7 +10,6 @@ license = "MIT"
 
 [dependencies]
 cursor-icon.workspace = true
-lazy_static = "1.4"
 raw-window-handle.workspace = true
 uuid = { version = "1.4", features = ["fast-rng", "v4"] }
 
@@ -29,9 +28,10 @@ objc2-foundation = { version = "0.2", features = ["NSOperation"] }
 
 [target.'cfg(target_os="windows")'.dependencies]
 libloading = "0.8"
+windows-core = "0.58"
 
 [target.'cfg(target_os="windows")'.dependencies.windows]
-version = "0.54"
+version = "0.58"
 features = [
     "implement",
     "Win32_Foundation",

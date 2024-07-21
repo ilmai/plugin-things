@@ -48,7 +48,7 @@ impl DropTarget {
 
         unsafe {
             let medium = data_object.GetData(&format)?;
-            let hdrop = HDROP(medium.u.hGlobal.0 as isize);
+            let hdrop = HDROP(medium.u.hGlobal.0);
        
             let item_count = DragQueryFileW(hdrop, 0xFFFFFFFF, None);
             if item_count == 0 {
@@ -106,7 +106,7 @@ impl DropTarget {
 }
 
 #[allow(non_snake_case)]
-impl IDropTarget_Impl for DropTarget {
+impl IDropTarget_Impl for DropTarget_Impl {
     fn DragEnter(&self, pdataobj: Option<&IDataObject>, _grfkeystate: MODIFIERKEYS_FLAGS, pt: &POINTL, pdweffect: *mut DROPEFFECT) -> windows::core::Result<()> {
         self.parse_drag_data(pdataobj)?;
 

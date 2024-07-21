@@ -1,4 +1,4 @@
-use std::{ptr::null, mem};
+use std::{mem, ptr::{null, null_mut}};
 
 use uuid::Uuid;
 use windows::{Win32::{UI::{WindowsAndMessaging::{WNDCLASSW, CS_OWNDC, DefWindowProcW, HICON, HCURSOR, RegisterClassW, CreateWindowExW, WS_EX_NOACTIVATE, HMENU, GetMessageW, TranslateMessage, DispatchMessageW, WM_CHAR, PostMessageW, SetWindowLongPtrW, GWLP_USERDATA, GetWindowLongPtrW, DestroyWindow, UnregisterClassW, WS_CHILD, WM_KEYDOWN, WM_KEYUP}, Input::KeyboardAndMouse::{SetFocus, VIRTUAL_KEY}}, Graphics::Gdi::HBRUSH, Foundation::{HWND, WPARAM, LPARAM, LRESULT, BOOL}}, core::PCWSTR};
@@ -8,8 +8,8 @@ use crate::error::Error;
 use super::{to_wstr, PLUGIN_HINSTANCE, WM_USER_KEY_DOWN, key_codes::virtual_key_to_char, WM_USER_KEY_UP};
 
 pub struct MessageWindow {
-    hwnd: HWND,
-    main_window_hwnd: HWND,
+    hwnd: usize,
+    main_window_hwnd: usize,
     window_class: u16,
 }
 
@@ -23,10 +23,10 @@ impl MessageWindow {
             lpfnWndProc: Some(wnd_proc),
             cbClsExtra: 0,
             cbWndExtra: 0,
-            hInstance: *PLUGIN_HINSTANCE,
-            hIcon: HICON(0),
-            hCursor: HCURSOR(0),
-            hbrBackground: HBRUSH(0),
+            hInstance: PLUGIN_HINSTANCE.with(|hinstance| hinstance.clone()),
+            hIcon: HICON(null_mut()),
+            hCursor: HCURSOR(null_mut()),
+            hbrBackground: HBRUSH(null_mut()),
             lpszMenuName: PCWSTR(null()),
             lpszClassName: PCWSTR(class_name.as_ptr()),
         };
@@ -46,26 +46,27 @@ impl MessageWindow {
             0,
             0,
             main_window_hwnd,
-            HMENU(0),
-            *PLUGIN_HINSTANCE,
+            HMENU(null_mut()),
+            PLUGIN_HINSTANCE.with(|hinstance| hinstance.clone()),
             None,
-        ) };
+        ).unwrap() };
 
-        unsafe { SetWindowLongPtrW(hwnd, GWLP_USERDATA, main_window_hwnd.0) };
+        unsafe { SetWindowLongPtrW(hwnd, GWLP_USERDATA, main_window_hwnd.0 as _) };
 
         Ok(Self {
-            hwnd,
-            main_window_hwnd,
+            hwnd: hwnd.0 as _,
+            main_window_hwnd: main_window_hwnd.0 as _,
             window_class,
         })
     }
 
     pub fn run(&self) {
         unsafe {
+            let hwnd = HWND(self.hwnd as _);
             let mut msg = mem::zeroed();
 
             loop {
-                match GetMessageW(&mut msg, self.hwnd, 0, 0) {
+                match GetMessageW(&mut msg, hwnd, 0, 0) {
                     BOOL(-1) => {
                         panic!()
                     }
@@ -77,34 +78,35 @@ impl MessageWindow {
                     _ => {}
                 }
 
-                TranslateMessage(&msg);
+                // We can ignore the return value
+                let _ = TranslateMessage(&msg);
                 DispatchMessageW(&msg);
             }    
         }
     }
 
     pub fn set_focus(&self, focus: bool) {
-        let hwnd = if focus {
+        let hwnd = HWND(if focus {
             self.hwnd
         } else {
             self.main_window_hwnd
-        };
+        } as _);
 
-        unsafe { SetFocus(hwnd); }
+        unsafe { SetFocus(hwnd).unwrap(); }
     }
 }
 
 impl Drop for MessageWindow {
     fn drop(&mut self) {
         unsafe {
-            DestroyWindow(self.hwnd).unwrap();
-            UnregisterClassW(PCWSTR(self.window_class as _), *PLUGIN_HINSTANCE).unwrap();
+            DestroyWindow(HWND(self.hwnd as _)).unwrap();
+            UnregisterClassW(PCWSTR(self.window_class as _), PLUGIN_HINSTANCE.with(|hinstance| hinstance.clone())).unwrap();
         }
     }
 }
 
 unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
-    let main_window_hwnd = unsafe { HWND(GetWindowLongPtrW(hwnd, GWLP_USERDATA)) };
+    let main_window_hwnd = unsafe { HWND(GetWindowLongPtrW(hwnd, GWLP_USERDATA) as _) };
 
     match msg {
         WM_CHAR => {
