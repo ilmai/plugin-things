@@ -851,15 +851,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "css-color-parser2"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf8ed1639f4b56ec6f31d007ff66ce4a13099dce5a9995d48368a30d62bf04bd"
-dependencies = [
- "lazy_static",
-]
-
-[[package]]
 name = "ctor-lite"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1399,9 +1390,9 @@ dependencies = [
 
 [[package]]
 name = "i-slint-backend-selector"
-version = "1.7.1"
+version = "1.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0a22906eb0d7f3cd829eb05cdee0b06e724465e4245d72feeabb69d41ea3189e"
+checksum = "cbf8c0da7b5a493e224acd3a15fced7ce5dcfbf838717fae4a142be10c6a0318"
 dependencies = [
  "cfg-if",
  "i-slint-backend-winit",
@@ -1411,9 +1402,9 @@ dependencies = [
 
 [[package]]
 name = "i-slint-backend-winit"
-version = "1.7.1"
+version = "1.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1142d0fadd7d669256391e727933dd401cca1e0f2ab7be51dbd8eb3171261b55"
+checksum = "3e6a2ce764e057fc22693b193448f195b3c7e801c19342ddbfd6c9c6e298f5c3"
 dependencies = [
  "accesskit",
  "accesskit_winit",
@@ -1439,9 +1430,9 @@ dependencies = [
 
 [[package]]
 name = "i-slint-common"
-version = "1.7.1"
+version = "1.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "54cce93c4c91a4320beee73f6a561a68194136cc7fe1460d3f136f8a2b0b18bf"
+checksum = "eeb81f124038f7ea8a4b95c725a5dffbd17dd87e0e652a79cee1f14b856e69b7"
 dependencies = [
  "cfg-if",
  "derive_more",
@@ -1451,14 +1442,13 @@ dependencies = [
 
 [[package]]
 name = "i-slint-compiler"
-version = "1.7.1"
+version = "1.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6348bd6697d1d9e6437eaeebfed52b8819d6c5c8b80390941af00b885e57e48e"
+checksum = "18e9203a41a378ccf9b97df080bdcda7c613186b0889a4f6a6f1a5ea8adcb34d"
 dependencies = [
  "by_address",
  "codemap",
  "codemap-diagnostic",
- "css-color-parser2",
  "derive_more",
  "i-slint-common",
  "itertools 0.13.0",
@@ -1478,9 +1468,9 @@ dependencies = [
 
 [[package]]
 name = "i-slint-core"
-version = "1.7.1"
+version = "1.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1eb9d38aceb3f567bd128129f306eed658e230a4c901111fe9e101bc406890c4"
+checksum = "d20ae1c8d0de028db0ec1decf0a869436e19ff4bf489a87c35aeb1000fd4a365"
 dependencies = [
  "auto_enums",
  "bitflags 2.6.0",
@@ -1522,9 +1512,9 @@ dependencies = [
 
 [[package]]
 name = "i-slint-core-macros"
-version = "1.7.1"
+version = "1.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c9907c9037c58965ae07d0b51cb44a9ac473e98ccaf23b7d05596096f0e7045d"
+checksum = "096799ce16264fcb7f99b0e9e49b8d0d1a6181807f05e499c821edc60af60649"
 dependencies = [
  "quote",
  "syn 2.0.71",
@@ -1532,9 +1522,9 @@ dependencies = [
 
 [[package]]
 name = "i-slint-renderer-skia"
-version = "1.7.1"
+version = "1.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ebfc71d47057ee8d2cb6c3f597d7f30cf9e65656b9dfab686bd78b1d142ae39e"
+checksum = "83e58cc4e96d47273b916711da9e962b2f220204b1b481733a1f418711228b11"
 dependencies = [
  "bytemuck",
  "cfg-if",
@@ -2958,9 +2948,9 @@ dependencies = [
 
 [[package]]
 name = "slint"
-version = "1.7.1"
+version = "1.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b663a82e33af0ad060dc862b72198cf61f840fbe7e1d26739ec0a43688f60312"
+checksum = "b07c20ca1e15b15a998b7e6aa9b160f1857238cdd0ce5536ce40dcc175dcae62"
 dependencies = [
  "const-field-offset",
  "i-slint-backend-selector",
@@ -2974,9 +2964,9 @@ dependencies = [
 
 [[package]]
 name = "slint-macros"
-version = "1.7.1"
+version = "1.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc585d4193adbae3cc6cde2e73ee46e56443254d6e210e7e10efa430a8ef2dd3"
+checksum = "f342d53e220a0431b277c4d82b7f3b98e8dc555d7a70cc7da80476a1b2e19079"
 dependencies = [
  "i-slint-compiler",
  "proc-macro2",
