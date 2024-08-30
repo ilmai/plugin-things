@@ -61,6 +61,10 @@ impl Window {
         &self.attributes
     }
 
+    pub fn os_scale(&self) -> f64 {
+        self.os_window_handle.window().os_scale()
+    }
+
     /// This only needs to be called on Linux
     pub fn poll_events(&self) -> Result<(), Error> {
         self.os_window_handle.window().poll_events()

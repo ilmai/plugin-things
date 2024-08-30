@@ -132,6 +132,13 @@ impl OsWindowInterface for OsWindow {
         Ok(OsWindowHandle::new(window_clone))
     }
 
+    fn os_scale(&self) -> f64 {
+        self.view()
+            .window()
+            .map(|window| window.backingScaleFactor())
+            .unwrap_or(1.0)
+    }
+
     fn set_cursor(&self, cursor: Option<CursorIcon>) {
         unsafe {
             if let Some(cursor) = cursor {

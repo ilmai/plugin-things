@@ -14,11 +14,13 @@ pub(crate) trait OsWindowInterface: HasDisplayHandle + HasWindowHandle + Sized {
         event_callback: Box<EventCallback>,
     ) -> Result<OsWindowHandle, Error>;
 
-    fn poll_events(&self) -> Result<(), Error>;
+    fn os_scale(&self) -> f64;
 
     fn set_cursor(&self, cursor: Option<CursorIcon>);
     fn set_input_focus(&self, focus: bool);
     fn warp_mouse(&self, position: LogicalPosition);
+
+    fn poll_events(&self) -> Result<(), Error>;
 }
 
 pub struct OsWindowHandle {

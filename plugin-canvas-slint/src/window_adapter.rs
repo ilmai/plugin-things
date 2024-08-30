@@ -36,7 +36,7 @@ impl PluginCanvasWindowAdapter {
         
         let window_attributes = plugin_canvas_window.attributes();
 
-        let scale = window_attributes.scale();
+        let scale = window_attributes.scale() * plugin_canvas_window.os_scale();
         let plugin_canvas_size = window_attributes.size() * scale;
 
         let slint_size = slint::PhysicalSize {
