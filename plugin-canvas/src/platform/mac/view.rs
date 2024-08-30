@@ -293,11 +293,6 @@ impl OsWindowView {
     }
 
     unsafe extern "C" fn key_down(&self, _cmd: Sel, event: *const NSEvent) {
-        unsafe {
-            let events = NSArray::arrayWithObject(&*event);
-            self.interpretKeyEvents(&events);
-        }
-
         let mut text = self.key_event_text(event);
         if text == "\r" {
             text = "\u{000a}".to_string();
