@@ -192,6 +192,10 @@ impl OsWindowInterface for OsWindow {
         Ok(OsWindowHandle::new(window))
     }
 
+    fn os_scale(&self) -> f64 {
+        1.0
+    }
+
     fn set_cursor(&self, cursor: Option<CursorIcon>) {
         if let Some(cursor) = cursor {
             let cursor = match cursor {

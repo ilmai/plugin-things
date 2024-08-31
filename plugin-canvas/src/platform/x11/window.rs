@@ -228,12 +228,8 @@ impl OsWindowInterface for OsWindow {
         Ok(OsWindowHandle::new(window.into()))
     }
 
-    fn poll_events(&self) -> Result<(), Error> {
-        while let Some(event) = self.connection.poll_for_event()? {
-            self.handle_event(event)?;
-        }
-
-        Ok(())
+    fn os_scale(&self) -> f64 {
+        1.0
     }
 
     fn set_cursor(&self, _cursor: Option<cursor_icon::CursorIcon>) {
@@ -256,6 +252,14 @@ impl OsWindowInterface for OsWindow {
 
     fn warp_mouse(&self, _position: crate::LogicalPosition) {
         // TODO
+    }
+
+    fn poll_events(&self) -> Result<(), Error> {
+        while let Some(event) = self.connection.poll_for_event()? {
+            self.handle_event(event)?;
+        }
+
+        Ok(())
     }
 }
 
