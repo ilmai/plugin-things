@@ -1,7 +1,7 @@
 use std::{cell::RefCell, ffi::OsStr, ptr::NonNull};
 
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle, RawDisplayHandle, RawWindowHandle, XlibDisplayHandle, XlibWindowHandle};
-use sys_locale::get_locale;
+use sys_locale::get_locales;
 use x11rb::{connection::Connection, protocol::xproto::{ConnectionExt, CreateWindowAux, EventMask, GrabMode, WindowClass}, xcb_ffi::XCBConnection, COPY_DEPTH_FROM_PARENT, COPY_FROM_PARENT};
 use xkbcommon::xkb;
 
@@ -206,9 +206,21 @@ impl OsWindowInterface for OsWindow {
         let keymap = xkb::x11::keymap_new_from_device(&xkb_context, &connection, keyboard_device, 0);
         let xkb_state = xkb::x11::state_new_from_device(&keymap, &connection, keyboard_device);
 
-        let locale = get_locale().unwrap_or_else(|| String::from("en-US"));
-        let compose_table = xkb::compose::Table::new_from_locale(&xkb_context, OsStr::new(&locale), 0).unwrap();
-        let xkb_compose_state = xkb::compose::State::new(&compose_table, 0);
+        // Go through possible locales until we find one with a keyboard compose table
+        // Fall back to the "C" locale
+        let mut locales: Vec<_> = get_locales().collect();
+        locales.push("C".into());
+
+        let mut xkb_compose_state = None;
+        
+        for locale in locales.iter() {
+            if let Ok(compose_table) = xkb::compose::Table::new_from_locale(&xkb_context, OsStr::new(&locale), 0) {
+                xkb_compose_state = Some(xkb::compose::State::new(&compose_table, 0));
+                break;
+            }
+        }
+
+        assert!(xkb_compose_state.is_some(), "Couldn't find keyboard compose table for any of the locales: {locales:?}");
 
         let display_handle = XlibDisplayHandle::new(Some(NonNull::new(dpy as _).unwrap()), screen);
         let window_handle = XlibWindowHandle::new(window_id as _);
@@ -219,7 +231,7 @@ impl OsWindowInterface for OsWindow {
 
             connection,
             xkb_state: xkb_state.into(),
-            xkb_compose_state: xkb_compose_state.into(),
+            xkb_compose_state: xkb_compose_state.unwrap().into(),
 
             display_handle,
             window_handle,
