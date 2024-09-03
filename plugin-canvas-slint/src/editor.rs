@@ -27,15 +27,19 @@ impl SlintEditor {
                 let editor_handle = Rc::downgrade(&editor_handle.clone());
 
                 Box::new(move |event| {
-                    if let Some(editor_handle) = editor_handle.upgrade() {
-                        editor_handle.on_event(&event);
+                    let Some(editor_handle) = editor_handle.upgrade() else {
+                        return EventResponse::Ignored;
+                    };
+
+                    editor_handle.on_event(&event);
                         
-                        editor_handle.window_adapter().with_context(|context| {
-                            context.component.on_event(&event)
-                        })
-                    } else {
-                        EventResponse::Ignored
-                    }
+                    let Some(window_adapter) = editor_handle.window_adapter() else {
+                        return EventResponse::Ignored;
+                    };
+
+                    window_adapter.with_context(|context| {
+                        context.component.on_event(&event)
+                    })
                 })
             },
         ).unwrap();
@@ -80,12 +84,18 @@ impl EditorHandle {
         }
     }
 
-    fn window_adapter(&self) -> &PluginCanvasWindowAdapter {
-        assert!(*self.window_adapter_thread.lock().unwrap() == Some(std::thread::current().id()));
+    fn window_adapter(&self) -> Option<&PluginCanvasWindowAdapter> {
+        // Don't allow from invalid threads
+        if *self.window_adapter_thread.lock().unwrap() != Some(std::thread::current().id()) {
+            return None;
+        }
 
         let window_adapter_ptr = self.window_adapter_ptr.load(Ordering::Relaxed);
-        assert!(!window_adapter_ptr.is_null());
-        unsafe { &*window_adapter_ptr }
+        if window_adapter_ptr.is_null() {
+            return None;
+        }
+
+        unsafe { Some(&*window_adapter_ptr) }
     }
 
     fn set_window_adapter(&self, window_adapter: Rc<PluginCanvasWindowAdapter>) {
@@ -95,7 +105,11 @@ impl EditorHandle {
     }
 
     fn on_event(&self, event: &Event) -> EventResponse {
-        self.window_adapter().on_event(event)
+        if let Some(window_adapter) = self.window_adapter() {
+            window_adapter.on_event(event)
+        } else {
+            EventResponse::Ignored
+        }
     } 
 }
 
