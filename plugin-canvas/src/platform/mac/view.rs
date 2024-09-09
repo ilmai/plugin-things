@@ -3,7 +3,7 @@ use std::{ffi::c_void, ops::{Deref, DerefMut}, path::PathBuf, sync::atomic::{Ato
 use objc2::{declare::ClassBuilder, ffi::objc_disposeClassPair, msg_send, runtime::{AnyClass, Bool}, sel, ClassType, Encode, Encoding, Message, RefEncode};
 use objc2::runtime::{Sel, ProtocolObject};
 use objc2_app_kit::{NSDragOperation, NSDraggingInfo, NSEvent, NSEventModifierFlags, NSPasteboardTypeFileURL, NSView};
-use objc2_foundation::{CGPoint, NSArray, NSRect, NSURL};
+use objc2_foundation::{CGPoint, NSRect, NSURL};
 use uuid::Uuid;
 
 use crate::{Event, MouseButton, LogicalPosition, event::EventResponse, drag_drop::{DropData, DropOperation}};
