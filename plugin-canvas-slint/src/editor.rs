@@ -77,6 +77,12 @@ impl EditorHandle {
         self.on_event(&Event::Draw);
     }
 
+    pub fn set_scale(&self, scale: f64) {
+        if let Some(window_adapter) = self.window_adapter() {
+            window_adapter.set_scale(scale);
+        }
+    }
+
     fn new() -> Self {
         Self {
             window_adapter_thread: Default::default(),

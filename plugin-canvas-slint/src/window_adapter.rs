@@ -82,6 +82,12 @@ impl PluginCanvasWindowAdapter {
         *self.context.borrow_mut() = Some(context);
     }
 
+    pub fn set_scale(&self, scale: f64) {
+        self.slint_window.dispatch_event(
+            WindowEvent::ScaleFactorChanged { scale_factor: scale as f32 }
+        );
+    }
+
     pub fn on_event(&self, event: &plugin_canvas::Event) -> EventResponse {
         match event {
             plugin_canvas::Event::Close => {
