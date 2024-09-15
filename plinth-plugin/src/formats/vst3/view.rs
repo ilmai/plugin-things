@@ -1,6 +1,5 @@
 use std::{cell::RefCell, ffi::{c_void, CStr}, rc::Rc};
 
-use log::info;
 use vst3::{ComPtr, ComRef, Steinberg::{char16, int16, kInvalidArgument, kResultFalse, kResultOk, tresult, FIDString, IPlugFrame, IPlugView, IPlugViewContentScaleSupport, IPlugViewContentScaleSupportTrait, IPlugViewContentScaleSupport_::ScaleFactor, IPlugViewTrait, TBool, ViewRect}};
 
 use crate::editor::Editor;
@@ -67,7 +66,6 @@ impl<P: Vst3Plugin + 'static> IPlugViewTrait for View<P> {
     }
 
     unsafe fn attached(&self, parent: *mut c_void, platform_type: FIDString) -> tresult {
-        info!("attached: {:?}", std::thread::current().id());
         if parent.is_null() {
             return kInvalidArgument;
         }
