@@ -1,0 +1,17 @@
+[package]
+name = "plinth-core"
+version = "0.1.0"
+edition = "2021"
+
+authors = ["Jussi Viiri <jussi@viiri-audio.com>"]
+readme = "README.md"
+repository = "https://github.com/ilmai/plugin-things"
+license = "MIT"
+
+[features]
+serde = ["dep:serde"]
+
+[dependencies]
+itertools = "0.10"
+num-traits.workspace = true
+serde = { version = "1.0", features = ["serde_derive"], optional = true }

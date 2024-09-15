@@ -1,0 +1,9 @@
+pub mod channels;
+pub mod frame;
+pub mod frame_iterator;
+pub mod frames_iterator;
+pub mod ptr_signal;
+pub mod signal;
+pub mod signal_base;
+pub mod signal_frame;
+pub mod slice;

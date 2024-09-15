@@ -1,0 +1,31 @@
+[package]
+name = "plinth-plugin"
+version = "0.1.0"
+edition = "2021"
+
+authors = ["Jussi Viiri <jussi@viiri-audio.com>"]
+readme = "README.md"
+repository = "https://github.com/ilmai/plugin-things"
+license = "MIT"
+
+[dependencies]
+atomic_refcell = "0.1"
+clap-sys = "0.4"
+heapless = "0.8"
+log = "0.4"
+num-derive = "0.4"
+num-traits.workspace = true
+plinth-core.workspace = true
+portable-atomic = { version = "1.6", features = ["float", "serde"] }
+raw-window-handle = "0.6"
+rtrb = "0.3"
+thiserror = "1.0"
+vst3 = "0.1"
+widestring = "1.0"
+xxhash-rust = { version = "0.8", features = ["xxh3", "xxh32"] }
+
+[build-dependencies]
+bindgen = "0.69"
+
+[dev-dependencies]
+approx = "0.5"

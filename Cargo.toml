@@ -1,15 +1,23 @@
 [workspace]
 resolver = "2"
 members = [
+    "plinth-core",
+    "plinth-derive",
+    "plinth-plugin",
     "plugin-canvas",
     "plugin-canvas-slint",
     "xtask",
 ]
 
 [workspace.dependencies]
-cursor-icon = "1.1"
+plinth-core = { path = "plinth-core" }
+plinth-derive = { path = "plinth-derive" }
+plinth-plugin = { path = "plinth-plugin" }
 plugin-canvas = { path = "plugin-canvas" }
 plugin-canvas-slint = { path = "plugin-canvas-slint" }
+
+cursor-icon = "1.1"
+num-traits = "0.2"
 raw-window-handle = "0.6"
 slint = { version = "1.7.2", default-features = false, features = ["accessibility", "compat-1-2", "std"] }
 
