@@ -1,6 +1,6 @@
 use std::{cell::RefCell, ffi::{c_void, CStr}, rc::Rc};
 
-use vst3::{ComPtr, ComRef, Steinberg::{char16, int16, kInvalidArgument, kResultFalse, kResultOk, tresult, FIDString, IPlugFrame, IPlugView, IPlugViewContentScaleSupport, IPlugViewContentScaleSupportTrait, IPlugViewContentScaleSupport_::ScaleFactor, IPlugViewTrait, TBool, ViewRect}};
+use vst3::{ComPtr, ComRef, Steinberg::{char16, int16, kInvalidArgument, kResultFalse, kResultOk, tresult, FIDString, IPlugFrame, IPlugView, IPlugViewTrait, TBool, ViewRect}};
 
 use crate::editor::Editor;
 
@@ -8,7 +8,6 @@ use super::{component::UiThreadState, host::Vst3Host, Vst3Plugin};
 
 pub struct ViewContext {
     frame: Option<ComPtr<IPlugFrame>>,
-    scale_factor: ScaleFactor,
 
     #[cfg(target_os="linux")]
     timer_handler: Option<ComPtr<vst3::Steinberg::Linux::ITimerHandler>>,
@@ -27,7 +26,6 @@ impl<P: Vst3Plugin> View<P> {
     ) -> Self {
         let context = ViewContext {
             frame: None,
-            scale_factor: 1.0,
 
             #[cfg(target_os="linux")]            
             timer_handler: None,
@@ -42,7 +40,7 @@ impl<P: Vst3Plugin> View<P> {
 }
 
 impl<P: Vst3Plugin> vst3::Class for View<P> {
-    type Interfaces = (IPlugView, IPlugViewContentScaleSupport);
+    type Interfaces = (IPlugView,);
 }
 
 impl<P: Vst3Plugin + 'static> IPlugViewTrait for View<P> {
@@ -73,13 +71,12 @@ impl<P: Vst3Plugin + 'static> IPlugViewTrait for View<P> {
             return kInvalidArgument;
         }
         
-        let context = self.context.borrow();
         let mut editor = self.ui_thread_state.editor.borrow_mut();
         assert!(editor.is_none());
 
         let parent = crate::window_handle::from_ptr(parent);
         let host = Rc::new(Vst3Host::new(self.ui_thread_state.handler.borrow().clone().unwrap()));
-        *editor = Some(self.plugin.borrow().open_editor(parent, host, context.scale_factor as f64));
+        *editor = Some(self.plugin.borrow().open_editor(parent, host, 1.0));
 
         kResultOk
     }
@@ -123,15 +120,13 @@ impl<P: Vst3Plugin + 'static> IPlugViewTrait for View<P> {
             return kInvalidArgument;
         }
 
-        let context = self.context.borrow();
         let editor_size = P::Editor::SIZE;
-        let scale_factor = context.scale_factor as f64;
 
         let size = unsafe { &mut *size };
         size.left = 0;
         size.top = 0;
-        size.right = (editor_size.0 * scale_factor) as i32;
-        size.bottom = (editor_size.1 * scale_factor) as i32;
+        size.right = editor_size.0 as i32;
+        size.bottom = editor_size.1 as i32;
 
         kResultOk
     }
@@ -176,15 +171,6 @@ impl<P: Vst3Plugin + 'static> IPlugViewTrait for View<P> {
     }
 
     unsafe fn checkSizeConstraint(&self, _rect: *mut ViewRect) -> tresult {
-        kResultOk
-    }
-}
-
-impl<P: Vst3Plugin + 'static> IPlugViewContentScaleSupportTrait for View<P> {
-    unsafe fn setContentScaleFactor(&self, factor: ScaleFactor) -> tresult {
-        let mut context = self.context.borrow_mut();
-        context.scale_factor = factor;
-
         kResultOk
     }
 }
