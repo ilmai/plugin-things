@@ -1,6 +1,6 @@
 use std::{ffi::{c_void, CStr}, marker::PhantomData};
 
-use vst3::{ComWrapper, Steinberg::{int32, kInvalidArgument, kResultOk, tresult, FIDString, FUnknown, IPluginFactory, IPluginFactory2, IPluginFactory2Trait, IPluginFactory3, IPluginFactory3Trait, IPluginFactoryTrait, PClassInfo, PClassInfo2, PClassInfoW, PClassInfo_::ClassCardinality_::kManyInstances, PFactoryInfo, PFactoryInfo_, Vst::{IComponent, SDKVersionString}}};
+use vst3::{ComWrapper, Steinberg::{int32, kInvalidArgument, kResultOk, tresult, FIDString, FUnknown, IPluginFactory, IPluginFactory2, IPluginFactory2Trait, IPluginFactory3, IPluginFactory3Trait, IPluginFactoryTrait, PClassInfo, PClassInfo2, PClassInfoW, PClassInfo_::ClassCardinality_::kManyInstances, PFactoryInfo, PFactoryInfo_, Vst::{IComponent, SDKVersionString}, TUID}};
 
 use crate::string::{copy_str_to_char16, copy_str_to_char8, copy_u128_to_char8};
 
@@ -70,7 +70,7 @@ impl<P: Vst3Plugin + 'static> IPluginFactoryTrait for Factory<P> {
         kResultOk
     }
 
-    unsafe fn createInstance(&self, cid: FIDString, _iid: FIDString, obj: *mut*mut c_void) -> tresult {
+    unsafe fn createInstance(&self, cid: FIDString, iid: FIDString, obj: *mut *mut c_void) -> tresult {
         if cid.is_null() {
             return kInvalidArgument;
         }
@@ -81,9 +81,10 @@ impl<P: Vst3Plugin + 'static> IPluginFactoryTrait for Factory<P> {
 
         if cid == P::CLASS_ID {
             let instance = ComWrapper::new(PluginComponent::<P>::new());
-            *obj = instance.to_com_ptr::<IComponent>().unwrap().into_raw() as *mut c_void;
+            let unknown = instance.as_com_ref::<FUnknown>().unwrap();
+            let ptr = unknown.as_ptr();
 
-            kResultOk
+            ((*(*ptr).vtbl).queryInterface)(ptr, iid as *const TUID, obj)
         } else {
             kInvalidArgument
         }
