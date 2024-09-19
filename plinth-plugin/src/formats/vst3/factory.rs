@@ -1,6 +1,6 @@
 use std::{ffi::{c_void, CStr}, marker::PhantomData};
 
-use vst3::{ComWrapper, Steinberg::{int32, kInvalidArgument, kResultOk, tresult, FIDString, FUnknown, IPluginFactory, IPluginFactory2, IPluginFactory2Trait, IPluginFactory3, IPluginFactory3Trait, IPluginFactoryTrait, PClassInfo, PClassInfo2, PClassInfoW, PClassInfo_::ClassCardinality_::kManyInstances, PFactoryInfo, PFactoryInfo_, Vst::{IComponent, SDKVersionString}, TUID}};
+use vst3::{ComWrapper, Steinberg::{int32, kInvalidArgument, kResultOk, tresult, FIDString, FUnknown, IPluginFactory, IPluginFactory2, IPluginFactory2Trait, IPluginFactory3, IPluginFactory3Trait, IPluginFactoryTrait, PClassInfo, PClassInfo2, PClassInfoW, PClassInfo_::ClassCardinality_::kManyInstances, PFactoryInfo, PFactoryInfo_, Vst::SDKVersionString, TUID}};
 
 use crate::string::{copy_str_to_char16, copy_str_to_char8, copy_u128_to_char8};
 
