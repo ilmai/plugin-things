@@ -182,8 +182,11 @@ impl<P: Vst3Plugin + 'static> IPlugViewTrait for View<P> {
 
 impl<P: Vst3Plugin + 'static> IPlugViewContentScaleSupportTrait for View<P> {
     unsafe fn setContentScaleFactor(&self, factor: ScaleFactor) -> tresult {
-        let mut context = self.context.borrow_mut();
-        context.scale_factor = factor;
+        // MacOS does its own scaling
+        #[cfg(not(target_os="macos"))]
+        {
+            self.context.borrow_mut().scale_factor = factor;
+        }
 
         kResultOk
     }
