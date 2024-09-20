@@ -112,16 +112,20 @@ impl<P: Vst3Plugin> vst3::Class for PluginComponent<P> {
 
 impl<P: Vst3Plugin> IPluginBaseTrait for PluginComponent<P> {
     unsafe fn initialize(&self, _context: *mut FUnknown) -> tresult {
+        log::trace!("IPluginBase::initialize");
         kResultOk
     }
 
     unsafe fn terminate(&self) -> tresult {
+        log::trace!("IPluginBase::terminate");
         kResultOk
     }
 }
 
 impl<P: Vst3Plugin> IAudioProcessorTrait for PluginComponent<P> {
     unsafe fn setBusArrangements(&self, inputs: *mut SpeakerArrangement, num_ins: int32, outputs: *mut SpeakerArrangement, num_outs: int32) -> tresult {
+        log::trace!("IAudioProcessor::setBusArrangements");
+
         if inputs.is_null() || outputs.is_null() {
             return kInvalidArgument;
         }
@@ -152,12 +156,16 @@ impl<P: Vst3Plugin> IAudioProcessorTrait for PluginComponent<P> {
     }
 
     unsafe fn getBusArrangement(&self, _dir: BusDirection, _index: int32, arr: *mut SpeakerArrangement) -> tresult {
+        log::trace!("IAudioProcessor::getBusArrangements");
+
         // Only support stereo
         unsafe { *arr = SpeakerArr::kStereo; }
         kResultOk
     }
 
     unsafe fn canProcessSampleSize(&self, symbolic_sample_size: int32) -> tresult {
+        log::trace!("IAudioProcessor::canProcessSampleSize");
+
         if symbolic_sample_size == SymbolicSampleSizes_::kSample32 as int32 {
             kResultOk
         } else {
@@ -166,10 +174,13 @@ impl<P: Vst3Plugin> IAudioProcessorTrait for PluginComponent<P> {
     }
 
     unsafe fn getLatencySamples(&self) -> uint32 {
+        log::trace!("IAudioProcessor::getLatencySamples");
         self.plugin.borrow().latency() as _
     }
 
     unsafe fn setupProcessing(&self, setup: *mut ProcessSetup) -> tresult {
+        log::trace!("IAudioProcessor::setupProcessing");
+
         let setup = unsafe { &*setup };
         assert!(setup.maxSamplesPerBlock > 0);
 
@@ -181,6 +192,8 @@ impl<P: Vst3Plugin> IAudioProcessorTrait for PluginComponent<P> {
     }
 
     unsafe fn setProcessing(&self, state: TBool) -> tresult {
+        log::trace!("IAudioProcessor::setProcessing");
+
         let processing = state != 0;
         self.processing.store(processing, Ordering::Release);
 
@@ -274,10 +287,13 @@ impl<P: Vst3Plugin> IAudioProcessorTrait for PluginComponent<P> {
 
 impl<P: Vst3Plugin> IComponentTrait for PluginComponent<P> {
     unsafe fn getControllerClassId(&self, _class_id: *mut TUID) -> tresult {
+        log::trace!("IComponent::getControllerClassId");
         kNoInterface
     }
 
     unsafe fn setIoMode(&self, mode: IoMode) -> tresult {
+        log::trace!("IComponent::setIoMode");
+
         let mode = match mode as _ {
             IoModes_::kSimple | IoModes_::kAdvanced => ProcessMode::Realtime,
             IoModes_::kOfflineProcessing => ProcessMode::Offline,
@@ -292,6 +308,8 @@ impl<P: Vst3Plugin> IComponentTrait for PluginComponent<P> {
     }
 
     unsafe fn getBusCount(&self, media_type: MediaType, dir: BusDirection) -> int32 {
+        log::trace!("IComponent::getBusCount");
+
         if P::HAS_AUX_INPUT && media_type == MediaTypes_::kAudio as i32 && dir == BusDirections_::kInput as i32 {
             2
         } else {
@@ -300,6 +318,8 @@ impl<P: Vst3Plugin> IComponentTrait for PluginComponent<P> {
     }
 
     unsafe fn getBusInfo(&self, media_type: MediaType, dir: BusDirection, index: int32, bus: *mut BusInfo) -> tresult {
+        log::trace!("IComponent::getBusInfo");
+
         if index >= self.getBusCount(media_type, dir) {
             return kInvalidArgument;
         }
@@ -327,10 +347,13 @@ impl<P: Vst3Plugin> IComponentTrait for PluginComponent<P> {
     }
 
     unsafe fn getRoutingInfo(&self, _in_info: *mut RoutingInfo, _out_info: *mut RoutingInfo) -> tresult {
+        log::trace!("IComponent::getRoutingInfo");
         kResultFalse
     }
 
     unsafe fn activateBus(&self, media_type: MediaType, dir: BusDirection, index: int32, state: TBool) -> tresult {
+        log::trace!("IComponent::activateBus");
+
         if P::HAS_AUX_INPUT && media_type == MediaTypes_::kAudio as i32 && dir == BusDirections_::kInput as i32 && index == 1 {
             let mut audio_thread_state = self.audio_thread_state.borrow_mut();
             audio_thread_state.aux_active = state != 0;
@@ -341,6 +364,8 @@ impl<P: Vst3Plugin> IComponentTrait for PluginComponent<P> {
     }
 
     unsafe fn setActive(&self, state: TBool) -> tresult {
+        log::trace!("IComponent::setActive");
+
         let active = state > 0;
 
         if self.processing.load(Ordering::Acquire) && !active {
@@ -363,6 +388,8 @@ impl<P: Vst3Plugin> IComponentTrait for PluginComponent<P> {
     }
 
     unsafe fn setState(&self, state: *mut IBStream) -> tresult {
+        log::trace!("IComponent::setState");
+
         let mut plugin = self.plugin.borrow_mut();
         let Some(mut stream) = Stream::new(state) else {
             return kInvalidArgument;
@@ -375,6 +402,8 @@ impl<P: Vst3Plugin> IComponentTrait for PluginComponent<P> {
     }
 
     unsafe fn getState(&self, state: *mut IBStream) -> tresult {
+        log::trace!("IComponent::getState");
+
         let plugin = self.plugin.borrow();
         let Some(mut stream) = Stream::new(state) else {
             return kInvalidArgument;
@@ -389,22 +418,28 @@ impl<P: Vst3Plugin> IComponentTrait for PluginComponent<P> {
 
 impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
     unsafe fn setComponentState(&self, _state: *mut IBStream) -> tresult {
+        log::trace!("IEditController::setComponentState");
         kResultOk
     }
 
     unsafe fn setState(&self, _state: *mut IBStream) -> tresult {
+        log::trace!("IEditController::setState");
         kResultOk
     }
 
     unsafe fn getState(&self, _state: *mut IBStream) -> tresult {
+        log::trace!("IEditController::getState");
         kResultOk
     }
 
     unsafe fn getParameterCount(&self) -> int32 {
+        log::trace!("IEditController::getParameterCount");
         self.plugin.borrow().with_parameters(|parameters| parameters.ids().len() as _)
     }
 
     unsafe fn getParameterInfo(&self, param_index: int32, info: *mut vst3::Steinberg::Vst::ParameterInfo) -> tresult {
+        log::trace!("IEditController::getParameterInfo");
+
         if param_index < 0 {
             return kInvalidArgument;
         }
@@ -431,6 +466,8 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
     }
 
     unsafe fn getParamStringByValue(&self, id: ParamID, value_normalized: ParamValue, string: *mut String128) -> tresult {
+        log::trace!("IEditController::getParamStringByValue");
+
         self.plugin.borrow().with_parameters(|parameters| {
             let Some(parameter) = parameters.get(id) else {
                 return kInvalidArgument;
@@ -444,6 +481,8 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
     }
 
     unsafe fn getParamValueByString(&self, id: ParamID, string: *mut TChar, value_normalized: *mut ParamValue) -> tresult {
+        log::trace!("IEditController::getParamValueByString");
+
         if string.is_null() {
             return kInvalidArgument;
         }
@@ -499,6 +538,8 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
     }
 
     unsafe fn setComponentHandler(&self, handler: *mut IComponentHandler) -> tresult {
+        log::trace!("IEditController::setComponentHandler");
+
         let Some(handler) = ComRef::from_raw(handler) else {
             return kInvalidArgument;
         };
@@ -509,6 +550,8 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
     }
 
     unsafe fn createView(&self, name: FIDString) -> *mut IPlugView {
+        log::trace!("IEditController::createView");
+
         if name.is_null() {
             return null_mut();
         }
@@ -528,20 +571,24 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
 
 impl<P: Vst3Plugin> IEditController2Trait for PluginComponent<P> {
     unsafe fn setKnobMode(&self, _mode: KnobMode) -> tresult {
+        log::trace!("IEditController2::setKnobMode");
         kResultFalse
     }
 
     unsafe fn openHelp(&self, _only_check: TBool) -> tresult {
+        log::trace!("IEditController2::openHelp");
         kResultFalse
     }
 
     unsafe fn openAboutBox(&self, _only_check: TBool) -> tresult {
+        log::trace!("IEditController2::openAboutBox");
         kResultFalse
     }
 }
 
 impl<P: Vst3Plugin> IProcessContextRequirementsTrait for PluginComponent<P> {
     unsafe fn getProcessContextRequirements(&self) -> uint32 {
+        log::trace!("IProcessContextRequirements::getProcessContextRequirements");
         IProcessContextRequirements_::Flags_::kNeedContinousTimeSamples as uint32 |
         IProcessContextRequirements_::Flags_::kNeedProjectTimeMusic as uint32 |
         IProcessContextRequirements_::Flags_::kNeedBarPositionMusic as uint32 |
@@ -554,10 +601,13 @@ impl<P: Vst3Plugin> IProcessContextRequirementsTrait for PluginComponent<P> {
 
 impl<P: Vst3Plugin> IUnitInfoTrait for PluginComponent<P> {
     unsafe fn getUnitCount(&self) -> int32 {
+        log::trace!("IUnitInfo::getUnitCount");
         self.ui_thread_state.groups.len() as int32 + 1 // +1 for the root unit
     }
 
     unsafe fn getUnitInfo(&self, unit_index: int32, info: *mut UnitInfo) -> tresult {
+        log::trace!("IUnitInfo::getUnitInfo");
+
         let unit_count = self.ui_thread_state.groups.len() + 1; // +1 for the root unit
 
         if unit_index < 0 {
@@ -591,42 +641,52 @@ impl<P: Vst3Plugin> IUnitInfoTrait for PluginComponent<P> {
     }
 
     unsafe fn getProgramListCount(&self) -> int32 {
+        log::trace!("IUnitInfo::getProgramListCount");
         0
     }
 
     unsafe fn getProgramListInfo(&self, _list_index: int32, _info: *mut ProgramListInfo) -> tresult {
+        log::trace!("IUnitInfo::getProgramListInfo");
         kInvalidArgument
     }
 
     unsafe fn getProgramName(&self, _list_id: ProgramListID, _program_index: int32, _name: *mut String128) -> tresult {
+        log::trace!("IUnitInfo::getProgramName");
         kInvalidArgument
     }
 
     unsafe fn getProgramInfo(&self, _list_id: ProgramListID, _program_index: int32, _attribute_id: CString, _attribute_value: *mut String128) -> tresult {
+        log::trace!("IUnitInfo::getProgramInfo");
         kInvalidArgument
     }
 
     unsafe fn hasProgramPitchNames(&self, _list_id: ProgramListID, _program_index: int32) -> tresult {
+        log::trace!("IUnitInfo::hasProgramPitchNames");
         kInvalidArgument
     }
 
     unsafe fn getProgramPitchName(&self, _list_id: ProgramListID, _program_index: int32, _midi_pitch: int16, _name: *mut String128) -> tresult {
+        log::trace!("IUnitInfo::getProgramPitchName");
         kInvalidArgument
     }
 
     unsafe fn getSelectedUnit(&self) -> UnitID {
+        log::trace!("IUnitInfo::getSelectedUnit");
         0
     }
 
     unsafe fn selectUnit(&self, _unit_id: UnitID) -> tresult {
+        log::trace!("IUnitInfo::selectUnit");
         kInvalidArgument
     }
 
     unsafe fn getUnitByBus(&self, _media_type: MediaType, _dir: BusDirection, _bus_index: int32, _channel: int32, _unit_id: *mut UnitID) -> tresult {
+        log::trace!("IUnitInfo::getUnitByBus");
         kInvalidArgument
     }
 
     unsafe fn setUnitProgramData(&self, _list_or_unit_id: int32, _program_index: int32, _data: *mut IBStream) -> tresult {
+        log::trace!("IUnitInfo::setUnitProgramData");
         kInvalidArgument
     }
 }
