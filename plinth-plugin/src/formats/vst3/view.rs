@@ -181,6 +181,7 @@ impl<P: Vst3Plugin + 'static> IPlugViewTrait for View<P> {
 }
 
 impl<P: Vst3Plugin + 'static> IPlugViewContentScaleSupportTrait for View<P> {
+    #[allow(unused_variables)]
     unsafe fn setContentScaleFactor(&self, factor: ScaleFactor) -> tresult {
         // MacOS does its own scaling
         #[cfg(not(target_os="macos"))]
