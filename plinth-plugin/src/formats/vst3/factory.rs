@@ -30,22 +30,26 @@ impl<P: Vst3Plugin> vst3::Class for Factory<P> {
 #[allow(non_snake_case)]
 impl<P: Vst3Plugin + 'static> IPluginFactoryTrait for Factory<P> {
     unsafe fn getFactoryInfo(&self, info: *mut PFactoryInfo) -> tresult {
-        let info = &mut *info;
-        info.flags = PFactoryInfo_::FactoryFlags_::kUnicode as _;
+        let mut local_info = PFactoryInfo { ..std::mem::zeroed() };
 
-        copy_str_to_char8(P::VENDOR, &mut info.vendor);
+        local_info.flags = PFactoryInfo_::FactoryFlags_::kUnicode as _;
+
+        copy_str_to_char8(P::VENDOR, &mut local_info.vendor);
 
         if let Some(url) = P::URL {
-            copy_str_to_char8(url, &mut info.url);
+            copy_str_to_char8(url, &mut local_info.url);
         } else {
-            info.url.fill(0);
+            local_info.url.fill(0);
         }
 
         if let Some(email) = P::EMAIL {
-            copy_str_to_char8(email, &mut info.email);
+            copy_str_to_char8(email, &mut local_info.email);
         } else {
-            info.email.fill(0);
+            local_info.email.fill(0);
         }
+
+        // We have to do a workaround like this for FL Studio which is giving us unaligned addresses
+        std::ptr::write_unaligned(info, local_info);
 
         kResultOk
     }
@@ -59,13 +63,16 @@ impl<P: Vst3Plugin + 'static> IPluginFactoryTrait for Factory<P> {
             return kInvalidArgument;
         }
 
-        let info = &mut *info;
-        info.cardinality = kManyInstances as _;
+        let mut local_info = PClassInfo { ..std::mem::zeroed() };
+        local_info.cardinality = kManyInstances as _;
 
-        copy_u128_to_char8(&P::CLASS_ID, &mut info.cid);
-        copy_str_to_char8(&P::NAME, &mut info.name);
+        copy_u128_to_char8(&P::CLASS_ID, &mut local_info.cid);
+        copy_str_to_char8(&P::NAME, &mut local_info.name);
 
-        copy_str_to_char8("Audio Module Class", &mut info.category);
+        copy_str_to_char8("Audio Module Class", &mut local_info.category);
+
+        // We have to do a workaround like this for FL Studio which is giving us unaligned addresses
+        std::ptr::write_unaligned(info, local_info);
 
         kResultOk
     }
@@ -98,15 +105,18 @@ impl<P: Vst3Plugin + 'static> IPluginFactory2Trait for Factory<P> {
             return kInvalidArgument;
         }
 
-        let info = &mut *info;
-        info.cardinality = kManyInstances as _;
+        let mut local_info = PClassInfo2 { ..std::mem::zeroed() };
+        local_info.cardinality = kManyInstances as _;
 
-        copy_u128_to_char8(&P::CLASS_ID, &mut info.cid);
-        copy_str_to_char8(&P::NAME, &mut info.name);
-        copy_str_to_char8(&P::VERSION, &mut info.version);
+        copy_u128_to_char8(&P::CLASS_ID, &mut local_info.cid);
+        copy_str_to_char8(&P::NAME, &mut local_info.name);
+        copy_str_to_char8(&P::VERSION, &mut local_info.version);
 
-        copy_str_to_char8("Audio Module Class", &mut info.category);
-        copy_str_to_char8(CStr::from_ptr(SDKVersionString).to_str().unwrap(), &mut info.sdkVersion);
+        copy_str_to_char8("Audio Module Class", &mut local_info.category);
+        copy_str_to_char8(CStr::from_ptr(SDKVersionString).to_str().unwrap(), &mut local_info.sdkVersion);
+
+        // We have to do a workaround like this for FL Studio which is giving us unaligned addresses
+        std::ptr::write_unaligned(info, local_info);
 
         kResultOk
     }
@@ -119,22 +129,25 @@ impl<P: Vst3Plugin + 'static> IPluginFactory3Trait for Factory<P> {
             return kInvalidArgument;
         }
 
-        let info = &mut *info;
-        info.cardinality = kManyInstances as _;
+        let mut local_info = PClassInfoW { ..std::mem::zeroed() };
+        local_info.cardinality = kManyInstances as _;
 
-        copy_u128_to_char8(&P::CLASS_ID, &mut info.cid);
-        copy_str_to_char16(&P::NAME, &mut info.name);
-        copy_str_to_char16(&P::VERSION, &mut info.version);
+        copy_u128_to_char8(&P::CLASS_ID, &mut local_info.cid);
+        copy_str_to_char16(&P::NAME, &mut local_info.name);
+        copy_str_to_char16(&P::VERSION, &mut local_info.version);
 
-        copy_str_to_char8("Audio Module Class", &mut info.category);
-        copy_str_to_char16(CStr::from_ptr(SDKVersionString).to_str().unwrap(), &mut info.sdkVersion);
+        copy_str_to_char8("Audio Module Class", &mut local_info.category);
+        copy_str_to_char16(CStr::from_ptr(SDKVersionString).to_str().unwrap(), &mut local_info.sdkVersion);
 
         let subcategory_string = P::SUBCATEGORIES
             .iter()
             .map(|subcategory| subcategory.to_str())
             .collect::<Vec<_>>()
             .join("|");
-        copy_str_to_char8(&subcategory_string, &mut info.subCategories);
+        copy_str_to_char8(&subcategory_string, &mut local_info.subCategories);
+
+        // We have to do a workaround like this for FL Studio which is giving us unaligned addresses
+        std::ptr::write_unaligned(info, local_info);
 
         kResultOk
     }
