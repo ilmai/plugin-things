@@ -19,9 +19,9 @@ plugin-canvas-slint = { path = "plugin-canvas-slint" }
 cursor-icon = "1.1"
 num-traits = "0.2"
 raw-window-handle = "0.6"
-slint = { version = "1.7.2", default-features = false, features = ["accessibility", "compat-1-2", "std"] }
+slint = { version = "1.8.0", default-features = false, features = ["accessibility", "compat-1-2", "std"] }
 
 # Internal slint crate versions need to be pinned
 # since they don't maintain semver compatibility
-i-slint-core = "1.7.2"
-i-slint-renderer-skia = { version = "1.7.2", features = ["x11"] }
+i-slint-core = "1.8.0"
+i-slint-renderer-skia = { version = "1.8.0", features = ["x11"] }
