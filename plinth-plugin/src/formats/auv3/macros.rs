@@ -104,7 +104,11 @@ macro_rules! export_auv3 {
                 use ::plinth_plugin::Processor;
 
                 let processor = wrapper.processor.as_mut().unwrap();
-                processor.process_events(wrapper.events_to_processor_receiver.try_iter());
+
+                let event_count = wrapper.events_to_processor_receiver.slots();
+                if event_count > 0 {
+                    processor.process_events(wrapper.events_to_processor_receiver.read_chunk(event_count).unwrap().into_iter());
+                }
 
                 let transport = ::plinth_plugin::Transport::new(playing, tempo, position_samples);
 
@@ -274,7 +278,7 @@ macro_rules! export_auv3 {
                         plugin.process_event(&event);
                     }
 
-                    wrapper.events_to_processor_sender.send(event).unwrap();
+                    wrapper.events_to_processor_sender.push(event).unwrap();
                 }
             });
         }
@@ -326,7 +330,7 @@ macro_rules! export_auv3 {
                             value: parameters.get(id).unwrap().normalized_value(),
                         };
 
-                        wrapper.events_to_processor_sender.send(event).unwrap();    
+                        wrapper.events_to_processor_sender.push(event).unwrap();    
                     }
                 });
             });

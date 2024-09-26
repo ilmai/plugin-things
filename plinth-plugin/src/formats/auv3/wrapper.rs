@@ -1,8 +1,10 @@
-use std::{ffi::c_void, sync::{atomic::AtomicBool, mpsc, Arc, Mutex}};
+use std::{ffi::c_void, sync::{atomic::AtomicBool, Arc, Mutex}};
 
 use portable_atomic::AtomicF64;
 
 use crate::{auv3::plugin::Auv3Plugin, parameters::{self, group::ParameterGroupRef, parameters::has_duplicates}, Event, ParameterId, Parameters};
+
+const MAX_EVENTS: usize = 1024;
 
 pub struct Auv3Wrapper<P: Auv3Plugin> {
     pub plugin: Mutex<P>,
@@ -17,13 +19,13 @@ pub struct Auv3Wrapper<P: Auv3Plugin> {
 
     pub sending_parameter_change_from_editor: Arc<AtomicBool>,
 
-    pub events_to_processor_sender: mpsc::Sender<Event>,
-    pub events_to_processor_receiver: mpsc::Receiver<Event>,
+    pub events_to_processor_sender: rtrb::Producer<Event>,
+    pub events_to_processor_receiver: rtrb::Consumer<Event>,
 }
 
 impl<P: Auv3Plugin> Auv3Wrapper<P> {
     pub fn new() -> Self {
-        let (events_to_processor_sender, events_to_processor_receiver) = mpsc::channel();
+        let (events_to_processor_sender, events_to_processor_receiver) = rtrb::RingBuffer::new(MAX_EVENTS);
 
         let plugin = P::default();
 
