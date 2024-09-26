@@ -6,11 +6,17 @@ macro_rules! export_auv3 {
             use ::plinth_plugin::auv3::Auv3Plugin;
            
             let wrapper = Box::new(::plinth_plugin::auv3::Auv3Wrapper::<$plugin>::new());
+
+            // Log after creating the plugin since it will probably create loggers, if any
+            log::trace!("plinth_auv3_create() from thread {:?}", std::thread::current().id());
+
             Box::into_raw(wrapper) as _
         }
 
         #[no_mangle]
         unsafe extern "C-unwind" fn plinth_auv3_destroy(wrapper: *mut ::std::ffi::c_void) {
+            log::trace!("plinth_auv3_destroy() from thread {:?}", std::thread::current().id());
+
             assert!(!wrapper.is_null());
             let wrapper = Box::from_raw(wrapper as *mut ::plinth_plugin::auv3::Auv3Wrapper<$plugin>);
             drop(wrapper);
@@ -18,6 +24,8 @@ macro_rules! export_auv3 {
 
         #[no_mangle]
         unsafe extern "C-unwind" fn plinth_auv3_activate(wrapper: *mut ::std::ffi::c_void, sample_rate: f64, max_block_size: u64) {
+            log::trace!("plinth_auv3_activate() from thread {:?}", std::thread::current().id());
+
             let processor_config = ProcessorConfig {
                 sample_rate,
                 min_block_size: 0,
@@ -35,6 +43,8 @@ macro_rules! export_auv3 {
 
         #[no_mangle]
         unsafe extern "C-unwind" fn plinth_auv3_deactivate(wrapper: *mut ::std::ffi::c_void) {
+            log::trace!("plinth_auv3_deactivate() from thread {:?}", std::thread::current().id());
+
             ::plinth_plugin::auv3::Auv3Wrapper::<$plugin>::with_wrapper(wrapper, |wrapper| {
                 wrapper.processor = None;
             });
@@ -42,6 +52,8 @@ macro_rules! export_auv3 {
 
         #[no_mangle]
         unsafe extern "C-unwind" fn plinth_auv3_tail_length(wrapper: *mut ::std::ffi::c_void) -> f64 {
+            log::trace!("plinth_auv3_tail_length() from thread {:?}", std::thread::current().id());
+
             ::plinth_plugin::auv3::Auv3Wrapper::<$plugin>::with_wrapper(wrapper, |wrapper| {
                 wrapper.tail_length_seconds.load(::std::sync::atomic::Ordering::Acquire)
             })
@@ -49,6 +61,7 @@ macro_rules! export_auv3 {
 
         #[no_mangle]
         unsafe extern "C-unwind" fn plinth_auv3_has_aux_bus() -> bool {
+            log::trace!("plinth_auv3_has_aux_bus() from thread {:?}", std::thread::current().id());
             <$plugin>::HAS_AUX_INPUT
         }
 
@@ -65,6 +78,8 @@ macro_rules! export_auv3 {
             position_samples: i64,
             first_event: *const ::plinth_plugin::auv3::AURenderEvent,
         ) {
+            log::trace!("plinth_auv3_process() from thread {:?}", std::thread::current().id());
+
             assert_eq!(channels, 2);
 
             let input = if input.is_null() || plinth_core::util::ptr::any_null(input, channels as usize) {
@@ -137,6 +152,8 @@ macro_rules! export_auv3 {
 
         #[no_mangle]
         unsafe extern "C-unwind" fn plinth_auv3_parameter_count(wrapper: *mut ::std::ffi::c_void) -> u64 {
+            log::trace!("plinth_auv3_parameter_count() from thread {:?}", std::thread::current().id());
+
             ::plinth_plugin::auv3::Auv3Wrapper::<$plugin>::with_wrapper(wrapper, |wrapper| {
                 let plugin = wrapper.plugin.lock().unwrap();
                 plugin.with_parameters(|parameters| {
@@ -151,6 +168,8 @@ macro_rules! export_auv3 {
             index: usize,
             info: *mut ::plinth_plugin::auv3::ParameterInfo
         ) {
+            log::trace!("plinth_auv3_parameter_info() from thread {:?}", std::thread::current().id());
+
             let info = unsafe { &mut *info };
 
             assert!(!info.name.is_null());
@@ -184,6 +203,8 @@ macro_rules! export_auv3 {
 
         #[no_mangle]
         unsafe extern "C-unwind" fn plinth_auv3_group_count(wrapper: *mut ::std::ffi::c_void) -> u64 {
+            log::trace!("plinth_auv3_group_count() from thread {:?}", std::thread::current().id());
+
             ::plinth_plugin::auv3::Auv3Wrapper::<$plugin>::with_wrapper(wrapper, |wrapper| {
                 wrapper.parameter_groups.len() as u64
             })
@@ -195,6 +216,8 @@ macro_rules! export_auv3 {
             index: usize,
             info: *mut ::plinth_plugin::auv3::ParameterGroupInfo
         ) {
+            log::trace!("plinth_auv3_group_info() from thread {:?}", std::thread::current().id());
+
             let info = unsafe { &mut *info };
 
             assert!(!info.name.is_null());
@@ -216,6 +239,8 @@ macro_rules! export_auv3 {
     
         #[no_mangle]
         unsafe extern "C-unwind" fn plinth_auv3_get_parameter_value(wrapper: *mut ::std::ffi::c_void, address: u64) -> f32 {
+            log::trace!("plinth_auv3_get_parameter_value() from thread {:?}", std::thread::current().id());
+
             ::plinth_plugin::auv3::Auv3Wrapper::<$plugin>::with_wrapper(wrapper, |wrapper| {
                 let plugin = wrapper.plugin.lock().unwrap();
                 plugin.with_parameters(|parameters| {
@@ -230,6 +255,8 @@ macro_rules! export_auv3 {
 
         #[no_mangle]
         unsafe extern "C-unwind" fn plinth_auv3_set_parameter_value(wrapper: *mut ::std::ffi::c_void, address: u64, value: f32) {
+            log::trace!("plinth_auv3_set_parameter_value() from thread {:?}", std::thread::current().id());
+
             ::plinth_plugin::auv3::Auv3Wrapper::<$plugin>::with_wrapper(wrapper, |wrapper| {
                 let mut plugin = wrapper.plugin.lock().unwrap();
                 if let Some(event) = plugin.with_parameters(|parameters| {
@@ -259,6 +286,8 @@ macro_rules! export_auv3 {
             value: f32,
             string: *mut ::std::ffi::c_char
         ) {
+            log::trace!("plinth_auv3_parameter_normalized_to_string() from thread {:?}", std::thread::current().id());
+
             assert!(!string.is_null());
 
             ::plinth_plugin::auv3::Auv3Wrapper::<$plugin>::with_wrapper(wrapper, |wrapper| {
@@ -281,6 +310,8 @@ macro_rules! export_auv3 {
             context: *mut ::std::ffi::c_void,
             read: unsafe extern "C-unwind" fn(*mut ::std::ffi::c_void, *mut u8, usize) -> usize,
         ) {            
+            log::trace!("plinth_auv3_load_state() from thread {:?}", std::thread::current().id());
+
             ::plinth_plugin::auv3::Auv3Wrapper::<$plugin>::with_wrapper(wrapper, |wrapper| {
                 let mut plugin = wrapper.plugin.lock().unwrap();
                 let mut reader = ::plinth_plugin::auv3::Auv3Reader::new(context, read);
@@ -307,6 +338,8 @@ macro_rules! export_auv3 {
             context: *mut ::std::ffi::c_void,
             write: unsafe extern "C-unwind" fn(*mut ::std::ffi::c_void, *const u8, usize) -> usize,
         ) {            
+            log::trace!("plinth_auv3_save_state() from thread {:?}", std::thread::current().id());
+
             ::plinth_plugin::auv3::Auv3Wrapper::<$plugin>::with_wrapper(wrapper, |wrapper| {
                 let plugin = wrapper.plugin.lock().unwrap();
                 let mut writer = ::plinth_plugin::auv3::Auv3Writer::new(context, write);
@@ -316,6 +349,8 @@ macro_rules! export_auv3 {
 
         #[no_mangle]
         unsafe extern "C-unwind" fn plinth_auv3_preferred_editor_size(width: *mut f64, height: *mut f64) {
+            log::trace!("plinth_auv3_preferred_editor_size() from thread {:?}", std::thread::current().id());
+
             use ::plinth_plugin::Editor;
 
             *width = <$plugin as Plugin>::Editor::SIZE.0;
@@ -324,6 +359,8 @@ macro_rules! export_auv3 {
 
         #[no_mangle]
         unsafe extern "C-unwind" fn plinth_auv3_editor_set_scale(wrapper: *mut ::std::ffi::c_void, scale: f64) {
+            log::trace!("plinth_auv3_editor_set_scale() from thread {:?}", std::thread::current().id());
+
             use ::plinth_plugin::Editor;
 
             ::plinth_plugin::auv3::Auv3Wrapper::<$plugin>::with_wrapper(wrapper, |wrapper| {
@@ -343,6 +380,8 @@ macro_rules! export_auv3 {
             end_parameter_change: unsafe extern "C-unwind" fn(*mut ::std::ffi::c_void, ::plinth_plugin::ParameterId),
             scale: f64,
         ) {
+            log::trace!("plinth_auv3_editor_open() from thread {:?}", std::thread::current().id());
+
             ::plinth_plugin::auv3::Auv3Wrapper::<$plugin>::with_wrapper(wrapper, |wrapper| {
                 assert!(wrapper.editor.is_none());
 
@@ -367,6 +406,8 @@ macro_rules! export_auv3 {
 
         #[no_mangle]
         unsafe extern "C-unwind" fn plinth_auv3_editor_close(wrapper: *mut ::std::ffi::c_void) {
+            log::trace!("plinth_auv3_editor_close() from thread {:?}", std::thread::current().id());
+
             ::plinth_plugin::auv3::Auv3Wrapper::<$plugin>::with_wrapper(wrapper, |wrapper| {
                 assert!(wrapper.editor.is_some());
                 wrapper.editor = None;
