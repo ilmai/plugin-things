@@ -1,4 +1,4 @@
-use std::{cell::RefCell, ffi::OsStr, ptr::NonNull, time::{Duration, Instant}};
+use std::{cell::RefCell, ffi::OsStr, ptr::NonNull};
 
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle, RawDisplayHandle, RawWindowHandle, XlibDisplayHandle, XlibWindowHandle};
 use sys_locale::get_locales;
@@ -6,8 +6,6 @@ use x11rb::{connection::Connection, protocol::xproto::{ConnectionExt, CreateWind
 use xkbcommon::xkb;
 
 use crate::{dimensions::Size, error::Error, event::{EventCallback, EventResponse}, platform::interface::{OsWindowHandle, OsWindowInterface}, window::WindowAttributes, Event, MouseButton, PhysicalPosition};
-
-const FRAME_TIME: Duration = Duration::from_millis(16);
 
 pub struct OsWindow {
     window_attributes: WindowAttributes,
@@ -19,8 +17,6 @@ pub struct OsWindow {
 
     display_handle: XlibDisplayHandle,
     window_handle: XlibWindowHandle,
-
-    last_frame_time: RefCell<Instant>,
 }
 
 impl OsWindow {
@@ -131,7 +127,7 @@ impl OsWindow {
 
                 self.send_event(Event::MouseMoved { position });
             }
-
+            
             _ => {},
         }
 
@@ -239,8 +235,6 @@ impl OsWindowInterface for OsWindow {
 
             display_handle,
             window_handle,
-
-            last_frame_time: Instant::now().into(),
         };
 
         Ok(OsWindowHandle::new(window.into()))
@@ -275,12 +269,6 @@ impl OsWindowInterface for OsWindow {
     fn poll_events(&self) -> Result<(), Error> {
         while let Some(event) = self.connection.poll_for_event()? {
             self.handle_event(event)?;
-        }
-
-        let now = Instant::now();
-        if now - *self.last_frame_time.borrow() > FRAME_TIME {
-            self.send_event(Event::Draw);
-            *self.last_frame_time.borrow_mut() = now;
         }
 
         Ok(())
