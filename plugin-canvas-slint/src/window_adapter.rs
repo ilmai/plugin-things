@@ -89,6 +89,10 @@ impl PluginCanvasWindowAdapter {
     }
 
     pub fn on_event(&self, event: &plugin_canvas::Event) -> EventResponse {
+        if let Some(context) = self.context.borrow().as_ref() {
+            context.component.on_event(&event);
+        }
+
         match event {
             plugin_canvas::Event::Close => {
                 self.slint_window.dispatch_event(WindowEvent::CloseRequested);
