@@ -50,6 +50,7 @@ macro_rules! export_clap {
         }
                 
         #[no_mangle]
+        #[allow(non_snake_case)]
         static clap_entry: ::plinth_plugin::clap::EntryPoint = ::plinth_plugin::clap::EntryPoint::new(init, deinit, get_factory);
     };
 }
