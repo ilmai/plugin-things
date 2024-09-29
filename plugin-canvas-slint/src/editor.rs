@@ -31,15 +31,7 @@ impl SlintEditor {
                         return EventResponse::Ignored;
                     };
 
-                    editor_handle.on_event(&event);
-                        
-                    let Some(window_adapter) = editor_handle.window_adapter() else {
-                        return EventResponse::Ignored;
-                    };
-
-                    window_adapter.with_context(|context| {
-                        context.component.on_event(&event)
-                    })
+                    editor_handle.on_event(&event)
                 })
             },
         ).unwrap();
@@ -116,7 +108,7 @@ impl EditorHandle {
         } else {
             EventResponse::Ignored
         }
-    } 
+} 
 }
 
 impl Drop for EditorHandle {
