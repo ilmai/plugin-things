@@ -29,7 +29,7 @@ pub trait Parameters {
         self.typed::<T>(id).unwrap().modulated_plain()
     }
 
-    fn process_event(&mut self, event: &Event) {
+    fn process_event(&self, event: &Event) {
         match event {
             Event::ParameterValue { id, value, .. } => {
                 let parameter = self.get(*id).expect(&format!("Tried to get parameter with id {id} but it doesn't exist"));
@@ -53,7 +53,7 @@ pub trait Parameters {
             })
     }
 
-    fn deserialize(&mut self, parameters: impl IntoIterator<Item = (ParameterId, ParameterValue)>) {
+    fn deserialize(&self, parameters: impl IntoIterator<Item = (ParameterId, ParameterValue)>) {
         // Reset parameters to default and apply whatever we read
         for id in self.ids().iter().copied() {
             let parameter = self.get(id).unwrap();
