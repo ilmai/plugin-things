@@ -83,6 +83,8 @@ impl PluginCanvasWindowAdapter {
     }
 
     pub fn set_scale(&self, scale: f64) {
+        let scale = scale * self.plugin_canvas_window.os_scale();
+        
         self.slint_window.dispatch_event(
             WindowEvent::ScaleFactorChanged { scale_factor: scale as f32 }
         );
