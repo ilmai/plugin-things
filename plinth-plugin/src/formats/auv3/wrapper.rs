@@ -4,7 +4,7 @@ use portable_atomic::AtomicF64;
 
 use crate::{auv3::plugin::Auv3Plugin, parameters::{self, group::ParameterGroupRef, parameters::has_duplicates}, Event, ParameterId, Parameters};
 
-const MAX_EVENTS: usize = 1024;
+const MAX_EVENTS: usize = 1024 * 10;
 
 pub struct Auv3Wrapper<P: Auv3Plugin> {
     pub plugin: Mutex<P>,
