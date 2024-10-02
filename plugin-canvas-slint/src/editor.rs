@@ -2,6 +2,7 @@ use std::{ptr::null_mut, rc::Rc, sync::{atomic::{AtomicPtr, Ordering}, Mutex}, t
 
 use raw_window_handle::RawWindowHandle;
 use plugin_canvas::{event::EventResponse, window::WindowAttributes, Event};
+use slint::{platform::WindowAdapter, PhysicalSize};
 
 use crate::{platform::PluginCanvasPlatform, plugin_component_handle::PluginComponentHandle, window_adapter::{Context, PluginCanvasWindowAdapter, WINDOW_ADAPTER_FROM_SLINT, WINDOW_TO_SLINT}};
 
@@ -67,6 +68,15 @@ pub struct EditorHandle {
 impl EditorHandle {
     pub fn on_frame(&self) {
         self.on_event(&Event::Draw);
+    }
+
+    pub fn set_window_size(&self, width: f64, height: f64) {
+        if let Some(window_adapter) = self.window_adapter() {
+            window_adapter.set_size(slint::WindowSize::Physical(PhysicalSize {
+                width: width as _,
+                height: height as _,
+            }));
+        }
     }
 
     pub fn set_scale(&self, scale: f64) {

@@ -352,8 +352,8 @@ macro_rules! export_auv3 {
         }
 
         #[no_mangle]
-        unsafe extern "C-unwind" fn plinth_auv3_preferred_editor_size(width: *mut f64, height: *mut f64) {
-            log::trace!("plinth_auv3_preferred_editor_size() from thread {:?}", std::thread::current().id());
+        unsafe extern "C-unwind" fn plinth_auv3_editor_preferred_size(width: *mut f64, height: *mut f64) {
+            log::trace!("plinth_auv3_editor_preferred_size() from thread {:?}", std::thread::current().id());
 
             use ::plinth_plugin::Editor;
 
@@ -362,13 +362,18 @@ macro_rules! export_auv3 {
         }
 
         #[no_mangle]
-        unsafe extern "C-unwind" fn plinth_auv3_editor_set_scale(wrapper: *mut ::std::ffi::c_void, scale: f64) {
-            log::trace!("plinth_auv3_editor_set_scale() from thread {:?}", std::thread::current().id());
+        unsafe extern "C-unwind" fn plinth_auv3_editor_set_size(wrapper: *mut ::std::ffi::c_void, width: f64, height: f64) {
+            log::trace!("plinth_auv3_editor_set_size() from thread {:?}", std::thread::current().id());
 
             use ::plinth_plugin::Editor;
 
             ::plinth_plugin::auv3::Auv3Wrapper::<$plugin>::with_wrapper(wrapper, |wrapper| {
                 if let Some(editor) = wrapper.editor.as_mut() {
+                    let preferred_width = <$plugin as Plugin>::Editor::SIZE.0;
+                    let preferred_height = <$plugin as Plugin>::Editor::SIZE.1;
+                    let scale = f64::min(width / preferred_width, height / preferred_height);
+
+                    editor.set_window_size(width, height);
                     editor.set_scale(scale);
                 }
             });

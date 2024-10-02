@@ -66,8 +66,8 @@ void plinth_auv3_load_state(void* wrapper, void* context, size_t (*read)(void*, 
 void plinth_auv3_save_state(void* wrapper, void* context, size_t (*write)(void*, const uint8_t*, size_t));
 
 // Editor interface
-void plinth_auv3_preferred_editor_size(double* width, double* height);
-void plinth_auv3_editor_set_scale(void* wrapper, double scale);
+void plinth_auv3_editor_preferred_size(double* width, double* height);
+void plinth_auv3_editor_set_size(void* wrapper, double width, double height);
 void plinth_auv3_editor_open(
     void* wrapper,
     void* parent,
