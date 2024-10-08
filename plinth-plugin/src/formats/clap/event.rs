@@ -1,26 +1,28 @@
+use std::collections::BTreeMap;
+
 use clap_sys::events::{clap_event_note, clap_event_param_mod, clap_event_param_value, clap_input_events, CLAP_CORE_EVENT_SPACE_ID, CLAP_EVENT_NOTE_OFF, CLAP_EVENT_NOTE_ON, CLAP_EVENT_PARAM_MOD, CLAP_EVENT_PARAM_VALUE};
 
-use crate::{Event, Parameters};
+use crate::{parameters::info::ParameterInfo, Event, ParameterId};
 
-use super::{parameters::map_parameter_value_from_clap, ClapPlugin};
+use super::parameters::map_parameter_value_from_clap;
 
-pub struct EventIterator<'a, P: ClapPlugin> {
-    plugin: &'a P,
+pub struct EventIterator<'a> {
+    parameter_info: &'a BTreeMap<ParameterId, ParameterInfo>,
     events: &'a clap_input_events,
     index: u32,
 }
 
-impl<'a, P: ClapPlugin> EventIterator<'a, P> {
-    pub fn new(plugin: &'a P, events: &'a clap_input_events) -> Self {
+impl<'a> EventIterator<'a> {
+    pub fn new(parameter_info: &'a BTreeMap<ParameterId, ParameterInfo>, events: &'a clap_input_events) -> Self {
         Self {
-            plugin,
+            parameter_info,
             events,
             index: 0,
         }
     }
 }
 
-impl<'a, P: ClapPlugin> Iterator for EventIterator<'a, P> {
+impl<'a> Iterator for EventIterator<'a> {
     type Item = Event;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -61,10 +63,11 @@ impl<'a, P: ClapPlugin> Iterator for EventIterator<'a, P> {
 
                 CLAP_EVENT_PARAM_VALUE => {
                     let event = unsafe { &*(header as *const clap_event_param_value) };
-                    let value = self.plugin.with_parameters(|parameters| {
-                        let parameter = parameters.get(event.param_id).unwrap();
-                        map_parameter_value_from_clap(parameter.info(), event.value)
-                    });
+                    let Some(parameter_info) = self.parameter_info.get(&event.param_id) else {
+                        return None;
+                    };
+
+                    let value = map_parameter_value_from_clap(parameter_info, event.value);
 
                     Event::ParameterValue {
                         sample_offset: event.header.time as _,
@@ -75,10 +78,11 @@ impl<'a, P: ClapPlugin> Iterator for EventIterator<'a, P> {
     
                 CLAP_EVENT_PARAM_MOD => {
                     let event = unsafe { &*(header as *const clap_event_param_mod) };
-                    let amount = self.plugin.with_parameters(|parameters| {
-                        let parameter = parameters.get(event.param_id).unwrap();
-                        map_parameter_value_from_clap(parameter.info(), event.amount)
-                    });
+                    let Some(parameter_info) = self.parameter_info.get(&event.param_id) else {
+                        return None;
+                    };
+
+                    let amount = map_parameter_value_from_clap(parameter_info, event.amount);
 
                     Event::ParameterModulation {
                         sample_offset: event.header.time as _,

@@ -1,11 +1,11 @@
-use std::{ffi::{c_char, c_void, CStr}, iter::zip, mem::size_of, ptr::{null, null_mut}, sync::mpsc};
+use std::{collections::BTreeMap, ffi::{c_char, c_void, CStr}, iter::zip, mem::size_of, ptr::{null, null_mut}, sync::mpsc};
 
 use atomic_refcell::AtomicRefCell;
-use clap_sys::{events::{clap_event_header, clap_event_param_gesture, clap_event_param_value, clap_output_events, CLAP_CORE_EVENT_SPACE_ID, CLAP_EVENT_IS_LIVE, CLAP_EVENT_PARAM_GESTURE_BEGIN, CLAP_EVENT_PARAM_GESTURE_END, CLAP_EVENT_PARAM_VALUE}, ext::{audio_ports::{clap_plugin_audio_ports, CLAP_EXT_AUDIO_PORTS}, gui::{clap_plugin_gui, CLAP_EXT_GUI}, latency::{clap_plugin_latency, CLAP_EXT_LATENCY}, note_ports::{clap_plugin_note_ports, CLAP_EXT_NOTE_PORTS}, params::{clap_host_params, clap_plugin_params, CLAP_EXT_PARAMS}, render::{clap_plugin_render, CLAP_EXT_RENDER}, state::{clap_host_state, clap_plugin_state, CLAP_EXT_STATE}, tail::{clap_host_tail, clap_plugin_tail, CLAP_EXT_TAIL}, timer_support::{clap_host_timer_support, clap_plugin_timer_support, CLAP_EXT_TIMER_SUPPORT}}, host::clap_host, plugin::clap_plugin, process::{clap_process, clap_process_status, CLAP_PROCESS_CONTINUE, CLAP_PROCESS_CONTINUE_IF_NOT_QUIET, CLAP_PROCESS_ERROR, CLAP_PROCESS_TAIL}};
+use clap_sys::{events::{clap_event_header, clap_event_param_gesture, clap_event_param_value, clap_input_events, clap_output_events, CLAP_CORE_EVENT_SPACE_ID, CLAP_EVENT_IS_LIVE, CLAP_EVENT_PARAM_GESTURE_BEGIN, CLAP_EVENT_PARAM_GESTURE_END, CLAP_EVENT_PARAM_VALUE}, ext::{audio_ports::{clap_plugin_audio_ports, CLAP_EXT_AUDIO_PORTS}, gui::{clap_plugin_gui, CLAP_EXT_GUI}, latency::{clap_plugin_latency, CLAP_EXT_LATENCY}, note_ports::{clap_plugin_note_ports, CLAP_EXT_NOTE_PORTS}, params::{clap_host_params, clap_plugin_params, CLAP_EXT_PARAMS}, render::{clap_plugin_render, CLAP_EXT_RENDER}, state::{clap_host_state, clap_plugin_state, CLAP_EXT_STATE}, tail::{clap_host_tail, clap_plugin_tail, CLAP_EXT_TAIL}, timer_support::{clap_host_timer_support, clap_plugin_timer_support, CLAP_EXT_TIMER_SUPPORT}}, host::clap_host, plugin::clap_plugin, process::{clap_process, clap_process_status, CLAP_PROCESS_CONTINUE, CLAP_PROCESS_CONTINUE_IF_NOT_QUIET, CLAP_PROCESS_ERROR, CLAP_PROCESS_TAIL}};
 use log::error;
 use plinth_core::signals::{ptr_signal::{PtrSignal, PtrSignalMut}, signal::SignalMut};
 
-use crate::{clap::{event::EventIterator, transport::convert_transport}, parameters::{info::ParameterInfo, parameters::{has_duplicates, Parameters}}, Event, ProcessMode, ProcessState, Processor, ProcessorConfig};
+use crate::{clap::{event::EventIterator, transport::convert_transport}, parameters::{info::ParameterInfo, parameters::{has_duplicates, Parameters}}, Event, ParameterId, ProcessMode, ProcessState, Processor, ProcessorConfig};
 
 use super::{descriptor::Descriptor, extensions::{audio_ports::AudioPorts, gui::Gui, latency::Latency, note_ports::NotePorts, params::Params, render::Render, state::State, tail::Tail, timer_support::TimerSupport}, parameters::map_parameter_value_to_clap, plugin::ClapPlugin, MAX_EVENTS};
 
@@ -30,7 +30,7 @@ pub struct PluginInstance<P: ClapPlugin> {
 
     pub(super) plugin: Option<P>,
     pub(super) editor: Option<P::Editor>,
-    pub(super) parameter_info: Vec<ParameterInfo>,
+    pub(super) parameter_info: BTreeMap<ParameterId, ParameterInfo>,
 
     pub(super) editor_scale: f64,
     sample_rate: f64,
@@ -68,7 +68,7 @@ impl<P: ClapPlugin> PluginInstance<P> {
         let (to_plugin_event_sender, to_plugin_event_receiver) = rtrb::RingBuffer::new(MAX_EVENTS);
         let (from_editor_event_sender, from_editor_event_receiver) = mpsc::channel();
 
-        let mut parameter_info = Vec::new();
+        let mut parameter_info = BTreeMap::new();
 
         // Store parameter info and verify parameters
         plugin.with_parameters(|parameters| {
@@ -82,7 +82,7 @@ impl<P: ClapPlugin> PluginInstance<P> {
 
             for &id in parameters.ids() {
                 let info = parameters.get(id).unwrap().info();
-                parameter_info.push(info.clone());
+                parameter_info.insert(id, info.clone());
             }
         });
 
@@ -133,7 +133,9 @@ impl<P: ClapPlugin> PluginInstance<P> {
         result
     }
 
-    pub(super) fn send_events_to_plugin(&mut self, events: impl Iterator<Item = Event>) {
+    pub(super) fn send_events_to_plugin(&mut self, in_events: *const clap_input_events) {
+        let events = EventIterator::new(&self.parameter_info, unsafe { &*in_events });
+
         for event in events {
             match self.to_plugin_event_sender.push(event) {
                 Ok(_) => {},
@@ -330,14 +332,10 @@ impl<P: ClapPlugin> PluginInstance<P> {
             let mut audio_thread_state = instance.audio_thread_state.borrow_mut();
             let processor = audio_thread_state.processor.as_mut().unwrap();           
 
-            // Send events coming from the host to the editor
-            let host_events = EventIterator::new(instance.plugin.as_ref().unwrap(), unsafe { &*process.in_events });
-            let host_events: heapless::Vec<_, MAX_EVENTS> = host_events.collect();
-
+            // Send events from editor to host
             let editor_events = instance.from_editor_event_receiver.try_iter();
             let editor_events: heapless::Vec<_, MAX_EVENTS> = editor_events.collect();
 
-            // Send events from editor to host
             for event in editor_events.iter() {
                 instance.send_event_to_host(&event, process.out_events);
             }
@@ -352,9 +350,8 @@ impl<P: ClapPlugin> PluginInstance<P> {
             };
 
             // Process events coming from the host and events coming from the editor
-            let events = host_events.iter()
-                .chain(editor_events.iter())
-                .cloned();
+            let host_events = EventIterator::new(&instance.parameter_info, unsafe { &*process.in_events });
+            let events = host_events.chain(editor_events.iter().cloned());
 
             let result = match processor.process(&mut output, aux.as_ref(), transport, events) {
                 ProcessState::Error => CLAP_PROCESS_ERROR,
@@ -377,7 +374,7 @@ impl<P: ClapPlugin> PluginInstance<P> {
             drop(audio_thread_state);
 
             // Also send events to the main thread
-            instance.send_events_to_plugin(host_events.iter().cloned());
+            instance.send_events_to_plugin(process.in_events);
 
             result
         })

@@ -39,7 +39,7 @@ impl<P: ClapPlugin> Params<P> {
 
     unsafe extern "C" fn get_info(plugin: *const clap_plugin, param_index: u32, param_info: *mut clap_param_info) -> bool {
         PluginInstance::with_plugin_instance(plugin, |instance: &mut PluginInstance<P>| {
-            let Some(parameter_info) = instance.parameter_info.get(param_index as usize) else {
+            let Some(parameter_info) = instance.parameter_info.values().nth(param_index as usize) else {
                 return false;
             };
 
@@ -133,8 +133,7 @@ impl<P: ClapPlugin> Params<P> {
 
             let mut audio_thread_state = instance.audio_thread_state.borrow_mut();
         
-            let host_events = EventIterator::new(instance.plugin.as_ref().unwrap(), unsafe { &*in_events });
-            let host_events: heapless::Vec<_, MAX_EVENTS> = host_events.collect();
+            let host_events = EventIterator::new(&instance.parameter_info, unsafe { &*in_events });
     
             let editor_events = instance.from_editor_event_receiver.try_iter();
             let editor_events: heapless::Vec<_, MAX_EVENTS> = editor_events.collect();
@@ -146,18 +145,18 @@ impl<P: ClapPlugin> Params<P> {
 
             if let Some(processor) = audio_thread_state.processor.as_mut() {
                 // When we have a processor, process events directly
-                processor.process_events(host_events.iter().chain(editor_events.iter()).cloned());
+                processor.process_events(host_events.chain(editor_events.iter().cloned()));
                 drop(audio_thread_state);
     
                 // Also send them to the main thread through the queue
-                instance.send_events_to_plugin(host_events.iter().chain(editor_events.iter()).cloned());
+                instance.send_events_to_plugin(in_events);
     
                 // Send a callback request so the main thread can process them
                 unsafe { ((*instance.host).request_callback.unwrap())(instance.host); }
             } else {
                 // When we don't have a processor, this is called from the main thread so we can process events directly
-                for event in host_events.iter().chain(editor_events.iter()) {
-                    instance.plugin.as_mut().unwrap().process_event(event);
+                for event in host_events.chain(editor_events.iter().cloned()) {
+                    instance.plugin.as_mut().unwrap().process_event(&event);
                 }
             }
         })
