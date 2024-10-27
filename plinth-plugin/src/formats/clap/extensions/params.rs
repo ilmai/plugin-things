@@ -2,7 +2,7 @@ use std::{ffi::{c_char, CStr}, marker::PhantomData};
 
 use clap_sys::{events::{clap_input_events, clap_output_events}, ext::params::{clap_param_info, clap_plugin_params, CLAP_PARAM_IS_AUTOMATABLE, CLAP_PARAM_IS_BYPASS, CLAP_PARAM_IS_MODULATABLE, CLAP_PARAM_IS_STEPPED}, id::clap_id, plugin::clap_plugin};
 
-use crate::{clap::{event::EventIterator, parameters::{map_parameter_value_from_clap, map_parameter_value_to_clap}, plugin_instance::PluginInstance, ClapPlugin, MAX_EVENTS}, processor::Processor, string::copy_str_to_char8, Parameters};
+use crate::{clap::{event::EventIterator, parameters::{map_parameter_value_from_clap, map_parameter_value_to_clap}, plugin_instance::PluginInstance, ClapPlugin}, processor::Processor, string::copy_str_to_char8, Parameters};
 
 #[repr(transparent)]
 pub struct Params<P: ClapPlugin> {
@@ -133,19 +133,13 @@ impl<P: ClapPlugin> Params<P> {
 
             let mut audio_thread_state = instance.audio_thread_state.borrow_mut();
         
-            let host_events = EventIterator::new(&instance.parameter_info, unsafe { &*in_events });
-    
-            let editor_events = instance.parameter_event_map.iter();
-            let editor_events: heapless::Vec<_, MAX_EVENTS> = editor_events.collect();
-
-            // Send editor events to host
-            for event in editor_events.iter() {
-                instance.send_event_to_host(event, out_events);
-            }
+            let host_events = EventIterator::new(&instance.parameter_info, unsafe { &*in_events });    
+            let editor_events = instance.parameter_event_map.iter_and_send_to_host(&instance.parameter_info, out_events);
+            let all_events = host_events.chain(editor_events);
 
             if let Some(processor) = audio_thread_state.processor.as_mut() {
                 // When we have a processor, process events directly
-                processor.process_events(host_events.chain(editor_events.iter().cloned()));
+                processor.process_events(all_events);
                 drop(audio_thread_state);
     
                 // Also send them to the main thread through the queue
@@ -155,7 +149,7 @@ impl<P: ClapPlugin> Params<P> {
                 unsafe { ((*instance.host).request_callback.unwrap())(instance.host); }
             } else {
                 // When we don't have a processor, this is called from the main thread so we can process events directly
-                for event in host_events.chain(editor_events.iter().cloned()) {
+                for event in all_events {
                     instance.plugin.as_mut().unwrap().process_event(&event);
                 }
             }

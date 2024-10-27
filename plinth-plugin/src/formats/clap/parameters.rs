@@ -1,5 +1,6 @@
-use std::{collections::{btree_map, BTreeMap}, sync::atomic::{AtomicBool, Ordering}};
+use std::{collections::{btree_map, BTreeMap}, ptr::null_mut, sync::atomic::{AtomicBool, Ordering}};
 
+use clap_sys::events::{clap_event_header, clap_event_param_gesture, clap_event_param_value, clap_output_events, CLAP_CORE_EVENT_SPACE_ID, CLAP_EVENT_IS_LIVE, CLAP_EVENT_PARAM_GESTURE_BEGIN, CLAP_EVENT_PARAM_GESTURE_END, CLAP_EVENT_PARAM_VALUE};
 use portable_atomic::AtomicF64;
 
 use crate::{parameters::info::ParameterInfo, Event, ParameterId, ParameterValue, Parameters};
@@ -33,9 +34,16 @@ impl ParameterEventMap {
         self.parameter_event_info.get(&id).unwrap()
     }
 
-    pub fn iter(&self) -> ParameterEventMapIterator<'_> {
+    pub fn iter_and_send_to_host<'a>(
+        &'a self,
+        parameter_info: &'a BTreeMap<ParameterId, ParameterInfo>,
+        out_events: *const clap_output_events,
+    ) -> ParameterEventMapIterator<'a>
+    {
         ParameterEventMapIterator {
             event_info_iterator: self.parameter_event_info.iter(),
+            parameter_info,
+            out_events,
 
             pending_parameter_id: Default::default(),
             pending_parameter_value: Default::default(),
@@ -48,6 +56,8 @@ impl ParameterEventMap {
 
 pub struct ParameterEventMapIterator<'a> {
     event_info_iterator: btree_map::Iter<'a, ParameterId, ParameterEventInfo>,
+    parameter_info: &'a BTreeMap<ParameterId, ParameterInfo>,
+    out_events: *const clap_output_events,
 
     pending_parameter_id: ParameterId,
     pending_parameter_value: ParameterValue,
@@ -56,23 +66,92 @@ pub struct ParameterEventMapIterator<'a> {
     pending_end_change: bool,
 }
 
+impl<'a> ParameterEventMapIterator<'a> {
+    pub fn send_event_to_host(&self, event: &Event) {
+        let out_events = unsafe { &*self.out_events };
+
+        match event {
+            Event::StartParameterChange { id } => {
+                let clap_event = clap_event_param_gesture {
+                    header: clap_event_header {
+                        size: size_of::<clap_event_param_gesture>() as _,
+                        time: 0,
+                        space_id: CLAP_CORE_EVENT_SPACE_ID,
+                        type_: CLAP_EVENT_PARAM_GESTURE_BEGIN,
+                        flags: CLAP_EVENT_IS_LIVE,
+                    },
+                    param_id: *id,
+                };
+
+                unsafe { (out_events.try_push.unwrap())(out_events, &clap_event as *const clap_event_param_gesture as _) };
+            },
+
+            Event::EndParameterChange { id } => {
+                let clap_event = clap_event_param_gesture {
+                    header: clap_event_header {
+                        size: size_of::<clap_event_param_gesture>() as _,
+                        time: 0,
+                        space_id: CLAP_CORE_EVENT_SPACE_ID,
+                        type_: CLAP_EVENT_PARAM_GESTURE_END,
+                        flags: CLAP_EVENT_IS_LIVE,
+                    },
+                    param_id: *id,
+                };
+
+                unsafe { (out_events.try_push.unwrap())(out_events, &clap_event as *const clap_event_param_gesture as _) };                    
+            },
+
+            Event::ParameterValue { id, value, .. } => {
+                let parameter_info = self.parameter_info.get(id).unwrap();
+                let value = map_parameter_value_to_clap(parameter_info, *value);
+
+                let clap_event = clap_event_param_value {
+                    header: clap_event_header {
+                        size: size_of::<clap_event_param_value>() as _,
+                        time: 0,
+                        space_id: CLAP_CORE_EVENT_SPACE_ID,
+                        type_: CLAP_EVENT_PARAM_VALUE,
+                        flags: CLAP_EVENT_IS_LIVE,
+                    },
+                    param_id: *id,
+                    cookie: null_mut(),
+                    note_id: 0,
+                    port_index: 0,
+                    channel: 0,
+                    key: 0,
+                    value,
+                };
+
+                unsafe { (out_events.try_push.unwrap())(out_events, &clap_event as *const clap_event_param_value as _) };
+            },
+
+            _ => {},
+        }
+    }
+}
+
 impl<'a> Iterator for ParameterEventMapIterator<'a> {
     type Item = Event;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            if std::mem::take(&mut self.pending_start_change) {
-                return Some(Event::StartParameterChange { id: self.pending_parameter_id });
-            }
-            if std::mem::take(&mut self.pending_change) {
-                return Some(Event::ParameterValue {
+            let event = if std::mem::take(&mut self.pending_start_change) {
+                Some(Event::StartParameterChange { id: self.pending_parameter_id })
+            } else  if std::mem::take(&mut self.pending_change) {
+                Some(Event::ParameterValue {
                     sample_offset: 0,
                     id: self.pending_parameter_id,
                     value: self.pending_parameter_value,
                 })
-            }
-            if std::mem::take(&mut self.pending_end_change) {
-                return Some(Event::EndParameterChange { id: self.pending_parameter_id });
+            } else if std::mem::take(&mut self.pending_end_change) {
+                Some(Event::EndParameterChange { id: self.pending_parameter_id })
+            } else {
+                None
+            };
+
+            if let Some(event) = event {
+                self.send_event_to_host(&event);
+                return Some(event);
             }
 
             let Some((&id, info)) = self.event_info_iterator.next() else {

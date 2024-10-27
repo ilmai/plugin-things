@@ -1,13 +1,19 @@
-use std::{collections::BTreeMap, ffi::{c_char, c_void, CStr}, iter::zip, mem::size_of, ptr::{null, null_mut}, sync::Arc};
+use std::{collections::BTreeMap, ffi::{c_char, c_void, CStr}, iter::zip, ptr::{null, null_mut}, sync::Arc};
 
 use atomic_refcell::AtomicRefCell;
-use clap_sys::{events::{clap_event_header, clap_event_param_gesture, clap_event_param_value, clap_input_events, clap_output_events, CLAP_CORE_EVENT_SPACE_ID, CLAP_EVENT_IS_LIVE, CLAP_EVENT_PARAM_GESTURE_BEGIN, CLAP_EVENT_PARAM_GESTURE_END, CLAP_EVENT_PARAM_VALUE}, ext::{audio_ports::{clap_plugin_audio_ports, CLAP_EXT_AUDIO_PORTS}, gui::{clap_plugin_gui, CLAP_EXT_GUI}, latency::{clap_plugin_latency, CLAP_EXT_LATENCY}, note_ports::{clap_plugin_note_ports, CLAP_EXT_NOTE_PORTS}, params::{clap_host_params, clap_plugin_params, CLAP_EXT_PARAMS}, render::{clap_plugin_render, CLAP_EXT_RENDER}, state::{clap_host_state, clap_plugin_state, CLAP_EXT_STATE}, tail::{clap_host_tail, clap_plugin_tail, CLAP_EXT_TAIL}, timer_support::{clap_host_timer_support, clap_plugin_timer_support, CLAP_EXT_TIMER_SUPPORT}}, host::clap_host, plugin::clap_plugin, process::{clap_process, clap_process_status, CLAP_PROCESS_CONTINUE, CLAP_PROCESS_CONTINUE_IF_NOT_QUIET, CLAP_PROCESS_ERROR, CLAP_PROCESS_TAIL}};
+use clap_sys::{events::clap_input_events, ext::{audio_ports::{clap_plugin_audio_ports, CLAP_EXT_AUDIO_PORTS}, gui::{clap_plugin_gui, CLAP_EXT_GUI}, latency::{clap_plugin_latency, CLAP_EXT_LATENCY}, note_ports::{clap_plugin_note_ports, CLAP_EXT_NOTE_PORTS}, params::{clap_host_params, clap_plugin_params, CLAP_EXT_PARAMS}, render::{clap_plugin_render, CLAP_EXT_RENDER}, state::{clap_host_state, clap_plugin_state, CLAP_EXT_STATE}, tail::{clap_host_tail, clap_plugin_tail, CLAP_EXT_TAIL}, timer_support::{clap_host_timer_support, clap_plugin_timer_support, CLAP_EXT_TIMER_SUPPORT}}, host::clap_host, plugin::clap_plugin, process::{clap_process, clap_process_status, CLAP_PROCESS_CONTINUE, CLAP_PROCESS_CONTINUE_IF_NOT_QUIET, CLAP_PROCESS_ERROR, CLAP_PROCESS_TAIL}};
 use log::error;
 use plinth_core::signals::{ptr_signal::{PtrSignal, PtrSignalMut}, signal::SignalMut};
 
-use crate::{clap::{event::EventIterator, transport::convert_transport}, parameters::{info::ParameterInfo, parameters::{has_duplicates, Parameters}}, Event, ParameterId, ProcessMode, ProcessState, Processor, ProcessorConfig};
+use crate::{Event, ParameterId, ProcessMode, ProcessState, Processor, ProcessorConfig};
+use crate::clap::{event::EventIterator, transport::convert_transport};
+use crate::parameters::{info::ParameterInfo, parameters::{has_duplicates, Parameters}};
 
-use super::{descriptor::Descriptor, extensions::{audio_ports::AudioPorts, gui::Gui, latency::Latency, note_ports::NotePorts, params::Params, render::Render, state::State, tail::Tail, timer_support::TimerSupport}, parameters::{map_parameter_value_to_clap, ParameterEventMap}, plugin::ClapPlugin, MAX_EVENTS};
+use super::descriptor::Descriptor;
+use super::extensions::{audio_ports::AudioPorts, gui::Gui, latency::Latency, note_ports::NotePorts, params::Params, render::Render, state::State, tail::Tail, timer_support::TimerSupport};
+use super::MAX_EVENTS;
+use super::parameters::ParameterEventMap;
+use super::plugin::ClapPlugin;
 
 pub struct AudioThreadState<P: ClapPlugin> {
     pub(super) processor: Option<P::Processor>,
@@ -156,69 +162,6 @@ impl<P: ClapPlugin> PluginInstance<P> {
         }
     }
 
-    pub(super) fn send_event_to_host(&self, event: &Event, out_events: *const clap_output_events) {
-        let out_events = unsafe { &*out_events };
-
-        match event {
-            Event::StartParameterChange { id } => {
-                let clap_event = clap_event_param_gesture {
-                    header: clap_event_header {
-                        size: size_of::<clap_event_param_gesture>() as _,
-                        time: 0,
-                        space_id: CLAP_CORE_EVENT_SPACE_ID,
-                        type_: CLAP_EVENT_PARAM_GESTURE_BEGIN,
-                        flags: CLAP_EVENT_IS_LIVE,
-                    },
-                    param_id: *id,
-                };
-
-                unsafe { (out_events.try_push.unwrap())(out_events, &clap_event as *const clap_event_param_gesture as _) };
-            },
-
-            Event::EndParameterChange { id } => {
-                let clap_event = clap_event_param_gesture {
-                    header: clap_event_header {
-                        size: size_of::<clap_event_param_gesture>() as _,
-                        time: 0,
-                        space_id: CLAP_CORE_EVENT_SPACE_ID,
-                        type_: CLAP_EVENT_PARAM_GESTURE_END,
-                        flags: CLAP_EVENT_IS_LIVE,
-                    },
-                    param_id: *id,
-                };
-
-                unsafe { (out_events.try_push.unwrap())(out_events, &clap_event as *const clap_event_param_gesture as _) };                    
-            },
-
-            Event::ParameterValue { id, value, .. } => {
-                let value = self.plugin.as_ref().unwrap().with_parameters(|parameters| {
-                    let parameter = parameters.get(*id).unwrap();
-                    map_parameter_value_to_clap(parameter.info(), *value)
-                });
-
-                let clap_event = clap_event_param_value {
-                    header: clap_event_header {
-                        size: size_of::<clap_event_param_value>() as _,
-                        time: 0,
-                        space_id: CLAP_CORE_EVENT_SPACE_ID,
-                        type_: CLAP_EVENT_PARAM_VALUE,
-                        flags: CLAP_EVENT_IS_LIVE,
-                    },
-                    param_id: *id,
-                    cookie: null_mut(),
-                    note_id: 0,
-                    port_index: 0,
-                    channel: 0,
-                    key: 0,
-                    value,
-                };
-
-                unsafe { (out_events.try_push.unwrap())(out_events, &clap_event as *const clap_event_param_value as _) };
-            },
-
-            _ => {},
-        }
-    }
 
     unsafe extern "C" fn init(plugin: *const clap_plugin) -> bool {
         Self::with_plugin_instance(plugin, |instance| {
@@ -335,12 +278,7 @@ impl<P: ClapPlugin> PluginInstance<P> {
             let processor = audio_thread_state.processor.as_mut().unwrap();           
 
             // Send events from editor to host
-            let editor_events = instance.parameter_event_map.iter();
-            let editor_events: heapless::Vec<_, MAX_EVENTS> = editor_events.collect();
-
-            for event in editor_events.iter() {
-                instance.send_event_to_host(&event, process.out_events);
-            }
+            let editor_events = instance.parameter_event_map.iter_and_send_to_host(&instance.parameter_info, process.out_events);
 
             // Send a callback request so the main thread can process them
             unsafe { ((*instance.host).request_callback.unwrap())(instance.host); }
@@ -353,7 +291,7 @@ impl<P: ClapPlugin> PluginInstance<P> {
 
             // Process events coming from the host and events coming from the editor
             let host_events = EventIterator::new(&instance.parameter_info, unsafe { &*process.in_events });
-            let events = host_events.chain(editor_events.iter().cloned());
+            let events = host_events.chain(editor_events);
 
             let result = match processor.process(&mut output, aux.as_ref(), transport, events) {
                 ProcessState::Error => CLAP_PROCESS_ERROR,
