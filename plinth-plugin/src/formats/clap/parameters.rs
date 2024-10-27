@@ -2,7 +2,7 @@ use std::{collections::{btree_map, BTreeMap}, sync::atomic::{AtomicBool, Orderin
 
 use portable_atomic::AtomicF64;
 
-use crate::{parameters::info::ParameterInfo, Event, ParameterId, Parameters};
+use crate::{parameters::info::ParameterInfo, Event, ParameterId, ParameterValue, Parameters};
 
 #[derive(Default)]
 pub struct ParameterEventInfo {
@@ -35,32 +35,56 @@ impl ParameterEventMap {
 
     pub fn iter(&self) -> ParameterEventMapIterator<'_> {
         ParameterEventMapIterator {
-            event_info_iterator: self.parameter_event_info.iter()
+            event_info_iterator: self.parameter_event_info.iter(),
+
+            pending_parameter_id: Default::default(),
+            pending_parameter_value: Default::default(),
+            pending_start_change: false,
+            pending_change: false,
+            pending_end_change: false,
         }
     }
 }
 
 pub struct ParameterEventMapIterator<'a> {
     event_info_iterator: btree_map::Iter<'a, ParameterId, ParameterEventInfo>,
+
+    pending_parameter_id: ParameterId,
+    pending_parameter_value: ParameterValue,
+    pending_start_change: bool,
+    pending_change: bool,
+    pending_end_change: bool,
 }
 
 impl<'a> Iterator for ParameterEventMapIterator<'a> {
     type Item = Event;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some((&id, info)) = self.event_info_iterator.next() {
-            if !info.changed.swap(false, Ordering::AcqRel) {
-                continue;
+        loop {
+            if std::mem::take(&mut self.pending_start_change) {
+                return Some(Event::StartParameterChange { id: self.pending_parameter_id });
+            }
+            if std::mem::take(&mut self.pending_change) {
+                return Some(Event::ParameterValue {
+                    sample_offset: 0,
+                    id: self.pending_parameter_id,
+                    value: self.pending_parameter_value,
+                })
+            }
+            if std::mem::take(&mut self.pending_end_change) {
+                return Some(Event::EndParameterChange { id: self.pending_parameter_id });
             }
 
-            return Some(Event::ParameterValue {
-                sample_offset: 0,
-                id,
-                value: info.value.load(Ordering::Acquire),
-            })
-        };
+            let Some((&id, info)) = self.event_info_iterator.next() else {
+                return None;
+            };
 
-        None
+            self.pending_parameter_id = id;
+            self.pending_parameter_value = info.value.load(Ordering::Acquire);
+            self.pending_start_change = info.change_started.swap(false, Ordering::AcqRel);
+            self.pending_change = info.changed.swap(false, Ordering::AcqRel);
+            self.pending_end_change = info.change_ended.swap(false, Ordering::AcqRel);
+        }
     }
 }
 
