@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, ffi::{c_char, c_void, CStr}, iter::zip, mem::size_of, ptr::{null, null_mut}, sync::mpsc};
+use std::{collections::BTreeMap, ffi::{c_char, c_void, CStr}, iter::zip, mem::size_of, ptr::{null, null_mut}, sync::Arc};
 
 use atomic_refcell::AtomicRefCell;
 use clap_sys::{events::{clap_event_header, clap_event_param_gesture, clap_event_param_value, clap_input_events, clap_output_events, CLAP_CORE_EVENT_SPACE_ID, CLAP_EVENT_IS_LIVE, CLAP_EVENT_PARAM_GESTURE_BEGIN, CLAP_EVENT_PARAM_GESTURE_END, CLAP_EVENT_PARAM_VALUE}, ext::{audio_ports::{clap_plugin_audio_ports, CLAP_EXT_AUDIO_PORTS}, gui::{clap_plugin_gui, CLAP_EXT_GUI}, latency::{clap_plugin_latency, CLAP_EXT_LATENCY}, note_ports::{clap_plugin_note_ports, CLAP_EXT_NOTE_PORTS}, params::{clap_host_params, clap_plugin_params, CLAP_EXT_PARAMS}, render::{clap_plugin_render, CLAP_EXT_RENDER}, state::{clap_host_state, clap_plugin_state, CLAP_EXT_STATE}, tail::{clap_host_tail, clap_plugin_tail, CLAP_EXT_TAIL}, timer_support::{clap_host_timer_support, clap_plugin_timer_support, CLAP_EXT_TIMER_SUPPORT}}, host::clap_host, plugin::clap_plugin, process::{clap_process, clap_process_status, CLAP_PROCESS_CONTINUE, CLAP_PROCESS_CONTINUE_IF_NOT_QUIET, CLAP_PROCESS_ERROR, CLAP_PROCESS_TAIL}};
@@ -7,7 +7,7 @@ use plinth_core::signals::{ptr_signal::{PtrSignal, PtrSignalMut}, signal::Signal
 
 use crate::{clap::{event::EventIterator, transport::convert_transport}, parameters::{info::ParameterInfo, parameters::{has_duplicates, Parameters}}, Event, ParameterId, ProcessMode, ProcessState, Processor, ProcessorConfig};
 
-use super::{descriptor::Descriptor, extensions::{audio_ports::AudioPorts, gui::Gui, latency::Latency, note_ports::NotePorts, params::Params, render::Render, state::State, tail::Tail, timer_support::TimerSupport}, parameters::map_parameter_value_to_clap, plugin::ClapPlugin, MAX_EVENTS};
+use super::{descriptor::Descriptor, extensions::{audio_ports::AudioPorts, gui::Gui, latency::Latency, note_ports::NotePorts, params::Params, render::Render, state::State, tail::Tail, timer_support::TimerSupport}, parameters::{map_parameter_value_to_clap, ParameterEventMap}, plugin::ClapPlugin, MAX_EVENTS};
 
 pub struct AudioThreadState<P: ClapPlugin> {
     pub(super) processor: Option<P::Processor>,
@@ -36,10 +36,11 @@ pub struct PluginInstance<P: ClapPlugin> {
     sample_rate: f64,
     pub(super) timer_id: Option<u32>,
     pub(super) process_mode: ProcessMode,
+
     pub(super) to_plugin_event_sender: rtrb::Producer<Event>,
-    pub(super) from_editor_event_sender: mpsc::Sender<Event>,
     to_plugin_event_receiver: rtrb::Consumer<Event>,
-    pub(super) from_editor_event_receiver: mpsc::Receiver<Event>,
+    pub(super) parameter_event_map: Arc<ParameterEventMap>,
+
     pub(super) audio_thread_state: AtomicRefCell<AudioThreadState<P>>,
 
     // Host extensions
@@ -66,12 +67,11 @@ impl<P: ClapPlugin> PluginInstance<P> {
         assert!(plugin.with_parameters(|parameters| !has_duplicates(parameters.ids())));
 
         let (to_plugin_event_sender, to_plugin_event_receiver) = rtrb::RingBuffer::new(MAX_EVENTS);
-        let (from_editor_event_sender, from_editor_event_receiver) = mpsc::channel();
 
         let mut parameter_info = BTreeMap::new();
 
         // Store parameter info and verify parameters
-        plugin.with_parameters(|parameters| {
+        let parameter_event_map = plugin.with_parameters(|parameters| {
             assert!(
                 parameters.ids().iter()
                     .copied()
@@ -84,6 +84,8 @@ impl<P: ClapPlugin> PluginInstance<P> {
                 let info = parameters.get(id).unwrap().info();
                 parameter_info.insert(id, info.clone());
             }
+
+            Arc::new(ParameterEventMap::new(parameters))
         });
 
         Self {
@@ -111,10 +113,10 @@ impl<P: ClapPlugin> PluginInstance<P> {
             sample_rate: 0.0,
             timer_id: None,
             process_mode: Default::default(),
+
             to_plugin_event_sender,
-            from_editor_event_sender,
             to_plugin_event_receiver,
-            from_editor_event_receiver,
+            parameter_event_map,
 
             audio_thread_state: Default::default(),
 
@@ -333,7 +335,7 @@ impl<P: ClapPlugin> PluginInstance<P> {
             let processor = audio_thread_state.processor.as_mut().unwrap();           
 
             // Send events from editor to host
-            let editor_events = instance.from_editor_event_receiver.try_iter();
+            let editor_events = instance.parameter_event_map.iter();
             let editor_events: heapless::Vec<_, MAX_EVENTS> = editor_events.collect();
 
             for event in editor_events.iter() {

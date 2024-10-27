@@ -135,7 +135,7 @@ impl<P: ClapPlugin> Params<P> {
         
             let host_events = EventIterator::new(&instance.parameter_info, unsafe { &*in_events });
     
-            let editor_events = instance.from_editor_event_receiver.try_iter();
+            let editor_events = instance.parameter_event_map.iter();
             let editor_events: heapless::Vec<_, MAX_EVENTS> = editor_events.collect();
 
             // Send editor events to host

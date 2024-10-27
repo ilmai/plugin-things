@@ -130,7 +130,7 @@ impl<P: ClapPlugin> Gui<P> {
                 instance.host,
                 instance.host_ext_params,
                 instance.host_ext_state,
-                instance.from_editor_event_sender.clone()
+                instance.parameter_event_map.clone(),
             ));
 
             instance.editor = Some(instance.plugin.as_mut().unwrap().open_editor(parent, host, instance.editor_scale));
