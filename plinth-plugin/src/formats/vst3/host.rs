@@ -1,25 +1,34 @@
+use std::{cell::RefCell, rc::Rc};
+
 use vst3::{ComPtr, Steinberg::Vst::{IComponentHandler, IComponentHandler2, IComponentHandler2Trait, IComponentHandlerTrait}};
 
-use crate::{host::Host, parameters::ParameterValue, ParameterId};
+use crate::{host::Host, parameters::ParameterValue, ParameterId, Parameters, Plugin};
 
-pub struct Vst3Host {
+pub struct Vst3Host<P: Plugin> {
+    plugin: Rc<RefCell<P>>,
     handler: ComPtr<IComponentHandler>,
 }
 
-impl Vst3Host {
-    pub fn new(handler: ComPtr<IComponentHandler>) -> Self {
+impl<P: Plugin> Vst3Host<P> {
+    pub fn new(plugin: Rc<RefCell<P>>, handler: ComPtr<IComponentHandler>) -> Self {
         Self {
+            plugin,
             handler,
         }
     }
 }
 
-impl Host for Vst3Host {
+impl<P: Plugin> Host for Vst3Host<P> {
     fn start_parameter_change(&self, id: ParameterId) {
         unsafe { self.handler.beginEdit(id) };
     }
 
     fn change_parameter_value(&self, id: ParameterId, normalized: ParameterValue) {
+        self.plugin.borrow().with_parameters(|parameters| {
+            let parameter = parameters.get(id).unwrap();
+            parameter.set_normalized_value(normalized).unwrap();
+        });
+
         unsafe { self.handler.performEdit(id, normalized) };
     }
 
@@ -32,9 +41,3 @@ impl Host for Vst3Host {
         unsafe { handler2.setDirty(1) };
     }
 }
-
-// SAFETY: Technically calling IComponentHandler functions from another thread isn't up to the VST3 spec,
-//         but on Linux the UI event loop lives in a separate thread from the DAW UI thread. We could use
-//         VST3's IRunLoop to work around this, but it's not possible to use that unless a GUI is open so
-//         we can't be always correct anyway. Deal with this if it becomes a problem.
-unsafe impl Send for Vst3Host {}
