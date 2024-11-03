@@ -14,7 +14,6 @@ raw-window-handle.workspace = true
 uuid = { version = "1.4", features = ["fast-rng", "v4"] }
 
 [target.'cfg(target_os="linux")'.dependencies]
-nix = { version = "0.27", features = ["poll"] }
 sys-locale = "0.3"
 x11 = { version = "2.21", features = ["xlib_xcb"] }
 x11rb = { version = "0.13", features = ["allow-unsafe-code", "xkb"] }
@@ -27,7 +26,6 @@ objc2-app-kit = { version = "0.2", features = ["NSCursor", "NSDragging", "NSEven
 objc2-foundation = { version = "0.2", features = ["NSOperation"] }
 
 [target.'cfg(target_os="windows")'.dependencies]
-libloading = "0.8"
 windows-core = "0.58"
 
 [target.'cfg(target_os="windows")'.dependencies.windows]
