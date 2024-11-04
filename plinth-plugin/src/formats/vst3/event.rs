@@ -36,6 +36,8 @@ impl<'a> Iterator for EventIterator<'a> {
             return None;
         }
 
+        self.index += 1;
+
         match event.r#type as _ {
             Vst::Event_::EventTypes_::kNoteOnEvent => unsafe {
                 Some(Event::NoteOn {

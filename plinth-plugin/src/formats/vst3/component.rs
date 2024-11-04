@@ -219,6 +219,7 @@ impl<P: Vst3Plugin> IAudioProcessorTrait for PluginComponent<P> {
 
         let parameter_change_iterator = ParameterChangeIterator::new(data.inputParameterChanges);
         let event_iterator = EventIterator::new(data.inputEvents);
+        let all_events = event_iterator.chain(parameter_change_iterator);
 
         let mut audio_thread_state = self.audio_thread_state.borrow_mut();
         let aux_active = audio_thread_state.aux_active;
@@ -226,7 +227,7 @@ impl<P: Vst3Plugin> IAudioProcessorTrait for PluginComponent<P> {
 
         // Empty input: this is a parameter dump
         if data.inputs.is_null() || data.outputs.is_null() || data.numInputs == 0 || data.numSamples == 0 {
-            processor.process_events(event_iterator.chain(parameter_change_iterator));
+            processor.process_events(all_events);
             return kResultOk;
         }
 
@@ -262,7 +263,7 @@ impl<P: Vst3Plugin> IAudioProcessorTrait for PluginComponent<P> {
             Some(unsafe { &*data.processContext }.into())
         };
 
-        let process_state = processor.process(&mut main_output, aux_input.as_ref(), transport, parameter_change_iterator);
+        let process_state = processor.process(&mut main_output, aux_input.as_ref(), transport, all_events);
 
         let tail_length = match process_state {
             ProcessState::Error => {
@@ -339,16 +340,24 @@ impl<P: Vst3Plugin> IComponentTrait for PluginComponent<P> {
 
         bus.channelCount = match media_type as _ {
             MediaTypes_::kAudio => 2,
-            MediaTypes_::kEvent => 1,
+            MediaTypes_::kEvent => 16,
             _ => { return kInvalidArgument }
         };
 
         kResultOk
     }
 
-    unsafe fn getRoutingInfo(&self, _in_info: *mut RoutingInfo, _out_info: *mut RoutingInfo) -> tresult {
+    unsafe fn getRoutingInfo(&self, in_info: *mut RoutingInfo, out_info: *mut RoutingInfo) -> tresult {
         log::trace!("IComponent::getRoutingInfo");
-        kResultFalse
+
+        let in_info = unsafe { &*in_info };
+        let out_info = unsafe { &mut *out_info };
+        
+        out_info.mediaType = in_info.mediaType;
+        out_info.busIndex = in_info.busIndex;
+        out_info.channel = in_info.channel;
+
+        kResultOk
     }
 
     unsafe fn activateBus(&self, media_type: MediaType, dir: BusDirection, index: int32, state: TBool) -> tresult {
