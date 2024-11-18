@@ -1,9 +1,9 @@
-use std::{cell::RefCell, rc::Rc, sync::atomic::{AtomicBool, Ordering, AtomicUsize}};
+use std::{borrow::{Borrow, BorrowMut}, cell::RefCell, rc::Rc, sync::atomic::{AtomicBool, AtomicUsize, Ordering}};
 
 use cursor_icon::CursorIcon;
 use i_slint_core::{window::{WindowAdapter, WindowAdapterInternal}, renderer::Renderer, platform::{PlatformError, WindowEvent}};
 use i_slint_renderer_skia::SkiaRenderer;
-use plugin_canvas::event::EventResponse;
+use plugin_canvas::{event::EventResponse, LogicalSize};
 
 use crate::plugin_component_handle::PluginComponentHandle;
 
@@ -23,7 +23,7 @@ pub struct PluginCanvasWindowAdapter {
 
     context: RefCell<Option<Context>>,
 
-    slint_size: slint::PhysicalSize,
+    slint_size: RefCell<slint::PhysicalSize>,
 
     pending_draw: AtomicBool,
     buttons_down: AtomicUsize,
@@ -56,7 +56,7 @@ impl PluginCanvasWindowAdapter {
 
                 context: Default::default(),
 
-                slint_size,
+                slint_size: RefCell::new(slint_size),
 
                 pending_draw: AtomicBool::new(true),
                 buttons_down: Default::default(),
@@ -223,7 +223,7 @@ impl WindowAdapter for PluginCanvasWindowAdapter {
     }
 
     fn size(&self) -> slint::PhysicalSize {
-        self.slint_size
+        self.slint_size.borrow().clone()
     }
 
     fn request_redraw(&self) {
@@ -236,6 +236,25 @@ impl WindowAdapter for PluginCanvasWindowAdapter {
 
     fn internal(&self, _: i_slint_core::InternalToken) -> Option<&dyn WindowAdapterInternal> {
         Some(self)
+    }
+
+    fn set_size(&self, size: slint::WindowSize) {
+        /*self.renderer = SkiaRenderer::new(
+            self.plugin_canvas_window.clone(), 
+            self.plugin_canvas_window.clone(), 
+            size.to_physical(self.slint_window.scale_factor())).expect("this should always work");
+        */
+        *self.slint_size.borrow_mut() = size.to_physical(self.slint_window.scale_factor());
+
+        self.window().dispatch_event(
+            WindowEvent::Resized { size: size.to_logical(self.slint_window.scale_factor()) }
+        );
+
+        let size = size.to_logical(self.slint_window.scale_factor());
+        self.plugin_canvas_window.set_size(LogicalSize {
+            width: size.width as f64,
+            height: size.height as f64,
+        });
     }
 }
 
