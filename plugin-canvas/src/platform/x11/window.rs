@@ -2,7 +2,7 @@ use std::{cell::RefCell, ffi::OsStr, ptr::NonNull};
 
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle, RawDisplayHandle, RawWindowHandle, XlibDisplayHandle, XlibWindowHandle};
 use sys_locale::get_locales;
-use x11rb::{connection::Connection, protocol::xproto::{ConnectionExt, CreateWindowAux, EventMask, GrabMode, WindowClass}, xcb_ffi::XCBConnection, COPY_DEPTH_FROM_PARENT, COPY_FROM_PARENT};
+use x11rb::{connection::Connection, protocol::xproto::{ConfigureWindowAux, ConnectionExt, CreateWindowAux, EventMask, GrabMode, WindowClass}, xcb_ffi::XCBConnection, COPY_DEPTH_FROM_PARENT, COPY_FROM_PARENT};
 use xkbcommon::xkb;
 
 use crate::{dimensions::Size, error::Error, event::{EventCallback, EventResponse}, platform::interface::{OsWindowHandle, OsWindowInterface}, window::WindowAttributes, Event, MouseButton, PhysicalPosition};
@@ -272,6 +272,14 @@ impl OsWindowInterface for OsWindow {
         }
 
         Ok(())
+    }
+
+    fn set_size(&self, size: crate::LogicalSize) {
+        let size = Size::with_logical_size(size, self.window_attributes.scale);
+        let values = ConfigureWindowAux::default()
+            .width(size.physical_size().width)
+            .height(size.physical_size().height);
+        let _ = self.connection.configure_window(self.window_handle.window as u32, &values);
     }
 }
 
