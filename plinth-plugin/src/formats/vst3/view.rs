@@ -138,7 +138,12 @@ impl<P: Vst3Plugin + 'static> IPlugViewTrait for View<P> {
 
     unsafe fn onSize(&self, _new_size: *mut ViewRect) -> tresult {
         let mut editor = self.ui_thread_state.editor.borrow_mut();
-        let editor = editor.as_mut().expect("editor is None");
+
+        // Some hosts, like REAPER, may call onSize before attached. 
+        let editor = match editor.as_mut() {
+            Some(editor) => editor,
+            None => return kResultFalse,
+        };
 
         let size = (
             (*_new_size).right as f64 - (*_new_size).left as f64,
