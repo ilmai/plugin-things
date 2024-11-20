@@ -1,5 +1,2 @@
 [alias]
 xtask = "run --package xtask --release --"
-
-[env]
-VST3_SDK_DIR = { value = "../forge/vst3sdk", relative = true }

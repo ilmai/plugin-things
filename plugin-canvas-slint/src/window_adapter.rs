@@ -239,11 +239,6 @@ impl WindowAdapter for PluginCanvasWindowAdapter {
     }
 
     fn set_size(&self, size: slint::WindowSize) {
-        /*self.renderer = SkiaRenderer::new(
-            self.plugin_canvas_window.clone(), 
-            self.plugin_canvas_window.clone(), 
-            size.to_physical(self.slint_window.scale_factor())).expect("this should always work");
-        */
         *self.slint_size.borrow_mut() = size.to_physical(self.slint_window.scale_factor());
 
         self.window().dispatch_event(
