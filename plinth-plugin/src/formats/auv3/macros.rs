@@ -26,7 +26,7 @@ macro_rules! export_auv3 {
         unsafe extern "C-unwind" fn plinth_auv3_activate(wrapper: *mut ::std::ffi::c_void, sample_rate: f64, max_block_size: u64) {
             log::trace!("plinth_auv3_activate() from thread {:?}", std::thread::current().id());
 
-            let processor_config = ProcessorConfig {
+            let processor_config = ::plinth_plugin::ProcessorConfig {
                 sample_rate,
                 min_block_size: 0,
                 max_block_size: max_block_size as _,
@@ -399,7 +399,7 @@ macro_rules! export_auv3 {
                 let raw_window_handle = ::plinth_plugin::raw_window_handle::AppKitWindowHandle::new(
                     std::ptr::NonNull::new(parent as _).unwrap()
                 );
-                let parent_window_handle = RawWindowHandle::AppKit(raw_window_handle);
+                let parent_window_handle = ::plinth_plugin::raw_window_handle::RawWindowHandle::AppKit(raw_window_handle);
 
                 let host = ::plinth_plugin::auv3::Auv3Host::new(
                     context,
