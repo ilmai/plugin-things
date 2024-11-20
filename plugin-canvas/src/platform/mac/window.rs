@@ -208,6 +208,18 @@ impl OsWindowInterface for OsWindow {
     fn poll_events(&self) -> Result<(), Error> {
         Ok(())
     }
+    
+    fn set_size(&self, size: crate::LogicalSize) {
+        let physical_size = crate::PhysicalSize::from_logical(&size, self.window_attributes.scale);
+        let view_rect = CGRect::new(
+            CGPoint { x: 0.0, y: 0.0 },
+            CGSize { width: physical_size.width as f64, height: physical_size.height as f64 },
+        );
+
+        unsafe {
+            self.view().setFrame(view_rect);
+        }
+    }
 }
 
 impl Drop for OsWindow {

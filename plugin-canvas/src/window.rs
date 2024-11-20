@@ -81,6 +81,10 @@ impl Window {
     pub fn warp_mouse(&self, position: LogicalPosition) {
         self.os_window_handle.window().warp_mouse(position);
     }
+
+    pub fn set_size(&self, size: LogicalSize) {
+        self.os_window_handle.window().set_size(size);
+    }
 }
 
 impl HasWindowHandle for Window {

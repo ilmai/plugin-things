@@ -124,19 +124,52 @@ impl<P: Vst3Plugin + 'static> IPlugViewTrait for View<P> {
         }
 
         let context = self.context.borrow();
-        let editor_size = P::Editor::SIZE;
         let scale_factor = context.scale_factor as f64;
 
-        let size = unsafe { &mut *size };
-        size.left = 0;
-        size.top = 0;
-        size.right = (editor_size.0 * scale_factor) as i32;
-        size.bottom = (editor_size.1 * scale_factor) as i32;
+        let mut editor = self.ui_thread_state.editor.borrow_mut();
+
+        if let (true, Some(editor)) = (P::Editor::IS_RESIZABLE, editor.as_mut()) {
+            let editor_size = editor.window_size();
+            let size = unsafe { &mut *size };
+            size.left = 0;
+            size.top = 0;
+            size.right = (editor_size.0 * scale_factor) as i32;
+            size.bottom = (editor_size.1 * scale_factor) as i32;
+        } else {
+            // TODO: maybe cache last onSize value and return it here to restore size after window was removed
+
+            let editor_size = P::Editor::SIZE;
+            let size = unsafe { &mut *size };
+            size.left = 0;
+            size.top = 0;
+            size.right = (editor_size.0 * scale_factor) as i32;
+            size.bottom = (editor_size.1 * scale_factor) as i32;
+        }
 
         kResultOk
     }
 
     unsafe fn onSize(&self, _new_size: *mut ViewRect) -> tresult {
+        let mut editor = self.ui_thread_state.editor.borrow_mut();
+
+        // Some hosts, like REAPER, may call onSize before attached. 
+        let editor = match editor.as_mut() {
+            Some(editor) => editor,
+            None => return kResultFalse,
+        };
+
+        let size = (
+            (*_new_size).right as f64 - (*_new_size).left as f64,
+            (*_new_size).bottom as f64 - (*_new_size).top as f64,
+        );
+
+        // size must be minimum 1x1
+        if size.0 < 1.0 || size.1 < 1.0 {
+            return kInvalidArgument;
+        }
+
+        editor.set_window_size(size.0, size.1);
+
         kResultOk
     }
 
@@ -172,10 +205,36 @@ impl<P: Vst3Plugin + 'static> IPlugViewTrait for View<P> {
     }
 
     unsafe fn canResize(&self) -> tresult {
-        kResultOk
+        match P::Editor::IS_RESIZABLE {
+            true => kResultOk,
+            false => kResultFalse,
+        }
     }
 
     unsafe fn checkSizeConstraint(&self, _rect: *mut ViewRect) -> tresult {
+        let size = (
+            (*_rect).right as f64 - (*_rect).left as f64,
+            (*_rect).bottom as f64 - (*_rect).top as f64,
+        );
+
+        if !P::Editor::IS_RESIZABLE {
+            if size != P::Editor::SIZE {
+                let context = self.context.borrow();
+                let scale_factor = context.scale_factor as f64;
+        
+                let size = unsafe { &mut *_rect };
+                size.left = 0;
+                size.top = 0;
+                size.right = (P::Editor::SIZE.0 * scale_factor) as i32;
+                size.bottom = (P::Editor::SIZE.1 * scale_factor) as i32;
+            }
+        } else {
+            // size must be minimum 1x1
+            if size.0 < 1.0 || size.1 < 1.0 {
+                return kInvalidArgument;
+            }
+        }
+
         kResultOk
     }
 }

@@ -98,29 +98,63 @@ impl<P: ClapPlugin> Gui<P> {
 
     unsafe extern "C" fn get_size(plugin: *const clap_plugin, width: *mut u32, height: *mut u32) -> bool {
         PluginInstance::with_plugin_instance(plugin, |instance: &mut PluginInstance<P>| {
-            let editor_size = P::Editor::SIZE;
+            let size = match instance.editor {
+                Some(ref editor) => editor.window_size(),
+                None => P::Editor::SIZE,
+            };
 
-            (*width) = (editor_size.0 * instance.editor_scale) as u32;
-            (*height) = (editor_size.1 * instance.editor_scale) as u32;
+            (*width) = (size.0 * instance.editor_scale) as u32;
+            (*height) = (size.1 * instance.editor_scale) as u32;    
         });
 
         true
     }
 
     unsafe extern "C" fn can_resize(_plugin: *const clap_plugin) -> bool {
-        false
+        P::Editor::IS_RESIZABLE
     }
     
     unsafe extern "C" fn get_resize_hints(_plugin: *const clap_plugin, _hints: *mut clap_gui_resize_hints) -> bool {
-        false
+        (*_hints) = match P::Editor::IS_RESIZABLE {
+            false => clap_gui_resize_hints {
+                can_resize_horizontally: false,
+                can_resize_vertically: false,
+                preserve_aspect_ratio: false,
+                aspect_ratio_width: 0,
+                aspect_ratio_height: 0,
+            },
+            true => clap_gui_resize_hints {
+                can_resize_horizontally: true,
+                can_resize_vertically: true,
+                preserve_aspect_ratio: false,
+                aspect_ratio_width: 0,
+                aspect_ratio_height: 0,
+            },
+        };
+
+        true
     }
 
-    unsafe extern "C" fn adjust_size(_plugin: *const clap_plugin, _width: *mut u32, _height: *mut u32) -> bool {
-        false
+    unsafe extern "C" fn adjust_size(plugin: *const clap_plugin, _width: *mut u32, _height: *mut u32) -> bool {
+        // Just return true for any size for now. Aspect ratio or other resizing hints are not supported.
+        PluginInstance::with_plugin_instance(plugin, |instance: &mut PluginInstance<P>| {
+            instance.editor.is_some() && P::Editor::IS_RESIZABLE
+        })
+
     }
 
-    unsafe extern "C" fn set_size(_plugin: *const clap_plugin, _width: u32, _height: u32) -> bool {
-        false
+    unsafe extern "C" fn set_size(plugin: *const clap_plugin, width: u32, height: u32) -> bool {
+        if !P::Editor::IS_RESIZABLE {
+            return false;
+        }
+
+        PluginInstance::with_plugin_instance(plugin, |instance: &mut PluginInstance<P>| {
+            if let Some(ref mut editor) = instance.editor {
+                editor.set_window_size(width as f64, height as f64);
+                return true;
+            }
+            false
+        })
     }
 
     unsafe extern "C" fn set_parent(plugin: *const clap_plugin, window: *const clap_window) -> bool {
