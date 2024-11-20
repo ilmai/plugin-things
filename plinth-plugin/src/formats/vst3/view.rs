@@ -1,8 +1,8 @@
-use std::{cell::RefCell, f32::consts::E, ffi::{c_void, CStr}, rc::Rc};
+use std::{cell::RefCell, ffi::{c_void, CStr}, rc::Rc};
 
 use vst3::{ComPtr, ComRef, Steinberg::{char16, int16, kInvalidArgument, kResultFalse, kResultOk, tresult, FIDString, IPlugFrame, IPlugView, IPlugViewContentScaleSupport, IPlugViewContentScaleSupportTrait, IPlugViewContentScaleSupport_::ScaleFactor, IPlugViewTrait, TBool, ViewRect}};
 
-use crate::editor::{self, Editor};
+use crate::editor::Editor;
 
 use super::{component::UiThreadState, host::Vst3Host, Vst3Plugin};
 

@@ -1,4 +1,4 @@
-use std::{borrow::{Borrow, BorrowMut}, cell::RefCell, rc::Rc, sync::atomic::{AtomicBool, AtomicUsize, Ordering}};
+use std::{cell::RefCell, rc::Rc, sync::atomic::{AtomicBool, AtomicUsize, Ordering}};
 
 use cursor_icon::CursorIcon;
 use i_slint_core::{window::{WindowAdapter, WindowAdapterInternal}, renderer::Renderer, platform::{PlatformError, WindowEvent}};
