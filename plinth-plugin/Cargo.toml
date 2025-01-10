@@ -10,7 +10,7 @@ license = "MIT"
 
 [dependencies]
 atomic_refcell = "0.1"
-clap-sys = "0.4"
+clap-sys = "0.5"
 log = "0.4"
 num-derive = "0.4"
 num-traits.workspace = true

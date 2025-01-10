@@ -664,9 +664,9 @@ dependencies = [
 
 [[package]]
 name = "clap-sys"
-version = "0.4.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61b04354981cd059bf376007c9361ded38b15de87972e634670799685b042197"
+checksum = "a76abbdb2907f6fd97fb6bc0b7be96b77d328f2dd9669d1075cc03369ed22154"
 
 [[package]]
 name = "clipboard-win"

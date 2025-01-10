@@ -254,14 +254,14 @@ impl<P: ClapPlugin> PluginInstance<P> {
         let output_buffer = output_buffers[0];
         assert_eq!(output_buffer.channel_count, 2);
 
-        let input = PtrSignal::from_pointers(input_buffer.channel_count as usize, process.frames_count as usize, input_buffer.data32);
-        let mut output = PtrSignalMut::from_pointers(output_buffer.channel_count as usize, process.frames_count as usize, output_buffer.data32 as _);
+        let input = PtrSignal::from_pointers(input_buffer.channel_count as usize, process.frames_count as usize, input_buffer.data32 as _);
+        let mut output = PtrSignalMut::from_pointers(output_buffer.channel_count as usize, process.frames_count as usize, output_buffer.data32);
 
         let aux = if P::HAS_AUX_INPUT {
             let aux_buffer = input_buffers[1];
             assert_eq!(aux_buffer.channel_count, 2);
 
-            Some(PtrSignal::from_pointers(aux_buffer.channel_count as usize, process.frames_count as usize, aux_buffer.data32))
+            Some(PtrSignal::from_pointers(aux_buffer.channel_count as usize, process.frames_count as usize, aux_buffer.data32 as _))
         } else {
             None
         };
