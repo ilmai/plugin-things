@@ -2,9 +2,19 @@
 pub(crate) const FRAME_TIMER_MILLISECONDS: u64 = 16;
 
 pub trait Editor {
-    const SIZE: (f64, f64);
+    /// Returns current window size
+    fn window_size(&self) -> (f64, f64);
+    
+    /// Called by the host to see if a window size is supported
+    /// Return Some with a supported size if resizing based on the incoming size is supported
+    /// Otherwise, return None
+    fn check_window_size(&self, _size: (f64, f64)) -> Option<(f64, f64)> {
+        None
+    }
 
-    fn set_window_size(&mut self, width: f64, height: f64);
+    /// Set new window size; should only be called when window is created and after a previous call to check_window_size()
+    fn set_window_size(&mut self, _width: f64, _height: f64) {}
+
     fn set_scale(&mut self, scale: f64);
     fn on_frame(&mut self);
 }
@@ -12,9 +22,10 @@ pub trait Editor {
 pub struct NoEditor;
 
 impl Editor for NoEditor {
-    const SIZE: (f64, f64) = (0.0, 0.0);
-    
-    fn set_window_size(&mut self, _width: f64, _height: f64) {}
+    fn window_size(&self) -> (f64, f64) {
+        (0.0, 0.0)
+    }
+
     fn set_scale(&mut self, _scale: f64) {}
     fn on_frame(&mut self) {}    
 }

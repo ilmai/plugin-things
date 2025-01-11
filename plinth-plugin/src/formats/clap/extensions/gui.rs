@@ -2,7 +2,7 @@ use std::{ffi::{c_char, CStr}, marker::PhantomData, rc::Rc};
 
 use clap_sys::{ext::gui::{clap_gui_resize_hints, clap_plugin_gui, clap_window}, plugin::clap_plugin};
 
-use crate::{clap::{host::ClapHost, plugin_instance::PluginInstance, ClapPlugin}, editor::Editor};
+use crate::{clap::{host::ClapHost, plugin_instance::PluginInstance, ClapPlugin}, Editor};
 
 #[repr(transparent)]
 pub struct Gui<P: ClapPlugin> {
@@ -98,10 +98,15 @@ impl<P: ClapPlugin> Gui<P> {
 
     unsafe extern "C" fn get_size(plugin: *const clap_plugin, width: *mut u32, height: *mut u32) -> bool {
         PluginInstance::with_plugin_instance(plugin, |instance: &mut PluginInstance<P>| {
-            let editor_size = P::Editor::SIZE;
+            let Some(editor) = instance.editor.as_ref() else {
+                return false;
+            };
 
+            let editor_size = editor.window_size();
             (*width) = (editor_size.0 * instance.editor_scale) as u32;
             (*height) = (editor_size.1 * instance.editor_scale) as u32;
+
+            true
         });
 
         true

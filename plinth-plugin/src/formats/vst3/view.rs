@@ -2,7 +2,7 @@ use std::{cell::RefCell, ffi::{c_void, CStr}, rc::Rc};
 
 use vst3::{ComPtr, ComRef, Steinberg::{char16, int16, kInvalidArgument, kResultFalse, kResultOk, tresult, FIDString, IPlugFrame, IPlugView, IPlugViewContentScaleSupport, IPlugViewContentScaleSupportTrait, IPlugViewContentScaleSupport_::ScaleFactor, IPlugViewTrait, TBool, ViewRect}};
 
-use crate::editor::Editor;
+use crate::Editor;
 
 use super::{component::UiThreadState, host::Vst3Host, Vst3Plugin};
 
@@ -45,6 +45,7 @@ impl<P: Vst3Plugin> vst3::Class for View<P> {
     type Interfaces = (IPlugView, IPlugViewContentScaleSupport);
 }
 
+#[allow(non_snake_case)]
 impl<P: Vst3Plugin + 'static> IPlugViewTrait for View<P> {
     unsafe fn isPlatformTypeSupported(&self, platform_type: FIDString) -> tresult {
         let platform_type = CStr::from_ptr(platform_type);
@@ -124,7 +125,12 @@ impl<P: Vst3Plugin + 'static> IPlugViewTrait for View<P> {
         }
 
         let context = self.context.borrow();
-        let editor_size = P::Editor::SIZE;
+        let editor = self.ui_thread_state.editor.borrow();
+        let Some(editor) = editor.as_ref() else {
+            return kResultFalse;
+        };
+
+        let editor_size = editor.window_size();
         let scale_factor = context.scale_factor as f64;
 
         let size = unsafe { &mut *size };
@@ -180,6 +186,7 @@ impl<P: Vst3Plugin + 'static> IPlugViewTrait for View<P> {
     }
 }
 
+#[allow(non_snake_case)]
 impl<P: Vst3Plugin + 'static> IPlugViewContentScaleSupportTrait for View<P> {
     #[allow(unused_variables)]
     unsafe fn setContentScaleFactor(&self, factor: ScaleFactor) -> tresult {
