@@ -126,11 +126,11 @@ impl<P: Vst3Plugin + 'static> IPlugViewTrait for View<P> {
 
         let context = self.context.borrow();
         let editor = self.ui_thread_state.editor.borrow();
-        let Some(editor) = editor.as_ref() else {
-            return kResultFalse;
-        };
 
-        let editor_size = editor.window_size();
+        let editor_size = editor.as_ref()
+            .map(|editor| editor.window_size())
+            .unwrap_or(P::Editor::DEFAULT_SIZE);
+
         let scale_factor = context.scale_factor as f64;
 
         let size = unsafe { &mut *size };
@@ -142,7 +142,28 @@ impl<P: Vst3Plugin + 'static> IPlugViewTrait for View<P> {
         kResultOk
     }
 
-    unsafe fn onSize(&self, _new_size: *mut ViewRect) -> tresult {
+    unsafe fn onSize(&self, new_size: *mut ViewRect) -> tresult {
+        if new_size.is_null() {
+            return kInvalidArgument;
+        }
+
+        let new_size = &mut *new_size;
+        let mut editor = self.ui_thread_state.editor.borrow_mut();
+        let Some(editor) = editor.as_mut() else {
+            return kResultFalse;
+        };
+
+        let left = new_size.left;
+        let right = new_size.right;
+        let top = new_size.top;
+        let bottom = new_size.bottom;
+
+        if left > right || top > bottom {
+            return kResultFalse;
+        }
+
+        editor.set_window_size((right - left) as _, (bottom - top) as _);
+
         kResultOk
     }
 
@@ -181,7 +202,32 @@ impl<P: Vst3Plugin + 'static> IPlugViewTrait for View<P> {
         kResultOk
     }
 
-    unsafe fn checkSizeConstraint(&self, _rect: *mut ViewRect) -> tresult {
+    unsafe fn checkSizeConstraint(&self, rect: *mut ViewRect) -> tresult {
+        if rect.is_null() {
+            return kInvalidArgument;
+        }
+
+        let rect = &mut *rect;
+        let editor = self.ui_thread_state.editor.borrow();
+        let Some(editor) = editor.as_ref() else {
+            return kResultFalse;
+        };
+
+        let left = rect.left;
+        let right = rect.right;
+        let top = rect.top;
+        let bottom = rect.bottom;
+
+        if left > right || top > bottom {
+            return kResultFalse;
+        }
+
+        let supported_size = editor.check_window_size(((right - left) as _, (bottom - top) as _))
+            .unwrap_or(P::Editor::DEFAULT_SIZE);
+
+        rect.right = supported_size.0 as i32 - left;
+        rect.bottom = supported_size.1 as i32 - top;
+
         kResultOk
     }
 }

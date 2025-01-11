@@ -113,19 +113,41 @@ impl<P: ClapPlugin> Gui<P> {
     }
 
     unsafe extern "C" fn can_resize(_plugin: *const clap_plugin) -> bool {
-        false
+        P::Editor::CAN_RESIZE
     }
     
     unsafe extern "C" fn get_resize_hints(_plugin: *const clap_plugin, _hints: *mut clap_gui_resize_hints) -> bool {
         false
     }
 
-    unsafe extern "C" fn adjust_size(_plugin: *const clap_plugin, _width: *mut u32, _height: *mut u32) -> bool {
-        false
+    unsafe extern "C" fn adjust_size(plugin: *const clap_plugin, width: *mut u32, height: *mut u32) -> bool {
+        PluginInstance::with_plugin_instance(plugin, |instance: &mut PluginInstance<P>| {
+            let Some(editor) = instance.editor.as_ref() else {
+                return false;
+            };
+
+            let requested_size = (*width as _, *height as _);
+            let Some(new_size) = editor.check_window_size(requested_size) else {
+                return false;
+            };
+
+            *width = new_size.0 as _;
+            *height = new_size.1 as _;
+
+            true
+        })
     }
 
-    unsafe extern "C" fn set_size(_plugin: *const clap_plugin, _width: u32, _height: u32) -> bool {
-        false
+    unsafe extern "C" fn set_size(plugin: *const clap_plugin, width: u32, height: u32) -> bool {
+        PluginInstance::with_plugin_instance(plugin, |instance: &mut PluginInstance<P>| {
+            let Some(editor) = instance.editor.as_mut() else {
+                return false;
+            };
+
+            editor.set_window_size(width as _, height as _);
+
+            true
+        })
     }
 
     unsafe extern "C" fn set_parent(plugin: *const clap_plugin, window: *const clap_window) -> bool {
