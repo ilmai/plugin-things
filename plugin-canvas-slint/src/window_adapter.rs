@@ -3,7 +3,7 @@ use std::{cell::RefCell, rc::Rc, sync::atomic::{AtomicBool, Ordering, AtomicUsiz
 use cursor_icon::CursorIcon;
 use i_slint_core::{window::{WindowAdapter, WindowAdapterInternal}, renderer::Renderer, platform::{PlatformError, WindowEvent}};
 use i_slint_renderer_skia::SkiaRenderer;
-use plugin_canvas::event::EventResponse;
+use plugin_canvas::{event::EventResponse, LogicalSize};
 
 use crate::plugin_component_handle::PluginComponentHandle;
 
@@ -23,7 +23,8 @@ pub struct PluginCanvasWindowAdapter {
 
     context: RefCell<Option<Context>>,
 
-    slint_size: slint::PhysicalSize,
+    slint_size: RefCell<slint::PhysicalSize>,
+    scale: RefCell<f64>,
 
     pending_draw: AtomicBool,
     buttons_down: AtomicUsize,
@@ -36,8 +37,9 @@ impl PluginCanvasWindowAdapter {
         
         let window_attributes = plugin_canvas_window.attributes();
 
-        let scale = window_attributes.scale() * plugin_canvas_window.os_scale();
-        let plugin_canvas_size = window_attributes.size() * scale;
+        let scale = window_attributes.scale();
+        let combined_scale = scale * plugin_canvas_window.os_scale();
+        let plugin_canvas_size = window_attributes.size() * combined_scale;
 
         let slint_size = slint::PhysicalSize {
             width: plugin_canvas_size.width as u32,
@@ -56,7 +58,8 @@ impl PluginCanvasWindowAdapter {
 
                 context: Default::default(),
 
-                slint_size,
+                slint_size: slint_size.into(),
+                scale: scale.into(),
 
                 pending_draw: AtomicBool::new(true),
                 buttons_down: Default::default(),
@@ -65,7 +68,7 @@ impl PluginCanvasWindowAdapter {
         });
 
         self_rc.slint_window.dispatch_event(
-            WindowEvent::ScaleFactorChanged { scale_factor: scale as f32 }
+            WindowEvent::ScaleFactorChanged { scale_factor: combined_scale as f32 }
         );
 
         WINDOW_ADAPTER_FROM_SLINT.set(Some(self_rc.clone()));
@@ -83,10 +86,11 @@ impl PluginCanvasWindowAdapter {
     }
 
     pub fn set_scale(&self, scale: f64) {
-        let scale = scale * self.plugin_canvas_window.os_scale();
+        let combined_scale = scale * self.plugin_canvas_window.os_scale();
+        *self.scale.borrow_mut() = scale;
         
         self.slint_window.dispatch_event(
-            WindowEvent::ScaleFactorChanged { scale_factor: scale as f32 }
+            WindowEvent::ScaleFactorChanged { scale_factor: combined_scale as f32 }
         );
     }
 
@@ -210,9 +214,11 @@ impl PluginCanvasWindowAdapter {
     }
 
     fn convert_logical_position(&self, position: &plugin_canvas::LogicalPosition) -> slint::LogicalPosition {
+        let scale = *self.scale.borrow() as f32;
+
         slint::LogicalPosition {
-            x: position.x as f32,
-            y: position.y as f32,
+            x: position.x as f32 / scale,
+            y: position.y as f32 / scale,
         }
     }
 }
@@ -223,7 +229,15 @@ impl WindowAdapter for PluginCanvasWindowAdapter {
     }
 
     fn size(&self) -> slint::PhysicalSize {
-        self.slint_size
+        *self.slint_size.borrow()
+    }
+
+    fn set_size(&self, size: slint::WindowSize) {
+        let physical_size = size.to_physical(self.plugin_canvas_window.os_scale() as _);
+        let logical_size = size.to_logical(self.plugin_canvas_window.os_scale() as _);
+
+        *self.slint_size.borrow_mut() = physical_size;
+        self.plugin_canvas_window.resized(LogicalSize::new(logical_size.width as _, logical_size.height as _));
     }
 
     fn request_redraw(&self) {

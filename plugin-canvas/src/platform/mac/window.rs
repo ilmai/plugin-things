@@ -15,8 +15,6 @@ use super::view::OsWindowView;
 pub struct OsWindow {
     view_class: &'static AnyClass,
 
-    window_attributes: WindowAttributes,
-
     window_handle: AppKitWindowHandle,
     display_link: RefCell<Option<CVDisplayLinkRef>>,
     event_callback: Box<EventCallback>,
@@ -27,10 +25,6 @@ pub struct OsWindow {
 }
 
 impl OsWindow {
-    pub(super) fn window_attributes(&self) -> &WindowAttributes {
-        &self.window_attributes
-    }
-
     unsafe fn from_ptr<'a>(ptr: *mut c_void) -> &'a mut Self {
         assert!(!ptr.is_null());
         let window_ptr = ptr as *mut OsWindow;
@@ -100,8 +94,6 @@ impl OsWindowInterface for OsWindow {
         let window = Rc::new(Self {
             view_class,
 
-            window_attributes,
-
             window_handle,
             display_link: Default::default(),
             event_callback,
@@ -137,6 +129,15 @@ impl OsWindowInterface for OsWindow {
             .window()
             .map(|window| window.backingScaleFactor())
             .unwrap_or(1.0)
+    }
+
+    fn resized(&self, size: crate::LogicalSize) {
+        let cg_size = CGSize {
+            width: (size.width * self.os_scale()) as _,
+            height: (size.height * self.os_scale()) as _,
+        };
+
+        unsafe { self.view().setFrameSize(cg_size) };
     }
 
     fn set_cursor(&self, cursor: Option<CursorIcon>) {

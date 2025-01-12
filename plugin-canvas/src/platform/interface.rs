@@ -3,7 +3,7 @@ use std::rc::Rc;
 use cursor_icon::CursorIcon;
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle, RawWindowHandle};
 
-use crate::{error::Error, window::WindowAttributes, event::EventCallback, LogicalPosition};
+use crate::{error::Error, event::EventCallback, window::WindowAttributes, LogicalPosition, LogicalSize};
 
 use super::window::OsWindow;
 
@@ -15,6 +15,8 @@ pub(crate) trait OsWindowInterface: HasDisplayHandle + HasWindowHandle + Sized {
     ) -> Result<OsWindowHandle, Error>;
 
     fn os_scale(&self) -> f64;
+
+    fn resized(&self, size: LogicalSize);
 
     fn set_cursor(&self, cursor: Option<CursorIcon>);
     fn set_input_focus(&self, focus: bool);

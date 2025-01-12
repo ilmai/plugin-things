@@ -218,14 +218,10 @@ impl OsWindowView {
 
     fn window_point_to_position(&self, point_in_window: CGPoint) -> LogicalPosition {
         let local_position = self.convertPoint_fromView(point_in_window, None);
-        let scale = match self.with_os_window(|os_window| os_window.window_attributes().scale) {
-            Some(scale) => scale,
-            None => 1.0,
-        };
 
         LogicalPosition {
-            x: local_position.x / scale,
-            y: local_position.y / scale,
+            x: local_position.x,
+            y: local_position.y,
         }
     }
 
