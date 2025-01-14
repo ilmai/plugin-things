@@ -133,8 +133,8 @@ impl OsWindowInterface for OsWindow {
 
     fn resized(&self, size: crate::LogicalSize) {
         let cg_size = CGSize {
-            width: (size.width * self.os_scale()) as _,
-            height: (size.height * self.os_scale()) as _,
+            width: size.width as _,
+            height: size.height as _,
         };
 
         unsafe { self.view().setFrameSize(cg_size) };

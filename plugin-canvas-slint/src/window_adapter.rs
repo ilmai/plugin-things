@@ -23,7 +23,7 @@ pub struct PluginCanvasWindowAdapter {
 
     context: RefCell<Option<Context>>,
 
-    slint_size: RefCell<slint::PhysicalSize>,
+    physical_size: RefCell<slint::PhysicalSize>,
     scale: RefCell<f64>,
 
     pending_draw: AtomicBool,
@@ -58,7 +58,7 @@ impl PluginCanvasWindowAdapter {
 
                 context: Default::default(),
 
-                slint_size: slint_size.into(),
+                physical_size: slint_size.into(),
                 scale: scale.into(),
 
                 pending_draw: AtomicBool::new(true),
@@ -86,8 +86,9 @@ impl PluginCanvasWindowAdapter {
     }
 
     pub fn set_scale(&self, scale: f64) {
-        let combined_scale = scale * self.plugin_canvas_window.os_scale();
         *self.scale.borrow_mut() = scale;
+
+        let combined_scale = scale * self.plugin_canvas_window.os_scale();
         
         self.slint_window.dispatch_event(
             WindowEvent::ScaleFactorChanged { scale_factor: combined_scale as f32 }
@@ -229,15 +230,26 @@ impl WindowAdapter for PluginCanvasWindowAdapter {
     }
 
     fn size(&self) -> slint::PhysicalSize {
-        *self.slint_size.borrow()
+        *self.physical_size.borrow()
     }
 
     fn set_size(&self, size: slint::WindowSize) {
-        let physical_size = size.to_physical(self.plugin_canvas_window.os_scale() as _);
-        let logical_size = size.to_logical(self.plugin_canvas_window.os_scale() as _);
+        let scale = *self.scale.borrow();
+        let os_scale = self.plugin_canvas_window.os_scale();
 
-        *self.slint_size.borrow_mut() = physical_size;
+        let physical_size = size.to_physical(os_scale as _);
+        let logical_size = size.to_logical(os_scale as _);
+
+        *self.physical_size.borrow_mut() = physical_size;
         self.plugin_canvas_window.resized(LogicalSize::new(logical_size.width as _, logical_size.height as _));
+
+        let mut logical_size = size.to_logical(os_scale as _);
+        logical_size.width /= scale as f32;
+        logical_size.height /= scale as f32;
+
+        self.slint_window.dispatch_event(
+            WindowEvent::Resized { size: logical_size },
+        );
     }
 
     fn request_redraw(&self) {
