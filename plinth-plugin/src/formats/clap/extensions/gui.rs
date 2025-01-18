@@ -160,7 +160,7 @@ impl<P: ClapPlugin> Gui<P> {
                 instance.parameter_event_map.clone(),
             ));
 
-            instance.editor = Some(instance.plugin.as_mut().unwrap().open_editor(parent, host, instance.editor_scale));
+            instance.editor = Some(instance.plugin.as_mut().unwrap().open_editor(parent, host));
 
             #[cfg(target_os="linux")]
             if !instance.host_ext_timer_support.is_null() {

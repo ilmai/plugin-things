@@ -14,6 +14,7 @@ use windows::Win32::System::Ole::{IDropTarget, IDropTarget_Impl, DROPEFFECT, CF_
 use windows::Win32::UI::WindowsAndMessaging::HWND_DESKTOP;
 
 use crate::event::EventResponse;
+use crate::platform::interface::OsWindowInterface;
 use crate::{LogicalPosition, PhysicalPosition};
 use crate::drag_drop::{DropData, DropOperation};
 use super::window::OsWindow;
@@ -89,7 +90,7 @@ impl DropTarget {
     }
 
     fn convert_coordinates(&self, point: &POINTL) -> LogicalPosition {
-        let scale: f64 = self.window.window_attributes().scale.into();
+        let scale = self.window.os_scale();
 
         // It looks like MapWindowPoints isn't DPI aware (and neither is ScreenToClient),
         // so we need to pre-scale the point here?

@@ -3,15 +3,13 @@ use std::{cell::RefCell, collections::HashMap, ffi::OsString, mem::{self, size_o
 use cursor_icon::CursorIcon;
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle, RawWindowHandle, Win32WindowHandle};
 use uuid::Uuid;
-use windows::{core::PCWSTR, Win32::{Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, POINT, WPARAM}, Graphics::{Dwm::{DwmFlush, DwmIsCompositionEnabled}, Dxgi::{CreateDXGIFactory, IDXGIFactory, IDXGIOutput}, Gdi::{ClientToScreen, MonitorFromWindow, ScreenToClient, HBRUSH, MONITOR_DEFAULTTOPRIMARY}}, System::{Ole::{IDropTarget, OleInitialize, RegisterDragDrop, RevokeDragDrop}, Threading::GetCurrentThreadId}, UI::{Controls::WM_MOUSELEAVE, Input::KeyboardAndMouse::{GetAsyncKeyState, SetCapture, TrackMouseEvent, TME_LEAVE, TRACKMOUSEEVENT, VK_CONTROL, VK_MENU, VK_SHIFT}, WindowsAndMessaging::{CallNextHookEx, CreateWindowExW, DefWindowProcW, DestroyWindow, GetWindowLongPtrW, LoadCursorW, MoveWindow, PostMessageW, RegisterClassW, SendMessageW, SetCursor, SetCursorPos, SetWindowLongPtrW, SetWindowPos, SetWindowsHookExW, ShowCursor, UnhookWindowsHookEx, UnregisterClassW, CS_OWNDC, GWLP_USERDATA, HHOOK, HICON, HMENU, IDC_ARROW, MOUSEHOOKSTRUCTEX, WH_MOUSE, WINDOW_EX_STYLE, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEMOVE, WM_MOUSEWHEEL, WM_MOVE, WM_RBUTTONDOWN, WM_RBUTTONUP, WNDCLASSW, WS_CHILD, WS_VISIBLE}}}};
+use windows::{core::PCWSTR, Win32::{Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, POINT, WPARAM}, Graphics::{Dwm::{DwmFlush, DwmIsCompositionEnabled}, Dxgi::{CreateDXGIFactory, IDXGIFactory, IDXGIOutput}, Gdi::{ClientToScreen, MonitorFromWindow, ScreenToClient, HBRUSH, MONITOR_DEFAULTTOPRIMARY}}, System::{Ole::{IDropTarget, OleInitialize, RegisterDragDrop, RevokeDragDrop}, Threading::GetCurrentThreadId}, UI::{Controls::WM_MOUSELEAVE, Input::KeyboardAndMouse::{GetAsyncKeyState, SetCapture, TrackMouseEvent, TME_LEAVE, TRACKMOUSEEVENT, VK_CONTROL, VK_MENU, VK_SHIFT}, WindowsAndMessaging::{CallNextHookEx, CreateWindowExW, DefWindowProcW, DestroyWindow, GetWindowLongPtrW, LoadCursorW, MoveWindow, PostMessageW, RegisterClassW, SendMessageW, SetCursor, SetCursorPos, SetWindowLongPtrW, SetWindowsHookExW, ShowCursor, UnhookWindowsHookEx, UnregisterClassW, CS_OWNDC, GWLP_USERDATA, HHOOK, HICON, HMENU, IDC_ARROW, MOUSEHOOKSTRUCTEX, WH_MOUSE, WINDOW_EX_STYLE, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEMOVE, WM_MOUSEWHEEL, WM_MOVE, WM_RBUTTONDOWN, WM_RBUTTONUP, WNDCLASSW, WS_CHILD, WS_VISIBLE}}}};
 
 use crate::{dimensions::Size, error::Error, event::{Event, EventCallback, EventResponse, MouseButton}, platform::interface::{OsWindowHandle, OsWindowInterface}, window::WindowAttributes, LogicalPosition, LogicalSize, PhysicalPosition};
 
 use super::{cursors::Cursors, drop_target::DropTarget, key_codes::MODIFIERS, message_window::MessageWindow, to_wstr, version::is_windows10_or_greater, PLUGIN_HINSTANCE, WM_USER_FRAME_TIMER, WM_USER_KEY_DOWN, WM_USER_KEY_UP};
 
 pub struct OsWindow {
-    window_attributes: WindowAttributes,
-    
     window_class: u16,
     window_handle: Win32WindowHandle,
     hook_handle: HHOOK,
@@ -28,10 +26,6 @@ pub struct OsWindow {
 }
 
 impl OsWindow {
-    pub(super) fn window_attributes(&self) -> &WindowAttributes {
-        &self.window_attributes
-    }
-
     pub(super) fn send_event(&self, event: Event) -> EventResponse {
         (self.event_callback)(event)
     }
@@ -61,7 +55,7 @@ impl OsWindow {
     }
 
     fn logical_mouse_position(&self, lparam: LPARAM) -> LogicalPosition {
-        let scale: f64 = self.window_attributes.scale.into();
+        let scale = self.os_scale();
 
         PhysicalPosition {
             x: (lparam.0 & 0xFFFF) as i16 as i32,
@@ -158,8 +152,6 @@ impl OsWindowInterface for OsWindow {
             .collect();
 
         let window = Rc::new(Self {
-            window_attributes,
-
             window_class,
             window_handle,
             hook_handle,
@@ -254,7 +246,7 @@ impl OsWindowInterface for OsWindow {
     }
 
     fn warp_mouse(&self, position: LogicalPosition) {
-        let scale: f64 = self.window_attributes.scale.into();
+        let scale = self.os_scale();
         let physical_position = position.to_physical(scale);
 
         let mut point = POINT {

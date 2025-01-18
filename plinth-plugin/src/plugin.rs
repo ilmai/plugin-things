@@ -23,7 +23,7 @@ pub trait Plugin: Default {
     fn process_event(&mut self, event: &Event);
 
     fn create_processor(&self, config: &ProcessorConfig) -> Self::Processor;
-    fn open_editor(&self, parent: RawWindowHandle, host: Rc<dyn Host>, scale: f64) -> Self::Editor;
+    fn open_editor(&self, parent: RawWindowHandle, host: Rc<dyn Host>) -> Self::Editor;
 
     fn save_state(&self, writer: &mut impl Write) -> std::io::Result<()>;
     fn load_state(&mut self, reader: &mut impl Read) -> std::io::Result<()>;

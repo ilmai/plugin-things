@@ -74,13 +74,12 @@ impl<P: Vst3Plugin + 'static> IPlugViewTrait for View<P> {
             return kInvalidArgument;
         }
         
-        let context = self.context.borrow();
         let mut editor = self.ui_thread_state.editor.borrow_mut();
         assert!(editor.is_none());
 
         let parent = crate::window_handle::from_ptr(parent);
         let host = Rc::new(Vst3Host::new(self.plugin.clone(), self.ui_thread_state.handler.borrow().clone().unwrap()));
-        *editor = Some(self.plugin.borrow().open_editor(parent, host, context.scale_factor as f64));
+        *editor = Some(self.plugin.borrow().open_editor(parent, host));
 
         kResultOk
     }
