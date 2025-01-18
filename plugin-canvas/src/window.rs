@@ -65,6 +65,10 @@ impl Window {
         self.os_window_handle.window().os_scale()
     }
 
+    pub fn resized(&self, size: LogicalSize) {
+        self.os_window_handle.window().resized(size);
+    }
+
     /// This only needs to be called on Linux
     pub fn poll_events(&self) -> Result<(), Error> {
         self.os_window_handle.window().poll_events()
