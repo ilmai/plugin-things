@@ -15,12 +15,11 @@ pub struct ViewContext {
 }
 
 pub struct View<P: Vst3Plugin> {
-    plugin: Rc<RefCell<P>>,
     ui_thread_state: Rc<UiThreadState<P>>,
     context: RefCell<ViewContext>,
 }
 
-impl<P: Vst3Plugin> View<P> {
+impl<P: Vst3Plugin + 'static> View<P> {
     pub fn new(
         plugin: Rc<RefCell<P>>,
         ui_thread_state: Rc<UiThreadState<P>>,
@@ -33,8 +32,14 @@ impl<P: Vst3Plugin> View<P> {
             timer_handler: None,
         };
 
+        let mut editor = ui_thread_state.editor.borrow_mut();
+        assert!(editor.is_none());
+
+        let host = Rc::new(Vst3Host::new(plugin.clone(), ui_thread_state.handler.borrow().clone().unwrap()));
+        *editor = Some(plugin.borrow().create_editor(host));
+        drop(editor);
+
         Self {
-            plugin,
             ui_thread_state,
             context: context.into(),
         }
@@ -43,6 +48,12 @@ impl<P: Vst3Plugin> View<P> {
 
 impl<P: Vst3Plugin> vst3::Class for View<P> {
     type Interfaces = (IPlugView, IPlugViewContentScaleSupport);
+}
+
+impl<P: Vst3Plugin> Drop for View<P> {
+    fn drop(&mut self) {
+        *self.ui_thread_state.editor.borrow_mut() = None;
+    }
 }
 
 #[allow(non_snake_case)]
@@ -75,11 +86,10 @@ impl<P: Vst3Plugin + 'static> IPlugViewTrait for View<P> {
         }
         
         let mut editor = self.ui_thread_state.editor.borrow_mut();
-        assert!(editor.is_none());
+        let editor = editor.as_mut().unwrap();
 
         let parent = crate::window_handle::from_ptr(parent);
-        let host = Rc::new(Vst3Host::new(self.plugin.clone(), self.ui_thread_state.handler.borrow().clone().unwrap()));
-        *editor = Some(self.plugin.borrow().open_editor(parent, host));
+        editor.open(parent);
 
         kResultOk
     }

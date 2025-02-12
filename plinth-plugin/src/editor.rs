@@ -1,9 +1,14 @@
+use raw_window_handle::RawWindowHandle;
+
 #[cfg(target_os="linux")]
 pub(crate) const FRAME_TIMER_MILLISECONDS: u64 = 16;
 
 pub trait Editor {
     const DEFAULT_SIZE: (f64, f64);
     const CAN_RESIZE: bool = false;
+
+    fn open(&mut self, parent: RawWindowHandle);
+    fn close(&mut self);
 
     /// Returns current window size
     fn window_size(&self) -> (f64, f64) {
@@ -27,6 +32,9 @@ pub struct NoEditor;
 
 impl Editor for NoEditor {
     const DEFAULT_SIZE: (f64, f64) = (0.0, 0.0);
+
+    fn open(&mut self, _parent: RawWindowHandle) {}
+    fn close(&mut self) {}
 
     fn on_frame(&mut self) {}    
 }

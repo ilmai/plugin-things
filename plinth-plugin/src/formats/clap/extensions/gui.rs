@@ -71,8 +71,30 @@ impl<P: ClapPlugin> Gui<P> {
         false
     }
 
-    unsafe extern "C" fn create(_plugin: *const clap_plugin, _api: *const c_char, is_floating: bool) -> bool {
-        !is_floating
+    unsafe extern "C" fn create(plugin: *const clap_plugin, _api: *const c_char, is_floating: bool) -> bool {
+        if is_floating {
+            return false;
+        }
+
+        PluginInstance::with_plugin_instance(plugin, |instance: &mut PluginInstance<P>| {
+            let host = Rc::new(ClapHost::new(
+                instance.host,
+                instance.host_ext_params,
+                instance.host_ext_state,
+                instance.parameter_event_map.clone(),
+            ));
+
+            instance.editor = Some(instance.plugin.as_mut().unwrap().create_editor(host));
+
+            #[cfg(target_os="linux")]
+            if !instance.host_ext_timer_support.is_null() {
+                let mut timer_id = 0;
+                unsafe { ((*instance.host_ext_timer_support).register_timer.unwrap())(instance.host, crate::editor::FRAME_TIMER_MILLISECONDS as u32, &mut timer_id) };
+                instance.timer_id = Some(timer_id);
+            }
+        });
+
+        true
     }
 
     unsafe extern "C" fn destroy(plugin: *const clap_plugin) {
@@ -153,24 +175,15 @@ impl<P: ClapPlugin> Gui<P> {
     unsafe extern "C" fn set_parent(plugin: *const clap_plugin, window: *const clap_window) -> bool {
         PluginInstance::with_plugin_instance(plugin, |instance: &mut PluginInstance<P>| {
             let parent = crate::window_handle::from_ptr((*window).specific.ptr);
-            let host = Rc::new(ClapHost::new(
-                instance.host,
-                instance.host_ext_params,
-                instance.host_ext_state,
-                instance.parameter_event_map.clone(),
-            ));
 
-            instance.editor = Some(instance.plugin.as_mut().unwrap().open_editor(parent, host));
+            let Some(editor) = instance.editor.as_mut() else {
+                return false;
+            };
 
-            #[cfg(target_os="linux")]
-            if !instance.host_ext_timer_support.is_null() {
-                let mut timer_id = 0;
-                unsafe { ((*instance.host_ext_timer_support).register_timer.unwrap())(instance.host, crate::editor::FRAME_TIMER_MILLISECONDS as u32, &mut timer_id) };
-                instance.timer_id = Some(timer_id);
-            }
-        });
-
-        true
+            editor.open(parent);
+            
+            true
+        })
     }
 
     unsafe extern "C" fn set_transient(_plugin: *const clap_plugin, _window: *const clap_window) -> bool {

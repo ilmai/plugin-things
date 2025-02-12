@@ -30,8 +30,8 @@ impl<P: Vst3Plugin> Default for AudioThreadState<P> {
 pub struct UiThreadState<P: Vst3Plugin> {
     processor_config: RefCell<ProcessorConfig>,
     groups: Vec<ParameterGroupRef>,
-    pub handler: RefCell<Option<ComPtr<IComponentHandler>>>,
-    pub editor: RefCell<Option<P::Editor>>,
+    pub(super) handler: RefCell<Option<ComPtr<IComponentHandler>>>,
+    pub(super) editor: RefCell<Option<P::Editor>>,
 }
 
 impl<P: Vst3Plugin> UiThreadState<P> {
