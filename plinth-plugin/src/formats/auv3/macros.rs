@@ -1,7 +1,7 @@
 #[macro_export]
 macro_rules! export_auv3 {
     ($plugin:ty) => {
-        #[no_mangle]
+        #[unsafe(no_mangle)]
         unsafe extern "C-unwind" fn plinth_auv3_create() -> *mut ::std::ffi::c_void {
             use ::plinth_plugin::auv3::Auv3Plugin;
            
@@ -13,7 +13,7 @@ macro_rules! export_auv3 {
             Box::into_raw(wrapper) as _
         }
 
-        #[no_mangle]
+        #[unsafe(no_mangle)]
         unsafe extern "C-unwind" fn plinth_auv3_destroy(wrapper: *mut ::std::ffi::c_void) {
             log::trace!("plinth_auv3_destroy() from thread {:?}", std::thread::current().id());
 
@@ -22,7 +22,7 @@ macro_rules! export_auv3 {
             drop(wrapper);
         }
 
-        #[no_mangle]
+        #[unsafe(no_mangle)]
         unsafe extern "C-unwind" fn plinth_auv3_activate(wrapper: *mut ::std::ffi::c_void, sample_rate: f64, max_block_size: u64) {
             log::trace!("plinth_auv3_activate() from thread {:?}", std::thread::current().id());
 
@@ -41,7 +41,7 @@ macro_rules! export_auv3 {
             });
         }
 
-        #[no_mangle]
+        #[unsafe(no_mangle)]
         unsafe extern "C-unwind" fn plinth_auv3_deactivate(wrapper: *mut ::std::ffi::c_void) {
             log::trace!("plinth_auv3_deactivate() from thread {:?}", std::thread::current().id());
 
@@ -50,7 +50,7 @@ macro_rules! export_auv3 {
             });
         }
 
-        #[no_mangle]
+        #[unsafe(no_mangle)]
         unsafe extern "C-unwind" fn plinth_auv3_tail_length(wrapper: *mut ::std::ffi::c_void) -> f64 {
             log::trace!("plinth_auv3_tail_length() from thread {:?}", std::thread::current().id());
 
@@ -59,13 +59,13 @@ macro_rules! export_auv3 {
             })
         }
 
-        #[no_mangle]
+        #[unsafe(no_mangle)]
         unsafe extern "C-unwind" fn plinth_auv3_has_aux_bus() -> bool {
             log::trace!("plinth_auv3_has_aux_bus() from thread {:?}", std::thread::current().id());
             <$plugin>::HAS_AUX_INPUT
         }
 
-        #[no_mangle]
+        #[unsafe(no_mangle)]
         unsafe extern "C-unwind" fn plinth_auv3_process(
             wrapper: *mut ::std::ffi::c_void,
             input: *const *const f32,
@@ -154,7 +154,7 @@ macro_rules! export_auv3 {
             });
         }
 
-        #[no_mangle]
+        #[unsafe(no_mangle)]
         unsafe extern "C-unwind" fn plinth_auv3_parameter_count(wrapper: *mut ::std::ffi::c_void) -> u64 {
             log::trace!("plinth_auv3_parameter_count() from thread {:?}", std::thread::current().id());
 
@@ -166,7 +166,7 @@ macro_rules! export_auv3 {
             })
         }
 
-        #[no_mangle]
+        #[unsafe(no_mangle)]
         unsafe extern "C-unwind" fn plinth_auv3_parameter_info(
             wrapper: *mut ::std::ffi::c_void,
             index: usize,
@@ -205,7 +205,7 @@ macro_rules! export_auv3 {
             })
         }
 
-        #[no_mangle]
+        #[unsafe(no_mangle)]
         unsafe extern "C-unwind" fn plinth_auv3_group_count(wrapper: *mut ::std::ffi::c_void) -> u64 {
             log::trace!("plinth_auv3_group_count() from thread {:?}", std::thread::current().id());
 
@@ -214,7 +214,7 @@ macro_rules! export_auv3 {
             })
         }
 
-        #[no_mangle]
+        #[unsafe(no_mangle)]
         unsafe extern "C-unwind" fn plinth_auv3_group_info(
             wrapper: *mut ::std::ffi::c_void,
             index: usize,
@@ -241,7 +241,7 @@ macro_rules! export_auv3 {
             });
         }
     
-        #[no_mangle]
+        #[unsafe(no_mangle)]
         unsafe extern "C-unwind" fn plinth_auv3_get_parameter_value(wrapper: *mut ::std::ffi::c_void, address: u64) -> f32 {
             log::trace!("plinth_auv3_get_parameter_value() from thread {:?}", std::thread::current().id());
 
@@ -257,7 +257,7 @@ macro_rules! export_auv3 {
             })
         }
 
-        #[no_mangle]
+        #[unsafe(no_mangle)]
         unsafe extern "C-unwind" fn plinth_auv3_set_parameter_value(wrapper: *mut ::std::ffi::c_void, address: u64, value: f32) {
             log::trace!("plinth_auv3_set_parameter_value() from thread {:?}", std::thread::current().id());
 
@@ -283,7 +283,7 @@ macro_rules! export_auv3 {
             });
         }
 
-        #[no_mangle]
+        #[unsafe(no_mangle)]
         unsafe extern "C-unwind" fn plinth_auv3_parameter_normalized_to_string(
             wrapper: *mut ::std::ffi::c_void,
             address: u64,
@@ -308,7 +308,7 @@ macro_rules! export_auv3 {
             });
         }
 
-        #[no_mangle]
+        #[unsafe(no_mangle)]
         unsafe extern "C-unwind" fn plinth_auv3_load_state(
             wrapper: *mut ::std::ffi::c_void,
             context: *mut ::std::ffi::c_void,
@@ -336,7 +336,7 @@ macro_rules! export_auv3 {
             });
         }
 
-        #[no_mangle]
+        #[unsafe(no_mangle)]
         unsafe extern "C-unwind" fn plinth_auv3_save_state(
             wrapper: *mut ::std::ffi::c_void,
             context: *mut ::std::ffi::c_void,
@@ -351,7 +351,7 @@ macro_rules! export_auv3 {
             });
         }
 
-        #[no_mangle]
+        #[unsafe(no_mangle)]
         unsafe extern "C-unwind" fn plinth_auv3_editor_preferred_size(width: *mut f64, height: *mut f64) {
             log::trace!("plinth_auv3_editor_preferred_size() from thread {:?}", std::thread::current().id());
 
@@ -361,7 +361,7 @@ macro_rules! export_auv3 {
             *height = <$plugin as Plugin>::Editor::SIZE.1;
         }
 
-        #[no_mangle]
+        #[unsafe(no_mangle)]
         unsafe extern "C-unwind" fn plinth_auv3_editor_set_size(wrapper: *mut ::std::ffi::c_void, width: f64, height: f64) {
             log::trace!("plinth_auv3_editor_set_size() from thread {:?}", std::thread::current().id());
 
@@ -379,7 +379,7 @@ macro_rules! export_auv3 {
             });
         }
 
-        #[no_mangle]
+        #[unsafe(no_mangle)]
         unsafe extern "C-unwind" fn plinth_auv3_editor_open(
             wrapper: *mut ::std::ffi::c_void,
             parent: *mut ::std::ffi::c_void,
@@ -413,7 +413,7 @@ macro_rules! export_auv3 {
             });
         }
 
-        #[no_mangle]
+        #[unsafe(no_mangle)]
         unsafe extern "C-unwind" fn plinth_auv3_editor_close(wrapper: *mut ::std::ffi::c_void) {
             log::trace!("plinth_auv3_editor_close() from thread {:?}", std::thread::current().id());
 

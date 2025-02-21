@@ -9,7 +9,7 @@ pub mod message_window;
 pub mod version;
 pub mod window;
 
-extern "C" {
+unsafe extern "C" {
     static __ImageBase: IMAGE_DOS_HEADER;
 }
 

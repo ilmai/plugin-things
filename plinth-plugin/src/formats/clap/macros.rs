@@ -49,7 +49,7 @@ macro_rules! export_clap {
             factory.as_raw() as _
         }
                 
-        #[no_mangle]
+        #[unsafe(no_mangle)]
         #[allow(non_snake_case)]
         #[allow(non_upper_case_globals)]
         static clap_entry: ::plinth_plugin::clap::EntryPoint = ::plinth_plugin::clap::EntryPoint::new(init, deinit, get_factory);
