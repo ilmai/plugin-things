@@ -1,7 +1,8 @@
 use std::{mem, ptr::{null, null_mut}};
 
 use uuid::Uuid;
-use windows::{Win32::{UI::{WindowsAndMessaging::{WNDCLASSW, CS_OWNDC, DefWindowProcW, HICON, HCURSOR, RegisterClassW, CreateWindowExW, WS_EX_NOACTIVATE, HMENU, GetMessageW, TranslateMessage, DispatchMessageW, WM_CHAR, PostMessageW, SetWindowLongPtrW, GWLP_USERDATA, GetWindowLongPtrW, DestroyWindow, UnregisterClassW, WS_CHILD, WM_KEYDOWN, WM_KEYUP}, Input::KeyboardAndMouse::{SetFocus, VIRTUAL_KEY}}, Graphics::Gdi::HBRUSH, Foundation::{HWND, WPARAM, LPARAM, LRESULT, BOOL}}, core::PCWSTR};
+use windows::{Win32::{UI::{WindowsAndMessaging::{WNDCLASSW, CS_OWNDC, DefWindowProcW, HICON, HCURSOR, RegisterClassW, CreateWindowExW, WS_EX_NOACTIVATE, GetMessageW, TranslateMessage, DispatchMessageW, WM_CHAR, PostMessageW, SetWindowLongPtrW, GWLP_USERDATA, GetWindowLongPtrW, DestroyWindow, UnregisterClassW, WS_CHILD, WM_KEYDOWN, WM_KEYUP}, Input::KeyboardAndMouse::{SetFocus, VIRTUAL_KEY}}, Graphics::Gdi::HBRUSH, Foundation::{HWND, WPARAM, LPARAM, LRESULT}}, core::PCWSTR};
+use windows_core::BOOL;
 
 use crate::error::Error;
 
@@ -45,9 +46,9 @@ impl MessageWindow {
             0,
             0,
             0,
-            main_window_hwnd,
-            HMENU(null_mut()),
-            PLUGIN_HINSTANCE.with(|hinstance| *hinstance),
+            Some(main_window_hwnd),
+            None,
+            Some(PLUGIN_HINSTANCE.with(|hinstance| *hinstance)),
             None,
         ).unwrap() };
 
@@ -66,7 +67,7 @@ impl MessageWindow {
             let mut msg = mem::zeroed();
 
             loop {
-                match GetMessageW(&mut msg, hwnd, 0, 0) {
+                match GetMessageW(&mut msg, Some(hwnd), 0, 0) {
                     BOOL(-1) => {
                         panic!()
                     }
@@ -92,7 +93,7 @@ impl MessageWindow {
             self.main_window_hwnd
         } as _);
 
-        unsafe { SetFocus(hwnd).unwrap(); }
+        unsafe { SetFocus(Some(hwnd)).unwrap(); }
     }
 }
 
@@ -100,7 +101,7 @@ impl Drop for MessageWindow {
     fn drop(&mut self) {
         unsafe {
             DestroyWindow(HWND(self.hwnd as _)).unwrap();
-            UnregisterClassW(PCWSTR(self.window_class as _), PLUGIN_HINSTANCE.with(|hinstance| *hinstance)).unwrap();
+            UnregisterClassW(PCWSTR(self.window_class as _), Some(PLUGIN_HINSTANCE.with(|hinstance| *hinstance))).unwrap();
         }
     }
 }
@@ -110,13 +111,13 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
 
     match msg {
         WM_CHAR => {
-            unsafe { PostMessageW(main_window_hwnd, WM_USER_KEY_DOWN, wparam, lparam).unwrap() };
+            unsafe { PostMessageW(Some(main_window_hwnd), WM_USER_KEY_DOWN, wparam, lparam).unwrap() };
             LRESULT(0)
         },
 
         WM_KEYDOWN => {
             if let Some(character) = virtual_key_to_char(VIRTUAL_KEY(wparam.0 as u16)) {
-                unsafe { PostMessageW(main_window_hwnd, WM_USER_KEY_DOWN, WPARAM(character), LPARAM(0)).unwrap() };
+                unsafe { PostMessageW(Some(main_window_hwnd), WM_USER_KEY_DOWN, WPARAM(character), LPARAM(0)).unwrap() };
             }
             
             LRESULT(0)
@@ -124,7 +125,7 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
 
         WM_KEYUP => {
             if let Some(character) = virtual_key_to_char(VIRTUAL_KEY(wparam.0 as u16)) {
-                unsafe { PostMessageW(main_window_hwnd, WM_USER_KEY_UP, WPARAM(character), LPARAM(0)).unwrap() };
+                unsafe { PostMessageW(Some(main_window_hwnd), WM_USER_KEY_UP, WPARAM(character), LPARAM(0)).unwrap() };
             }
             
             LRESULT(0)

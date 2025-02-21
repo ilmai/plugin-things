@@ -1,12 +1,13 @@
 use std::cell::RefCell;
 use std::ffi::OsString;
+use std::ops::Deref;
 use std::os::windows::prelude::OsStringExt;
 use std::ptr::null_mut;
 use std::rc::Rc;
 
 use windows::Win32::Foundation::{POINTL, POINT};
 use windows::Win32::Graphics::Gdi::MapWindowPoints;
-use windows::Win32::System::Com::{IDataObject, FORMATETC, DVASPECT_CONTENT, TYMED_HGLOBAL};
+use windows::Win32::System::Com::{IDataObject, DVASPECT_CONTENT, FORMATETC, TYMED_HGLOBAL};
 use windows::Win32::System::SystemServices::MODIFIERKEYS_FLAGS;
 use windows::Win32::UI::Shell::{DragQueryFileW, HDROP};
 use windows::core::implement;
@@ -33,8 +34,8 @@ impl DropTarget {
         }
     }
 
-    fn parse_drag_data(&self, pdataobj: Option<&IDataObject>) -> windows::core::Result<()> {
-        let Some(data_object) = pdataobj else {
+    fn parse_drag_data(&self, pdataobj: windows_core::Ref<'_, IDataObject>) -> windows::core::Result<()> {
+        let Some(data_object) = pdataobj.deref() else {
             *self.drop_data.borrow_mut() = DropData::None;
             return Ok(());
         };
@@ -97,7 +98,7 @@ impl DropTarget {
         // TODO: Find out what's going on
         let mut points = [POINT { x: (point.x as f64 / scale) as i32, y: (point.y as f64 / scale) as i32 }];
 
-        unsafe { MapWindowPoints(HWND_DESKTOP, self.window.hwnd(), &mut points); }
+        unsafe { MapWindowPoints(Some(HWND_DESKTOP), Some(self.window.hwnd()), &mut points); }
 
         PhysicalPosition {
             x: points[0].x,
@@ -108,7 +109,7 @@ impl DropTarget {
 
 #[allow(non_snake_case)]
 impl IDropTarget_Impl for DropTarget_Impl {
-    fn DragEnter(&self, pdataobj: Option<&IDataObject>, _grfkeystate: MODIFIERKEYS_FLAGS, pt: &POINTL, pdweffect: *mut DROPEFFECT) -> windows::core::Result<()> {
+    fn DragEnter(&self, pdataobj: windows_core::Ref<'_, IDataObject>, _grfkeystate: MODIFIERKEYS_FLAGS, pt: &POINTL, pdweffect: *mut DROPEFFECT) -> windows_core::Result<()> {
         self.parse_drag_data(pdataobj)?;
 
         let response = self.window.send_event(crate::Event::DragEntered {
@@ -137,7 +138,7 @@ impl IDropTarget_Impl for DropTarget_Impl {
         Ok(())
     }
 
-    fn Drop(&self, pdataobj: Option<&IDataObject>, _grfkeystate: MODIFIERKEYS_FLAGS, pt: &POINTL, pdweffect: *mut DROPEFFECT) -> windows::core::Result<()> {
+    fn Drop(&self, pdataobj: windows_core::Ref<'_, IDataObject>, _grfkeystate: MODIFIERKEYS_FLAGS, pt: &POINTL, pdweffect: *mut DROPEFFECT) -> windows_core::Result<()> {
         self.parse_drag_data(pdataobj)?;
 
         let response = self.window.send_event(crate::Event::DragDropped {

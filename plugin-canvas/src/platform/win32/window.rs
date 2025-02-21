@@ -3,7 +3,11 @@ use std::{cell::RefCell, collections::HashMap, ffi::OsString, mem::{self, size_o
 use cursor_icon::CursorIcon;
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle, RawWindowHandle, Win32WindowHandle};
 use uuid::Uuid;
-use windows::{core::PCWSTR, Win32::{Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, POINT, WPARAM}, Graphics::{Dwm::{DwmFlush, DwmIsCompositionEnabled}, Dxgi::{CreateDXGIFactory, IDXGIFactory, IDXGIOutput}, Gdi::{ClientToScreen, MonitorFromWindow, ScreenToClient, HBRUSH, MONITOR_DEFAULTTOPRIMARY}}, System::{Ole::{IDropTarget, OleInitialize, RegisterDragDrop, RevokeDragDrop}, Threading::GetCurrentThreadId}, UI::{Controls::WM_MOUSELEAVE, Input::KeyboardAndMouse::{GetAsyncKeyState, SetCapture, TrackMouseEvent, TME_LEAVE, TRACKMOUSEEVENT, VK_CONTROL, VK_MENU, VK_SHIFT}, WindowsAndMessaging::{CallNextHookEx, CreateWindowExW, DefWindowProcW, DestroyWindow, GetWindowLongPtrW, LoadCursorW, MoveWindow, PostMessageW, RegisterClassW, SendMessageW, SetCursor, SetCursorPos, SetWindowLongPtrW, SetWindowsHookExW, ShowCursor, UnhookWindowsHookEx, UnregisterClassW, CS_OWNDC, GWLP_USERDATA, HHOOK, HICON, HMENU, IDC_ARROW, MOUSEHOOKSTRUCTEX, WH_MOUSE, WINDOW_EX_STYLE, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEMOVE, WM_MOUSEWHEEL, WM_MOVE, WM_RBUTTONDOWN, WM_RBUTTONUP, WNDCLASSW, WS_CHILD, WS_VISIBLE}}}};
+use windows::core::PCWSTR;
+use windows::Win32::Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, POINT, WPARAM};
+use windows::Win32::Graphics::{Dwm::{DwmFlush, DwmIsCompositionEnabled}, Dxgi::{CreateDXGIFactory, IDXGIFactory, IDXGIOutput}, Gdi::{ClientToScreen, MonitorFromWindow, ScreenToClient, HBRUSH, MONITOR_DEFAULTTOPRIMARY}};
+use windows::Win32::System::{Ole::{IDropTarget, OleInitialize, RegisterDragDrop, RevokeDragDrop}, Threading::GetCurrentThreadId};
+use windows::Win32::UI::{Controls::WM_MOUSELEAVE, Input::KeyboardAndMouse::{GetAsyncKeyState, SetCapture, TrackMouseEvent, TME_LEAVE, TRACKMOUSEEVENT, VK_CONTROL, VK_MENU, VK_SHIFT}, WindowsAndMessaging::{CallNextHookEx, CreateWindowExW, DefWindowProcW, DestroyWindow, GetWindowLongPtrW, LoadCursorW, MoveWindow, PostMessageW, RegisterClassW, SendMessageW, SetCursor, SetCursorPos, SetWindowLongPtrW, SetWindowsHookExW, ShowCursor, UnhookWindowsHookEx, UnregisterClassW, CS_OWNDC, GWLP_USERDATA, HHOOK, HICON, IDC_ARROW, MOUSEHOOKSTRUCTEX, WH_MOUSE, WINDOW_EX_STYLE, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEMOVE, WM_MOUSEWHEEL, WM_MOVE, WM_RBUTTONDOWN, WM_RBUTTONUP, WNDCLASSW, WS_CHILD, WS_VISIBLE}};
 
 use crate::{dimensions::Size, error::Error, event::{Event, EventCallback, EventResponse, MouseButton}, platform::interface::{OsWindowHandle, OsWindowInterface}, window::WindowAttributes, LogicalPosition, LogicalSize, PhysicalPosition};
 
@@ -77,7 +81,7 @@ impl OsWindowInterface for OsWindow {
         let class_name = to_wstr("plugin-canvas-".to_string() + &Uuid::new_v4().simple().to_string());
         let size = Size::with_logical_size(window_attributes.size, window_attributes.scale);
 
-        let cursor = unsafe { LoadCursorW(HINSTANCE(null_mut()), IDC_ARROW).unwrap() };
+        let cursor = unsafe { LoadCursorW(None, IDC_ARROW).unwrap() };
 
         let window_class_attributes = WNDCLASSW {
             style: CS_OWNDC,
@@ -106,9 +110,9 @@ impl OsWindowInterface for OsWindow {
             0,
             size.physical_size().width as i32,
             size.physical_size().height as i32,
-            HWND(parent_window_handle.hwnd.get() as _),
-            HMENU(null_mut()),
-            PLUGIN_HINSTANCE.with(|hinstance| *hinstance),
+            Some(HWND(parent_window_handle.hwnd.get() as _)),
+            None,
+            Some(PLUGIN_HINSTANCE.with(|hinstance| *hinstance)),
             None,
         ).unwrap() };
 
@@ -128,7 +132,7 @@ impl OsWindowInterface for OsWindow {
             SetWindowsHookExW(
                 WH_MOUSE,
                 Some(hook_proc),
-                HINSTANCE(null_mut()),
+                None,
                 GetCurrentThreadId(),
             ).unwrap()
         };
@@ -234,7 +238,7 @@ impl OsWindowInterface for OsWindow {
     
             unsafe {
                 ShowCursor(true);
-                SetCursor(cursor);
+                SetCursor(Some(cursor));
             }
         } else {
             unsafe { ShowCursor(false); }
@@ -274,7 +278,7 @@ impl Drop for OsWindow {
             SetWindowLongPtrW(self.hwnd(), GWLP_USERDATA, 0);
             UnhookWindowsHookEx(self.hook_handle).unwrap();
             DestroyWindow(self.hwnd()).unwrap();
-            UnregisterClassW(PCWSTR(self.window_class as _), self.hinstance()).unwrap();
+            UnregisterClassW(PCWSTR(self.window_class as _), Some(self.hinstance())).unwrap();
         }
     }
 }
@@ -406,7 +410,7 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
 
 unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     if code < 0 {
-        return unsafe { CallNextHookEx(HHOOK(null_mut()), code, wparam, lparam) };
+        return unsafe { CallNextHookEx(None, code, wparam, lparam) };
     }
 
     let mouse_hook_struct_ptr: *const MOUSEHOOKSTRUCTEX = lparam.0 as _;
@@ -423,12 +427,12 @@ unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -
             // TODO: Convert modifiers            
             let wparam = WPARAM(mouse_hook_struct.mouseData as usize & 0xFFFF0000);            
             let lparam = LPARAM(unsafe { mem::transmute::<usize, isize>(x as usize + ((y as usize) << 16)) });
-            unsafe { PostMessageW(hwnd, WM_MOUSEWHEEL, wparam, lparam).unwrap() };
+            unsafe { PostMessageW(Some(hwnd), WM_MOUSEWHEEL, wparam, lparam).unwrap() };
         },
         _ => {},
     }
 
-    unsafe { CallNextHookEx(HHOOK(null_mut()), code, wparam, lparam) }
+    unsafe { CallNextHookEx(None, code, wparam, lparam) }
 }
 
 fn frame_pacing_thread(hwnd: usize, moved: Arc<AtomicBool>) {
@@ -453,7 +457,7 @@ fn frame_pacing_thread(hwnd: usize, moved: Arc<AtomicBool>) {
             }
 
             // Send draw message
-            SendMessageW(hwnd, WM_USER_FRAME_TIMER, WPARAM(0), LPARAM(0));
+            SendMessageW(hwnd, WM_USER_FRAME_TIMER, None, None);
         }
     }
 }

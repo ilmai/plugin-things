@@ -1,6 +1,5 @@
-use std::ptr::null_mut;
-
-use windows::{Win32::{UI::WindowsAndMessaging::{HCURSOR, LoadImageW, IDC_ARROW, IDC_HAND, IMAGE_CURSOR, LR_SHARED, IDC_APPSTARTING, IDC_CROSS, IDC_HELP, IDC_IBEAM, IDC_SIZEALL, IDC_NO, IDC_SIZEWE, IDC_SIZENESW, IDC_SIZENWSE, IDC_WAIT, IDC_SIZENS}, Foundation::HINSTANCE}, core::PCWSTR};
+use windows::core::PCWSTR;
+use windows::Win32::UI::WindowsAndMessaging::{HCURSOR, LoadImageW, IDC_ARROW, IDC_HAND, IMAGE_CURSOR, LR_SHARED, IDC_APPSTARTING, IDC_CROSS, IDC_HELP, IDC_IBEAM, IDC_SIZEALL, IDC_NO, IDC_SIZEWE, IDC_SIZENESW, IDC_SIZENWSE, IDC_WAIT, IDC_SIZENS};
 
 pub struct Cursors {
     pub app_starting: HCURSOR,
@@ -39,7 +38,7 @@ impl Cursors {
 
     fn load_cursor(name: PCWSTR) -> HCURSOR {
         let handle = unsafe { LoadImageW(
-            HINSTANCE(null_mut()),
+            None,
             name,
             IMAGE_CURSOR,
             0,
