@@ -1,13 +1,13 @@
 use std::{collections::BTreeMap, ffi::{c_char, c_void, CStr}, iter::zip, ptr::{null, null_mut}, sync::Arc};
 
 use atomic_refcell::AtomicRefCell;
-use clap_sys::{events::clap_input_events, ext::{audio_ports::{clap_plugin_audio_ports, CLAP_EXT_AUDIO_PORTS}, gui::{clap_plugin_gui, CLAP_EXT_GUI}, latency::{clap_plugin_latency, CLAP_EXT_LATENCY}, note_ports::{clap_plugin_note_ports, CLAP_EXT_NOTE_PORTS}, params::{clap_host_params, clap_plugin_params, CLAP_EXT_PARAMS}, render::{clap_plugin_render, CLAP_EXT_RENDER}, state::{clap_host_state, clap_plugin_state, CLAP_EXT_STATE}, tail::{clap_host_tail, clap_plugin_tail, CLAP_EXT_TAIL}, timer_support::{clap_host_timer_support, clap_plugin_timer_support, CLAP_EXT_TIMER_SUPPORT}}, host::clap_host, plugin::clap_plugin, process::{clap_process, clap_process_status, CLAP_PROCESS_CONTINUE, CLAP_PROCESS_CONTINUE_IF_NOT_QUIET, CLAP_PROCESS_ERROR, CLAP_PROCESS_TAIL}};
+use clap_sys::{events::clap_input_events, ext::{audio_ports::CLAP_EXT_AUDIO_PORTS, gui::CLAP_EXT_GUI, latency::CLAP_EXT_LATENCY, note_ports::CLAP_EXT_NOTE_PORTS, params::{clap_host_params, CLAP_EXT_PARAMS}, render::CLAP_EXT_RENDER, state::{clap_host_state, CLAP_EXT_STATE}, tail::{clap_host_tail, CLAP_EXT_TAIL}, timer_support::{clap_host_timer_support, CLAP_EXT_TIMER_SUPPORT}}, host::clap_host, plugin::clap_plugin, process::{clap_process, clap_process_status, CLAP_PROCESS_CONTINUE, CLAP_PROCESS_CONTINUE_IF_NOT_QUIET, CLAP_PROCESS_ERROR, CLAP_PROCESS_TAIL}};
 use log::error;
 use plinth_core::signals::{ptr_signal::{PtrSignal, PtrSignalMut}, signal::SignalMut};
 
 use crate::{Event, ParameterId, ProcessMode, ProcessState, Processor, ProcessorConfig};
 use crate::clap::{event::EventIterator, transport::convert_transport};
-use crate::parameters::{info::ParameterInfo, parameters::{has_duplicates, Parameters}};
+use crate::parameters::{info::ParameterInfo, has_duplicates, Parameters};
 
 use super::descriptor::Descriptor;
 use super::extensions::{audio_ports::AudioPorts, gui::Gui, latency::Latency, note_ports::NotePorts, params::Params, render::Render, state::State, tail::Tail, timer_support::TimerSupport};
@@ -245,8 +245,8 @@ impl<P: ClapPlugin> PluginInstance<P> {
 
         assert_eq!(process.audio_outputs_count, 1);
 
-        let input_buffers = std::slice::from_raw_parts(process.audio_inputs, process.audio_inputs_count as usize);
-        let output_buffers = std::slice::from_raw_parts(process.audio_outputs, process.audio_outputs_count as usize);
+        let input_buffers = unsafe { std::slice::from_raw_parts(process.audio_inputs, process.audio_inputs_count as usize) };
+        let output_buffers = unsafe { std::slice::from_raw_parts(process.audio_outputs, process.audio_outputs_count as usize) };
 
         let input_buffer = input_buffers[0];
         assert_eq!(input_buffer.channel_count, 2);
@@ -254,21 +254,21 @@ impl<P: ClapPlugin> PluginInstance<P> {
         let output_buffer = output_buffers[0];
         assert_eq!(output_buffer.channel_count, 2);
 
-        let input = PtrSignal::from_pointers(input_buffer.channel_count as usize, process.frames_count as usize, input_buffer.data32 as _);
-        let mut output = PtrSignalMut::from_pointers(output_buffer.channel_count as usize, process.frames_count as usize, output_buffer.data32);
+        let input = unsafe { PtrSignal::from_pointers(input_buffer.channel_count as usize, process.frames_count as usize, input_buffer.data32 as _) };
+        let mut output = unsafe { PtrSignalMut::from_pointers(output_buffer.channel_count as usize, process.frames_count as usize, output_buffer.data32) };
 
         let aux = if P::HAS_AUX_INPUT {
             let aux_buffer = input_buffers[1];
             assert_eq!(aux_buffer.channel_count, 2);
 
-            Some(PtrSignal::from_pointers(aux_buffer.channel_count as usize, process.frames_count as usize, aux_buffer.data32 as _))
+            Some(unsafe { PtrSignal::from_pointers(aux_buffer.channel_count as usize, process.frames_count as usize, aux_buffer.data32 as _) })
         } else {
             None
         };
         
         // If processing out-of-place, copy input to output
         if zip(input.pointers().iter(), output.pointers().iter())
-            .any(|(&input_ptr, &output_ptr)| input_ptr != &*output_ptr)
+            .any(|(&input_ptr, &output_ptr)| input_ptr != unsafe { &*output_ptr })
         {
             output.copy_from_signal(&input);
         }
@@ -302,7 +302,7 @@ impl<P: ClapPlugin> PluginInstance<P> {
 
                         // Inform host if it supports the extension
                         if !instance.host_ext_tail.is_null() {
-                            ((*instance.host_ext_tail).changed.unwrap())(instance.host);
+                            unsafe { ((*instance.host_ext_tail).changed.unwrap())(instance.host) };
                         }
                     }
 
@@ -321,26 +321,26 @@ impl<P: ClapPlugin> PluginInstance<P> {
     }
 
     unsafe extern "C" fn get_extension(_plugin: *const clap_plugin, id: *const c_char) -> *const c_void {
-        let id = CStr::from_ptr(id);
+        let id = unsafe { CStr::from_ptr(id) };
 
         if id == CLAP_EXT_AUDIO_PORTS {
-            Self::EXT_AUDIO_PORTS.as_raw() as *const clap_plugin_audio_ports as _
+            Self::EXT_AUDIO_PORTS.as_raw() as _
         } else if id == CLAP_EXT_GUI {
-            Self::EXT_GUI.as_raw() as *const clap_plugin_gui as _
+            Self::EXT_GUI.as_raw() as _
         } else if id == CLAP_EXT_LATENCY {
-            Self::EXT_LATENCY.as_raw() as *const clap_plugin_latency as _
+            Self::EXT_LATENCY.as_raw() as _
         } else if id == CLAP_EXT_NOTE_PORTS {
-            Self::EXT_NOTE_PORTS.as_raw() as *const clap_plugin_note_ports as _
+            Self::EXT_NOTE_PORTS.as_raw() as _
         } else if id == CLAP_EXT_PARAMS {
-            Self::EXT_PARAMS.as_raw() as *const clap_plugin_params as _
+            Self::EXT_PARAMS.as_raw() as _
         } else if id == CLAP_EXT_RENDER {
-            Self::EXT_RENDER.as_raw() as *const clap_plugin_render as _
+            Self::EXT_RENDER.as_raw() as _
         } else if id == CLAP_EXT_STATE {
-            Self::EXT_STATE.as_raw() as *const clap_plugin_state as _
+            Self::EXT_STATE.as_raw() as _
         } else if id == CLAP_EXT_TAIL {
-            Self::EXT_TAIL.as_raw() as *const clap_plugin_tail as _
+            Self::EXT_TAIL.as_raw() as _
         } else if id == CLAP_EXT_TIMER_SUPPORT {
-            Self::EXT_TIMER_SUPPORT.as_raw() as *const clap_plugin_timer_support as _
+            Self::EXT_TIMER_SUPPORT.as_raw() as _
         } else {
             null()
         }

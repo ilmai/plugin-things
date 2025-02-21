@@ -97,7 +97,7 @@ impl DropTarget {
         // TODO: Find out what's going on
         let mut points = [POINT { x: (point.x as f64 / scale) as i32, y: (point.y as f64 / scale) as i32 }];
 
-        unsafe { MapWindowPoints(HWND_DESKTOP, self.window.hwnd(), &mut points) as u32; }
+        unsafe { MapWindowPoints(HWND_DESKTOP, self.window.hwnd(), &mut points); }
 
         PhysicalPosition {
             x: points[0].x,

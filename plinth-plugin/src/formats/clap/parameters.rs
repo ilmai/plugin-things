@@ -66,7 +66,7 @@ pub struct ParameterEventMapIterator<'a> {
     pending_end_change: bool,
 }
 
-impl<'a> ParameterEventMapIterator<'a> {
+impl ParameterEventMapIterator<'_> {
     pub fn send_event_to_host(&self, event: &Event) {
         let out_events = unsafe { &*self.out_events };
 
@@ -130,7 +130,7 @@ impl<'a> ParameterEventMapIterator<'a> {
     }
 }
 
-impl<'a> Iterator for ParameterEventMapIterator<'a> {
+impl Iterator for ParameterEventMapIterator<'_> {
     type Item = Event;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -154,9 +154,7 @@ impl<'a> Iterator for ParameterEventMapIterator<'a> {
                 return Some(event);
             }
 
-            let Some((&id, info)) = self.event_info_iterator.next() else {
-                return None;
-            };
+            let (&id, info) = self.event_info_iterator.next()?;
 
             self.pending_parameter_id = id;
             self.pending_parameter_value = info.value.load(Ordering::Acquire);

@@ -23,16 +23,14 @@ impl<P: ClapPlugin> NotePorts<P> {
         }
     }
 
-    pub fn as_raw(&self) -> &clap_plugin_note_ports {
+    pub fn as_raw(&self) -> *const clap_plugin_note_ports {
         &self.raw
     }
 
     // Number of ports, for either input or output
     // [main-thread]
     unsafe extern "C" fn count(_plugin: *const clap_plugin, is_input: bool) -> u32 {
-        if is_input && P::HAS_NOTE_INPUT {
-            1
-        } else if !is_input && P::HAS_NOTE_OUTPUT {
+        if (is_input && P::HAS_NOTE_INPUT) || (!is_input && P::HAS_NOTE_OUTPUT) {
             1
         } else {
             0

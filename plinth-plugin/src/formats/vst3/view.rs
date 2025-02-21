@@ -59,16 +59,16 @@ impl<P: Vst3Plugin> Drop for View<P> {
 #[allow(non_snake_case)]
 impl<P: Vst3Plugin + 'static> IPlugViewTrait for View<P> {
     unsafe fn isPlatformTypeSupported(&self, platform_type: FIDString) -> tresult {
-        let platform_type = CStr::from_ptr(platform_type);
+        let platform_type = unsafe { CStr::from_ptr(platform_type) };
 
         #[cfg(target_os="windows")]
-        let supported = platform_type == CStr::from_ptr(vst3::Steinberg::kPlatformTypeHWND);
+        let supported = platform_type == unsafe { CStr::from_ptr(vst3::Steinberg::kPlatformTypeHWND) };
         
         #[cfg(target_os="macos")]
-        let supported = platform_type == CStr::from_ptr(vst3::Steinberg::kPlatformTypeNSView);
+        let supported = platform_type == unsafe { CStr::from_ptr(vst3::Steinberg::kPlatformTypeNSView) };
         
         #[cfg(target_os="linux")]
-        let supported = platform_type == CStr::from_ptr(vst3::Steinberg::kPlatformTypeX11EmbedWindowID);
+        let supported = platform_type == unsafe { CStr::from_ptr(vst3::Steinberg::kPlatformTypeX11EmbedWindowID) };
 
         if supported {
             kResultOk
@@ -81,7 +81,7 @@ impl<P: Vst3Plugin + 'static> IPlugViewTrait for View<P> {
         if parent.is_null() {
             return kInvalidArgument;
         }
-        if self.isPlatformTypeSupported(platform_type) != kResultOk {
+        if unsafe { self.isPlatformTypeSupported(platform_type) } != kResultOk {
             return kInvalidArgument;
         }
         
@@ -156,7 +156,7 @@ impl<P: Vst3Plugin + 'static> IPlugViewTrait for View<P> {
             return kInvalidArgument;
         }
 
-        let new_size = &mut *new_size;
+        let new_size = unsafe { &mut *new_size };
         let mut editor = self.ui_thread_state.editor.borrow_mut();
         let Some(editor) = editor.as_mut() else {
             return kResultFalse;
@@ -186,8 +186,8 @@ impl<P: Vst3Plugin + 'static> IPlugViewTrait for View<P> {
         }
 
         let mut context = self.context.borrow_mut();
-        context.frame = ComRef::from_raw(frame)
-            .map(|frame| frame.to_com_ptr());
+        context.frame = unsafe { ComRef::from_raw(frame)
+            .map(|frame| frame.to_com_ptr()) };
 
         #[cfg(target_os="linux")]
         {
@@ -216,7 +216,7 @@ impl<P: Vst3Plugin + 'static> IPlugViewTrait for View<P> {
             return kInvalidArgument;
         }
 
-        let rect = &mut *rect;
+        let rect = unsafe { &mut *rect };
         let editor = self.ui_thread_state.editor.borrow();
         let Some(editor) = editor.as_ref() else {
             return kResultFalse;

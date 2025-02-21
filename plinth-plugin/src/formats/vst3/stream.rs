@@ -9,11 +9,9 @@ pub struct Stream<'a> {
     raw: ComRef<'a, IBStream>,
 }
 
-impl<'a> Stream<'a> {
+impl Stream<'_> {
     pub fn new(raw: *mut IBStream) -> Option<Self> {
-        let Some(raw) = (unsafe { ComRef::from_raw(raw) }) else {
-            return None;
-        };
+        let raw = (unsafe { ComRef::from_raw(raw) })?;
 
         Some(Self {
             raw,
@@ -21,7 +19,7 @@ impl<'a> Stream<'a> {
     }
 }
 
-impl<'a> Read for Stream<'a> {
+impl Read for Stream<'_> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         let mut total_bytes_read = 0;
         while total_bytes_read < buf.len() {
@@ -43,7 +41,7 @@ impl<'a> Read for Stream<'a> {
     }
 }
 
-impl<'a> Write for Stream<'a> {
+impl Write for Stream<'_> {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         let mut total_bytes_written = 0;
         

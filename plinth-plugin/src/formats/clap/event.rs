@@ -22,7 +22,7 @@ impl<'a> EventIterator<'a> {
     }
 }
 
-impl<'a> Iterator for EventIterator<'a> {
+impl Iterator for EventIterator<'_> {
     type Item = Event;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -63,9 +63,7 @@ impl<'a> Iterator for EventIterator<'a> {
 
                 CLAP_EVENT_PARAM_VALUE => {
                     let event = unsafe { &*(header as *const clap_event_param_value) };
-                    let Some(parameter_info) = self.parameter_info.get(&event.param_id) else {
-                        return None;
-                    };
+                    let parameter_info = self.parameter_info.get(&event.param_id)?;
 
                     let value = map_parameter_value_from_clap(parameter_info, event.value);
 
@@ -78,9 +76,7 @@ impl<'a> Iterator for EventIterator<'a> {
     
                 CLAP_EVENT_PARAM_MOD => {
                     let event = unsafe { &*(header as *const clap_event_param_mod) };
-                    let Some(parameter_info) = self.parameter_info.get(&event.param_id) else {
-                        return None;
-                    };
+                    let parameter_info = self.parameter_info.get(&event.param_id)?;
 
                     let amount = map_parameter_value_from_clap(parameter_info, event.amount);
 

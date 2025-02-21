@@ -1,4 +1,4 @@
-use std::{any::Any, sync::{atomic::AtomicBool, Arc}};
+use std::{any::Any, fmt::Display, sync::{atomic::AtomicBool, Arc}};
 
 use portable_atomic::{AtomicF64, Ordering};
 
@@ -70,10 +70,6 @@ impl BoolParameter {
         self.normalized_to_plain(self.info.default_normalized_value())
     }
 
-    pub fn to_string(&self) -> String {
-        self.formatter.value_to_string(self.plain())
-    }
-
     fn changed(&self) {
         if let Some(on_value_changed) = self.value_changed.as_ref() {
             on_value_changed(self.plain());
@@ -90,6 +86,12 @@ impl Clone for BoolParameter {
             formatter: self.formatter.clone(),
             value_changed: self.value_changed.clone(),
         }
+    }
+}
+
+impl Display for BoolParameter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.formatter.value_to_string(self.plain()))
     }
 }
 
@@ -123,10 +125,7 @@ impl Parameter for BoolParameter {
     }
 
     fn string_to_normalized(&self, string: &str) -> Option<ParameterValue> {
-        let Some(plain) = self.formatter.string_to_value(string) else {
-            return None;
-        };
-
+        let plain = self.formatter.string_to_value(string)?;
         Some(self.plain_to_normalized(plain))
     }
 
@@ -147,11 +146,7 @@ impl ParameterPlain for BoolParameter {
     type Plain = bool;
     
     fn normalized_to_plain(&self, value: ParameterValue) -> bool {
-        if value < 0.5 {
-            false
-        } else {
-            true
-        }
+        value >= 0.5
     }
 
     fn plain_to_normalized(&self, plain: bool) -> ParameterValue {

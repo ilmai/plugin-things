@@ -49,6 +49,9 @@ impl<P: ClapPlugin> Factory<P> {
         self.count
     }
 
+    /// # Safety
+    /// 
+    /// `factory_id` must be a valid pointer
     pub unsafe fn is_valid_factory_id(factory_id: *const c_char) -> bool {
         if factory_id.is_null() {
             return false;
@@ -85,17 +88,23 @@ impl<P: ClapPlugin> Factory<P> {
         plugin_id: *const c_char,
     ) -> *const clap_plugin
     {
-        let factory = &*(factory as *const Self);
+        let factory = unsafe { &*(factory as *const Self) };
 
         if plugin_id.is_null() {
             return null();
         }
-        if CStr::from_ptr(plugin_id) != factory.descriptor.id() {
+        if unsafe { CStr::from_ptr(plugin_id) } != factory.descriptor.id() {
             return null();
         }
 
         let instance = Box::new(PluginInstance::<P>::new(&factory.descriptor, host));
         Box::into_raw(instance) as _
+    }
+}
+
+impl<P: ClapPlugin> Default for Factory<P> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

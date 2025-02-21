@@ -84,7 +84,7 @@ impl OsWindowInterface for OsWindow {
             lpfnWndProc: Some(wnd_proc),
             cbClsExtra: 0,
             cbWndExtra: 0,
-            hInstance: PLUGIN_HINSTANCE.with(|hinstance| hinstance.clone()),
+            hInstance: PLUGIN_HINSTANCE.with(|hinstance| *hinstance),
             hIcon: HICON(null_mut()),
             hCursor: cursor,
             hbrBackground: HBRUSH(null_mut()),
@@ -108,7 +108,7 @@ impl OsWindowInterface for OsWindow {
             size.physical_size().height as i32,
             HWND(parent_window_handle.hwnd.get() as _),
             HMENU(null_mut()),
-            PLUGIN_HINSTANCE.with(|hinstance| hinstance.clone()),
+            PLUGIN_HINSTANCE.with(|hinstance| *hinstance),
             None,
         ).unwrap() };
 
@@ -293,9 +293,9 @@ impl HasDisplayHandle for OsWindow {
 }
 
 unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
-    let window_ptr = GetWindowLongPtrW(hwnd, GWLP_USERDATA) as *mut OsWindow;
+    let window_ptr = unsafe { GetWindowLongPtrW(hwnd, GWLP_USERDATA) } as *mut OsWindow;
     if window_ptr.is_null() {
-        return DefWindowProcW(hwnd, msg, wparam, lparam);
+        return unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) };
     }
 
     let window = unsafe { &mut *window_ptr };
@@ -347,9 +347,9 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
         },
 
         WM_MOUSEWHEEL => {
-            let wheel_delta: i16 = mem::transmute((wparam.0 >> 16) as u16);
-            let x: i16 = mem::transmute(((lparam.0 as usize) & 0xFFFF) as u16);
-            let y: i16 = mem::transmute(((lparam.0 as usize) >> 16) as u16);
+            let wheel_delta: i16 = unsafe { mem::transmute((wparam.0 >> 16) as u16) };
+            let x: i16 = unsafe { mem::transmute(((lparam.0 as usize) & 0xFFFF) as u16) };
+            let y: i16 = unsafe { mem::transmute(((lparam.0 as usize) >> 16) as u16) };
 
             let mut position = POINT { x: x as i32, y: y as i32 };
             let result = unsafe { ScreenToClient(hwnd, &mut position) };
@@ -379,7 +379,7 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
         WM_USER_FRAME_TIMER => {
             // Check modifiers
             for &key in MODIFIERS.iter() {
-                let pressed = GetAsyncKeyState(key.0 as _) != 0;
+                let pressed = unsafe { GetAsyncKeyState(key.0 as _) } != 0;
                 let was_pressed = window.modifier_pressed[&key.0];
                 
                 if pressed != was_pressed {
@@ -400,34 +400,35 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
             LRESULT(0)
         },
 
-        _ => DefWindowProcW(hwnd, msg, wparam, lparam),
+        _ => unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) },
     }   
 }
 
 unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     if code < 0 {
-        return CallNextHookEx(HHOOK(null_mut()), code, wparam, lparam);
+        return unsafe { CallNextHookEx(HHOOK(null_mut()), code, wparam, lparam) };
     }
 
     let mouse_hook_struct_ptr: *const MOUSEHOOKSTRUCTEX = lparam.0 as _;
     let mouse_hook_struct = unsafe { &*mouse_hook_struct_ptr };
     let hwnd = mouse_hook_struct.Base.hwnd;
 
+    #[expect(clippy::single_match)]
     match wparam.0 as u32 {
         WM_MOUSEWHEEL => {
             let position = &mouse_hook_struct.Base.pt;
-            let x: u16 = mem::transmute(position.x as i16);
-            let y: u16 = mem::transmute(position.y as i16);
+            let x: u16 = unsafe { mem::transmute(position.x as i16) };
+            let y: u16 = unsafe { mem::transmute(position.y as i16) };
 
             // TODO: Convert modifiers            
             let wparam = WPARAM(mouse_hook_struct.mouseData as usize & 0xFFFF0000);            
-            let lparam = LPARAM(mem::transmute(x as usize + (y as usize) << 16));
-            PostMessageW(hwnd, WM_MOUSEWHEEL, wparam, lparam).unwrap();
+            let lparam = LPARAM(unsafe { mem::transmute::<usize, isize>(x as usize + ((y as usize) << 16)) });
+            unsafe { PostMessageW(hwnd, WM_MOUSEWHEEL, wparam, lparam).unwrap() };
         },
         _ => {},
     }
 
-    CallNextHookEx(HHOOK(null_mut()), code, wparam, lparam)
+    unsafe { CallNextHookEx(HHOOK(null_mut()), code, wparam, lparam) }
 }
 
 fn frame_pacing_thread(hwnd: usize, moved: Arc<AtomicBool>) {

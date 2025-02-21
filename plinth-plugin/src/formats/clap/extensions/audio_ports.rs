@@ -23,7 +23,7 @@ impl<P: ClapPlugin> AudioPorts<P> {
         }
     }
 
-    pub fn as_raw(&self) -> &clap_plugin_audio_ports {
+    pub fn as_raw(&self) -> *const clap_plugin_audio_ports {
         &self.raw
     }
 

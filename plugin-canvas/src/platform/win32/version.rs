@@ -9,7 +9,7 @@ pub fn is_windows10_or_greater() -> bool {
 }
 
 fn is_windows_version_or_greater(version: u32) -> bool {
-    let major_version = version >> 8 & 0xFF;
+    let major_version = (version >> 8) & 0xFF;
     let minor_version = version & 0xFF;
 
     let mut version_info = OSVERSIONINFOEXW {

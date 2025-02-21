@@ -9,8 +9,10 @@ pub struct PtrSignal {
 }
 
 impl PtrSignal {
-    // SAFETY: Caller is responsible for channels and length matching the pointers,
-    // and for taking care the pointers live long enough
+    /// # Safety
+    /// 
+    /// Caller is responsible for channels and length matching the pointers,
+    /// and for taking care the pointers live long enough
     pub unsafe fn from_pointers(channels: usize, length: usize, channels_pointers: *const *const f32) -> Self {
         assert!(!channels_pointers.is_null());
         assert!(unsafe { !any_null(channels_pointers, channels) });
@@ -52,8 +54,10 @@ pub struct PtrSignalMut {
 }
 
 impl PtrSignalMut {
-    // SAFETY: Caller is responsible for channels and length matching the pointers,
-    // and for taking care the pointers live long enough
+    /// # Safety
+    /// 
+    /// Caller is responsible for channels and length matching the pointers,
+    /// and for taking care the pointers live long enough
     pub unsafe fn from_pointers(channels: usize, length: usize, channels_pointers: *mut *mut f32) -> Self {
         Self {
             channels,

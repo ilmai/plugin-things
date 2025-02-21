@@ -68,7 +68,7 @@ fn parse_variants(input: &DeriveInput) -> Vec<Variant> {
 
     body.variants.iter()
         .map(|variant| {
-            if variant.fields.len() != 0 {
+            if !variant.fields.is_empty() {
                 panic!("Macro can only be used on enums that doesn't contain fields");
             }
 

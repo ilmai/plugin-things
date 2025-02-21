@@ -57,7 +57,7 @@ impl<'signal, S: SignalMut> Iterator for FramesIteratorMut<'signal, S> {
         self.frame_index += 1;
 
         // Re-borrow to the correct lifetime, which is safe since self.signal has the same lifetime
-        let result = unsafe { transmute(result) };
+        let result = unsafe { transmute::<SignalFrameMut<'_, S>, SignalFrameMut<'_, S>>(result) };
         Some(result)
     }
 }

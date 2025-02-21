@@ -2,7 +2,7 @@ use std::{collections::HashMap, sync::Arc};
 
 use crate::{Parameter, ParameterId, Parameters};
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct ParameterMap {
     ids: Vec<ParameterId>,
     map: HashMap<ParameterId, Arc<dyn Parameter>>,
@@ -10,10 +10,7 @@ pub struct ParameterMap {
 
 impl ParameterMap {
     pub fn new() -> Self {
-        Self {
-            ids: Default::default(),
-            map: Default::default(),
-        }
+        Self::default()
     }
 
     pub fn add(&mut self, parameter: impl Parameter) {

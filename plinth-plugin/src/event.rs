@@ -44,7 +44,7 @@ pub enum Event {
 }
 
 impl Event {
-    pub fn split_signal_at_events<'signal, I, S>(signal: &'signal mut S, events: I) -> SignalSplitter<'signal, I, S>
+    pub fn split_signal_at_events<I, S>(signal: &mut S, events: I) -> SignalSplitter<'_, I, S>
     where
         I: Iterator<Item = Event>,
         S: SignalMut,

@@ -25,7 +25,7 @@ impl Buffer {
 
     pub fn from_signal(signal: &impl Signal) -> Self {
         let samples: Vec<_> = signal.iter_channels()
-            .map(|channel| channel.iter().copied().collect())
+            .map(|channel| channel.to_vec())
             .collect();
 
         Self {

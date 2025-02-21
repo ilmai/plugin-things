@@ -27,7 +27,7 @@ impl<P: ClapPlugin> Params<P> {
         }
     }
 
-    pub fn as_raw(&self) -> &clap_plugin_params {
+    pub fn as_raw(&self) -> *const clap_plugin_params {
         &self.raw
     }
 
@@ -47,7 +47,7 @@ impl<P: ClapPlugin> Params<P> {
             clap_param_info.id = parameter_info.id();
             clap_param_info.flags = CLAP_PARAM_IS_AUTOMATABLE | CLAP_PARAM_IS_MODULATABLE;
             clap_param_info.min_value = 0.0;
-            clap_param_info.default_value = map_parameter_value_to_clap(&parameter_info, parameter_info.default_normalized_value());
+            clap_param_info.default_value = map_parameter_value_to_clap(parameter_info, parameter_info.default_normalized_value());
 
             if parameter_info.is_bypass() {
                 clap_param_info.flags |= CLAP_PARAM_IS_BYPASS;
@@ -77,7 +77,8 @@ impl<P: ClapPlugin> Params<P> {
                     return false;
                 };
 
-                *out_value = map_parameter_value_to_clap(parameter.info(), parameter.normalized_value());
+                unsafe { *out_value = map_parameter_value_to_clap(parameter.info(), parameter.normalized_value()) };
+
                 true
             })
         })
@@ -97,7 +98,7 @@ impl<P: ClapPlugin> Params<P> {
                 let value = map_parameter_value_from_clap(parameter.info(), value);
                 let string = parameter.normalized_to_string(value);
 
-                let out_slice = std::slice::from_raw_parts_mut(out_buffer, out_buffer_capacity as _);
+                let out_slice = unsafe { std::slice::from_raw_parts_mut(out_buffer, out_buffer_capacity as _) };
                 copy_str_to_char8(&string, out_slice);
 
                 true
@@ -112,7 +113,7 @@ impl<P: ClapPlugin> Params<P> {
                     return false;
                 };
 
-                let string = CStr::from_ptr(param_value_text);
+                let string = unsafe { CStr::from_ptr(param_value_text) };
                 let Ok(string) = string.to_str() else {
                     return false;
                 };
@@ -121,7 +122,7 @@ impl<P: ClapPlugin> Params<P> {
                     return false;
                 };
 
-                *out_value = map_parameter_value_to_clap(parameter.info(), value);
+                unsafe { *out_value = map_parameter_value_to_clap(parameter.info(), value) };
                 true
             })
         })

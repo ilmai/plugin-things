@@ -1,4 +1,4 @@
-use std::{any::Any, sync::{atomic::AtomicI64, Arc}};
+use std::{any::Any, fmt::Display, sync::{atomic::AtomicI64, Arc}};
 
 use portable_atomic::{AtomicF64, Ordering};
 
@@ -65,10 +65,6 @@ impl IntParameter {
         self.range.normalized_to_plain(self.info.default_normalized_value())
     }
 
-    pub fn to_string(&self) -> String {
-        self.formatter.value_to_string(self.plain())
-    }
-
     fn changed(&self) {
         if let Some(on_value_changed) = self.value_changed.as_ref() {
             on_value_changed(self.plain());
@@ -86,6 +82,12 @@ impl Clone for IntParameter {
             formatter: self.formatter.clone(),
             value_changed: self.value_changed.clone(),
         }
+    }
+}
+
+impl Display for IntParameter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.formatter.value_to_string(self.plain()))
     }
 }
 
@@ -119,10 +121,7 @@ impl Parameter for IntParameter {
     }
 
     fn string_to_normalized(&self, string: &str) -> Option<ParameterValue> {
-        let Some(plain) = self.formatter.string_to_value(string) else {
-            return None;
-        };
-        
+        let plain = self.formatter.string_to_value(string)?;        
         self.range.plain_to_normalized(plain)
     }
 

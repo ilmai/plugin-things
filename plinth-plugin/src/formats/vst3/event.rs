@@ -9,7 +9,7 @@ pub struct EventIterator<'a> {
     index: usize,
 }
 
-impl<'a> EventIterator<'a> {
+impl EventIterator<'_> {
     pub fn new(event_list: *mut IEventList) -> Self {
         Self {
             event_list: unsafe { ComRef::from_raw(event_list) },
@@ -18,13 +18,11 @@ impl<'a> EventIterator<'a> {
     }
 }
 
-impl<'a> Iterator for EventIterator<'a> {
+impl Iterator for EventIterator<'_> {
     type Item = Event;
     
     fn next(&mut self) -> Option<Self::Item> {
-        let Some(event_list) = self.event_list else {
-            return None;
-        };
+        let event_list = self.event_list?;
 
         if self.index >= unsafe { event_list.getEventCount() } as usize {
             return None;

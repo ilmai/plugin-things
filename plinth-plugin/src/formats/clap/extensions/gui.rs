@@ -64,7 +64,7 @@ impl<P: ClapPlugin> Gui<P> {
             return false;
         }
 
-        CStr::from_ptr(api) == clap_sys::ext::gui::CLAP_WINDOW_API_WIN32
+        unsafe { CStr::from_ptr(api) == clap_sys::ext::gui::CLAP_WINDOW_API_WIN32 }
     }
 
     unsafe extern "C" fn get_preferred_api(_plugin: *const clap_plugin, _api: *mut *const c_char, _is_floating: *mut bool) -> bool {
@@ -125,8 +125,11 @@ impl<P: ClapPlugin> Gui<P> {
             };
 
             let editor_size = editor.window_size();
-            (*width) = (editor_size.0 * instance.editor_scale) as u32;
-            (*height) = (editor_size.1 * instance.editor_scale) as u32;
+            
+            unsafe {
+                (*width) = (editor_size.0 * instance.editor_scale) as u32;
+                (*height) = (editor_size.1 * instance.editor_scale) as u32;    
+            }
 
             true
         });
@@ -148,13 +151,15 @@ impl<P: ClapPlugin> Gui<P> {
                 return false;
             };
 
-            let requested_size = (*width as _, *height as _);
+            let requested_size = unsafe { (*width as _, *height as _) };
             let Some(new_size) = editor.check_window_size(requested_size) else {
                 return false;
             };
 
-            *width = new_size.0 as _;
-            *height = new_size.1 as _;
+            unsafe {
+                *width = new_size.0 as _;
+                *height = new_size.1 as _;    
+            }
 
             true
         })
@@ -174,7 +179,7 @@ impl<P: ClapPlugin> Gui<P> {
 
     unsafe extern "C" fn set_parent(plugin: *const clap_plugin, window: *const clap_window) -> bool {
         PluginInstance::with_plugin_instance(plugin, |instance: &mut PluginInstance<P>| {
-            let parent = crate::window_handle::from_ptr((*window).specific.ptr);
+            let parent = crate::window_handle::from_ptr(unsafe { (*window).specific.ptr });
 
             let Some(editor) = instance.editor.as_mut() else {
                 return false;

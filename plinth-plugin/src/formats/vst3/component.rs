@@ -5,7 +5,7 @@ use plinth_core::signals::{ptr_signal::{PtrSignal, PtrSignalMut}, signal::Signal
 use vst3::{ComPtr, ComRef, ComWrapper, Steinberg::{int16, int32, kInvalidArgument, kNoInterface, kResultFalse, kResultOk, tresult, uint32, FIDString, FUnknown, IBStream, IPlugView, IPluginBaseTrait, TBool, Vst::{kInfiniteTail, kNoParentUnitId, kNoProgramListId, kNoTail, BusDirection, BusDirections_, BusInfo, BusInfo_::BusFlags_, BusTypes_, CString, IAudioProcessor, IAudioProcessorTrait, IComponent, IComponentHandler, IComponentTrait, IEditController, IEditController2, IEditController2Trait, IEditControllerTrait, IProcessContextRequirements, IProcessContextRequirementsTrait, IProcessContextRequirements_, IUnitInfo, IUnitInfoTrait, IoMode, IoModes_, KnobMode, MediaType, MediaTypes_, ParamID, ParamValue, ParameterInfo_, ProcessData, ProcessSetup, ProgramListID, ProgramListInfo, RoutingInfo, SpeakerArr, SpeakerArrangement, String128, SymbolicSampleSizes_, TChar, UnitID, UnitInfo, ViewType::kEditor}, TUID}};
 use widestring::U16CStr;
 
-use crate::{editor::NoEditor, parameters::{group::{self, ParameterGroupRef}, info::ParameterInfo, parameters::has_duplicates}, processor::ProcessorConfig, string::copy_str_to_char16, vst3::{event::EventIterator, parameters::ParameterChangeIterator}, Event, Parameters, ProcessMode, ProcessState, Processor};
+use crate::{editor::NoEditor, parameters::{group::{self, ParameterGroupRef}, info::ParameterInfo, has_duplicates}, processor::ProcessorConfig, string::copy_str_to_char16, vst3::{event::EventIterator, parameters::ParameterChangeIterator}, Event, Parameters, ProcessMode, ProcessState, Processor};
 
 use super::{plugin::Vst3Plugin, stream::Stream, view::View};
 
@@ -139,7 +139,7 @@ impl<P: Vst3Plugin> IAudioProcessorTrait for PluginComponent<P> {
             return kResultFalse;
         }
 
-        let inputs = std::slice::from_raw_parts(inputs, num_ins as _);
+        let inputs = unsafe { std::slice::from_raw_parts(inputs, num_ins as _) };
         if inputs[0] != SpeakerArr::kStereo {
             return kResultFalse;
         }
@@ -147,7 +147,7 @@ impl<P: Vst3Plugin> IAudioProcessorTrait for PluginComponent<P> {
             return kResultFalse;
         }
 
-        let outputs = std::slice::from_raw_parts(outputs, num_outs as _);
+        let outputs = unsafe { std::slice::from_raw_parts(outputs, num_outs as _) };
         if outputs[0] != SpeakerArr::kStereo {
             return kResultFalse;
         }
@@ -231,10 +231,14 @@ impl<P: Vst3Plugin> IAudioProcessorTrait for PluginComponent<P> {
             return kResultOk;
         }
 
-        assert_eq!(data.symbolicSampleSize, SymbolicSampleSizes_::kSample32 as i32);
+        // On some platforms, this cast is needed
+        #[allow(clippy::unnecessary_cast)]
+        if data.symbolicSampleSize != SymbolicSampleSizes_::kSample32 as i32 {
+            return kResultFalse;
+        }
 
-        let inputs = std::slice::from_raw_parts(data.inputs, data.numInputs as _);
-        let outputs = std::slice::from_raw_parts(data.outputs, data.numOutputs as _);
+        let inputs = unsafe { std::slice::from_raw_parts(data.inputs, data.numInputs as _) };
+        let outputs = unsafe { std::slice::from_raw_parts(data.outputs, data.numOutputs as _) };
         let main_input = inputs[0];
         let main_output = outputs[0];
         assert_eq!(main_input.numChannels, main_output.numChannels);
@@ -242,17 +246,17 @@ impl<P: Vst3Plugin> IAudioProcessorTrait for PluginComponent<P> {
         let aux_input = if P::HAS_AUX_INPUT && aux_active {
             assert_eq!(data.numInputs, 2);
             let aux_input = inputs[1];
-            Some(PtrSignal::from_pointers(aux_input.numChannels as usize, data.numSamples as usize, aux_input.__field0.channelBuffers32 as _))
+            Some(unsafe { PtrSignal::from_pointers(aux_input.numChannels as usize, data.numSamples as usize, aux_input.__field0.channelBuffers32 as _) })
         } else {
             None
         };
 
-        let main_input = PtrSignal::from_pointers(main_input.numChannels as usize, data.numSamples as usize, main_input.__field0.channelBuffers32 as _);
-        let mut main_output = PtrSignalMut::from_pointers(main_output.numChannels as usize, data.numSamples as usize, main_output.__field0.channelBuffers32);
+        let main_input = unsafe { PtrSignal::from_pointers(main_input.numChannels as usize, data.numSamples as usize, main_input.__field0.channelBuffers32 as _) };
+        let mut main_output = unsafe { PtrSignalMut::from_pointers(main_output.numChannels as usize, data.numSamples as usize, main_output.__field0.channelBuffers32) };
 
         // If processing out-of-place, copy input to output
         if zip(main_input.pointers().iter(), main_output.pointers().iter())
-            .any(|(&input_ptr, &output_ptr)| input_ptr != &*output_ptr)
+            .any(|(&input_ptr, &output_ptr)| input_ptr != unsafe { &*output_ptr })
         {
             main_output.copy_from_signal(&main_input);
         }
@@ -311,6 +315,8 @@ impl<P: Vst3Plugin> IComponentTrait for PluginComponent<P> {
     unsafe fn getBusCount(&self, media_type: MediaType, dir: BusDirection) -> int32 {
         log::trace!("IComponent::getBusCount");
 
+        // On some platforms, these casts are needed
+        #[allow(clippy::unnecessary_cast)]
         if P::HAS_AUX_INPUT && media_type == MediaTypes_::kAudio as i32 && dir == BusDirections_::kInput as i32 {
             2
         } else {
@@ -321,7 +327,7 @@ impl<P: Vst3Plugin> IComponentTrait for PluginComponent<P> {
     unsafe fn getBusInfo(&self, media_type: MediaType, dir: BusDirection, index: int32, bus: *mut BusInfo) -> tresult {
         log::trace!("IComponent::getBusInfo");
 
-        if index >= self.getBusCount(media_type, dir) {
+        if index >= unsafe { self.getBusCount(media_type, dir) } {
             return kInvalidArgument;
         }
 
@@ -363,6 +369,8 @@ impl<P: Vst3Plugin> IComponentTrait for PluginComponent<P> {
     unsafe fn activateBus(&self, media_type: MediaType, dir: BusDirection, index: int32, state: TBool) -> tresult {
         log::trace!("IComponent::activateBus");
 
+        // On some platforms, these casts are needed
+        #[allow(clippy::unnecessary_cast)]
         if P::HAS_AUX_INPUT && media_type == MediaTypes_::kAudio as i32 && dir == BusDirections_::kInput as i32 && index == 1 {
             let mut audio_thread_state = self.audio_thread_state.borrow_mut();
             audio_thread_state.aux_active = state != 0;
@@ -379,7 +387,7 @@ impl<P: Vst3Plugin> IComponentTrait for PluginComponent<P> {
 
         if self.processing.load(Ordering::Acquire) && !active {
             // KLUDGE: Ableton Live calls setActive(0) without calling setProcessing(0) first
-            self.setProcessing(0);
+            unsafe { self.setProcessing(0) };
         }
 
         let mut audio_thread_state = self.audio_thread_state.borrow_mut();
@@ -464,9 +472,16 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
         // TODO: info.shortTitle
         vst3_info.stepCount = parameter_info.steps() as _;
         vst3_info.defaultNormalizedValue = parameter_info.default_normalized_value();
-        vst3_info.unitId = self.ui_thread_state.parameter_group_id(&parameter_info);
+        vst3_info.unitId = self.ui_thread_state.parameter_group_id(parameter_info);
 
-        vst3_info.flags = ParameterInfo_::ParameterFlags_::kCanAutomate as i32;
+        // On some platforms, this cast is needed
+        #[allow(clippy::unnecessary_cast)]
+        {
+            vst3_info.flags = ParameterInfo_::ParameterFlags_::kCanAutomate as i32;
+        }
+
+        // On some platforms, this cast is needed
+        #[allow(clippy::unnecessary_cast)]
         if parameter_info.is_bypass() {
             vst3_info.flags |= ParameterInfo_::ParameterFlags_::kIsBypass as i32;
         }
@@ -483,7 +498,7 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
             };
 
             let formatted = parameter.normalized_to_string(value_normalized);
-            copy_str_to_char16(&formatted, &mut *string);
+            copy_str_to_char16(&formatted, unsafe { &mut *string });
     
             kResultOk    
         })
@@ -496,7 +511,7 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
             return kInvalidArgument;
         }
 
-        let string = U16CStr::from_ptr_str(string as _);
+        let string = unsafe { U16CStr::from_ptr_str(string as _) };
         let Ok(string) = string.to_string() else {
             return kInvalidArgument;
         };
@@ -510,7 +525,7 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
                 return kInvalidArgument;
             };
     
-            *value_normalized = value;
+            unsafe { *value_normalized = value };
     
             kResultOk
         })
@@ -549,7 +564,7 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
     unsafe fn setComponentHandler(&self, handler: *mut IComponentHandler) -> tresult {
         log::trace!("IEditController::setComponentHandler");
 
-        let Some(handler) = ComRef::from_raw(handler) else {
+        let Some(handler) = (unsafe { ComRef::from_raw(handler) }) else {
             return kInvalidArgument;
         };
 
@@ -565,7 +580,7 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
             return null_mut();
         }
 
-        if CStr::from_ptr(name) != CStr::from_ptr(kEditor) {
+        if unsafe { CStr::from_ptr(name) != CStr::from_ptr(kEditor) } {
             return null_mut();
         }
 
@@ -626,7 +641,7 @@ impl<P: Vst3Plugin> IUnitInfoTrait for PluginComponent<P> {
             return kInvalidArgument;
         }
 
-        let info = &mut *info;
+        let info = unsafe { &mut *info };
         info.id = unit_index;
         info.programListId = kNoProgramListId;
         info.parentUnitId = kNoParentUnitId;

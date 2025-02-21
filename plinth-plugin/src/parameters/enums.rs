@@ -1,4 +1,4 @@
-use std::{any::Any, marker::PhantomData, sync::{atomic::AtomicUsize, Arc}};
+use std::{any::Any, fmt::Display, marker::PhantomData, sync::{atomic::AtomicUsize, Arc}};
 
 use portable_atomic::{AtomicF64, Ordering};
 
@@ -78,10 +78,6 @@ impl<T: Enum> EnumParameter<T> {
         self.range.normalized_to_plain(self.info.default_normalized_value())
     }
 
-    pub fn to_string(&self) -> String {
-        self.plain().to_string()
-    }
-
     fn changed(&self) {
         if let Some(on_value_changed) = self.value_changed.as_ref() {
             on_value_changed(self.plain());
@@ -100,6 +96,12 @@ impl<T: Enum> Clone for EnumParameter<T> {
 
             _phantom_enum: PhantomData,
         }
+    }
+}
+
+impl<T: Enum> Display for EnumParameter<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.plain().to_string())
     }
 }
 
@@ -132,10 +134,7 @@ impl<T: Enum> Parameter for EnumParameter<T> {
     }
 
     fn string_to_normalized(&self, string: &str) -> Option<ParameterValue> {        
-        let Some(plain) = T::from_string(string) else {
-            return None;
-        };
-        
+        let plain = T::from_string(string)?;        
         self.range.plain_to_normalized(plain.to_usize() as i64)
     }
 

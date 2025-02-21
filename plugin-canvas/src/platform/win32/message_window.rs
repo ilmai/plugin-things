@@ -23,7 +23,7 @@ impl MessageWindow {
             lpfnWndProc: Some(wnd_proc),
             cbClsExtra: 0,
             cbWndExtra: 0,
-            hInstance: PLUGIN_HINSTANCE.with(|hinstance| hinstance.clone()),
+            hInstance: PLUGIN_HINSTANCE.with(|hinstance| *hinstance),
             hIcon: HICON(null_mut()),
             hCursor: HCURSOR(null_mut()),
             hbrBackground: HBRUSH(null_mut()),
@@ -47,7 +47,7 @@ impl MessageWindow {
             0,
             main_window_hwnd,
             HMENU(null_mut()),
-            PLUGIN_HINSTANCE.with(|hinstance| hinstance.clone()),
+            PLUGIN_HINSTANCE.with(|hinstance| *hinstance),
             None,
         ).unwrap() };
 
@@ -100,7 +100,7 @@ impl Drop for MessageWindow {
     fn drop(&mut self) {
         unsafe {
             DestroyWindow(HWND(self.hwnd as _)).unwrap();
-            UnregisterClassW(PCWSTR(self.window_class as _), PLUGIN_HINSTANCE.with(|hinstance| hinstance.clone())).unwrap();
+            UnregisterClassW(PCWSTR(self.window_class as _), PLUGIN_HINSTANCE.with(|hinstance| *hinstance)).unwrap();
         }
     }
 }
@@ -110,13 +110,13 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
 
     match msg {
         WM_CHAR => {
-            PostMessageW(main_window_hwnd, WM_USER_KEY_DOWN, wparam, lparam).unwrap();
+            unsafe { PostMessageW(main_window_hwnd, WM_USER_KEY_DOWN, wparam, lparam).unwrap() };
             LRESULT(0)
         },
 
         WM_KEYDOWN => {
             if let Some(character) = virtual_key_to_char(VIRTUAL_KEY(wparam.0 as u16)) {
-                PostMessageW(main_window_hwnd, WM_USER_KEY_DOWN, WPARAM(character), LPARAM(0)).unwrap();
+                unsafe { PostMessageW(main_window_hwnd, WM_USER_KEY_DOWN, WPARAM(character), LPARAM(0)).unwrap() };
             }
             
             LRESULT(0)
@@ -124,12 +124,12 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
 
         WM_KEYUP => {
             if let Some(character) = virtual_key_to_char(VIRTUAL_KEY(wparam.0 as u16)) {
-                PostMessageW(main_window_hwnd, WM_USER_KEY_UP, WPARAM(character), LPARAM(0)).unwrap();
+                unsafe { PostMessageW(main_window_hwnd, WM_USER_KEY_UP, WPARAM(character), LPARAM(0)).unwrap() };
             }
             
             LRESULT(0)
         }
 
-        _ => DefWindowProcW(hwnd, msg, wparam, lparam)
+        _ => unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) }
     }
 }

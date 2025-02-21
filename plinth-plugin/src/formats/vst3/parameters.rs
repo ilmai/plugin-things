@@ -1,3 +1,5 @@
+use std::cmp;
+
 use vst3::{ComRef, Steinberg::{kResultOk, Vst::{IParamValueQueueTrait, IParameterChanges, IParameterChangesTrait}}};
 
 use crate::event::Event;
@@ -9,7 +11,7 @@ pub struct ParameterChangeIterator<'a> {
     finished: bool,
 }
 
-impl<'a> ParameterChangeIterator<'a> {
+impl ParameterChangeIterator<'_> {
     pub fn new(parameter_changes: *mut IParameterChanges) -> Self {
         Self {
             parameter_changes: unsafe { ComRef::from_raw(parameter_changes) },
@@ -20,16 +22,14 @@ impl<'a> ParameterChangeIterator<'a> {
     }
 }
 
-impl<'a> Iterator for ParameterChangeIterator<'a> {
+impl Iterator for ParameterChangeIterator<'_> {
     type Item = Event;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.finished {
             return None;
         }
-        let Some(parameter_changes) = self.parameter_changes else {
-            return None;
-        };
+        let parameter_changes = self.parameter_changes?;
 
         let parameter_count = unsafe { parameter_changes.getParameterCount() };
         assert!(parameter_count >= 0);
@@ -61,17 +61,19 @@ impl<'a> Iterator for ParameterChangeIterator<'a> {
                     assert!(offset >= 0);
                     let offset = offset as usize;
 
-                    if offset == current_offset {
-                        if nth >= current_index {
-                            Some((id, offset, value))
-                        } else {
-                            nth += 1;
-                            None
-                        }
-                    } else if offset > current_offset {
-                        Some((id, offset, value))
-                    } else {
-                        None
+                    match offset.cmp(&current_offset) {
+                        cmp::Ordering::Equal => {
+                            if nth >= current_index {
+                                Some((id, offset, value))
+                            } else {
+                                nth += 1;
+                                None
+                            }    
+                        },
+
+                        cmp::Ordering::Greater => Some((id, offset, value)),
+
+                        cmp::Ordering::Less => None,
                     }
                 })
             })

@@ -32,6 +32,7 @@ pub struct PluginCanvasWindowAdapter {
 }
 
 impl PluginCanvasWindowAdapter {
+    #[allow(clippy::new_ret_no_self)]
     pub fn new() -> Result<Rc<dyn WindowAdapter>, PlatformError> {
         let plugin_canvas_window = WINDOW_TO_SLINT.take().unwrap();
         
@@ -97,7 +98,7 @@ impl PluginCanvasWindowAdapter {
 
     pub fn on_event(&self, event: &plugin_canvas::Event) -> EventResponse {
         if let Some(context) = self.context.borrow().as_ref() {
-            context.component.on_event(&event);
+            context.component.on_event(event);
         }
 
         match event {
