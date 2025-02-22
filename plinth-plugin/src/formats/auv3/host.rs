@@ -35,6 +35,11 @@ impl Host for Auv3Host {
         None        
     }
 
+    fn resize_view(&self, _width: f64, _height: f64) -> bool {
+        // TODO
+        false
+    }
+
     fn start_parameter_change(&self, id: ParameterId) {
         self.sending_parameter_change_from_editor.store(true, Ordering::Release);
         unsafe { (self.start_parameter_change)(self.context, id); }

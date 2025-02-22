@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, ffi::{c_char, c_void, CStr}, iter::zip, ptr::{null, null_mut}, sync::Arc};
 
 use atomic_refcell::AtomicRefCell;
-use clap_sys::{events::clap_input_events, ext::{audio_ports::CLAP_EXT_AUDIO_PORTS, gui::CLAP_EXT_GUI, latency::CLAP_EXT_LATENCY, note_ports::CLAP_EXT_NOTE_PORTS, params::{clap_host_params, CLAP_EXT_PARAMS}, render::CLAP_EXT_RENDER, state::{clap_host_state, CLAP_EXT_STATE}, tail::{clap_host_tail, CLAP_EXT_TAIL}, timer_support::{clap_host_timer_support, CLAP_EXT_TIMER_SUPPORT}}, host::clap_host, plugin::clap_plugin, process::{clap_process, clap_process_status, CLAP_PROCESS_CONTINUE, CLAP_PROCESS_CONTINUE_IF_NOT_QUIET, CLAP_PROCESS_ERROR, CLAP_PROCESS_TAIL}};
+use clap_sys::{events::clap_input_events, ext::{audio_ports::CLAP_EXT_AUDIO_PORTS, gui::{clap_host_gui, CLAP_EXT_GUI}, latency::CLAP_EXT_LATENCY, note_ports::CLAP_EXT_NOTE_PORTS, params::{clap_host_params, CLAP_EXT_PARAMS}, render::CLAP_EXT_RENDER, state::{clap_host_state, CLAP_EXT_STATE}, tail::{clap_host_tail, CLAP_EXT_TAIL}, timer_support::{clap_host_timer_support, CLAP_EXT_TIMER_SUPPORT}}, host::clap_host, plugin::clap_plugin, process::{clap_process, clap_process_status, CLAP_PROCESS_CONTINUE, CLAP_PROCESS_CONTINUE_IF_NOT_QUIET, CLAP_PROCESS_ERROR, CLAP_PROCESS_TAIL}};
 use log::error;
 use plinth_core::signals::{ptr_signal::{PtrSignal, PtrSignalMut}, signal::SignalMut};
 
@@ -49,6 +49,7 @@ pub struct PluginInstance<P: ClapPlugin> {
     pub(super) audio_thread_state: AtomicRefCell<AudioThreadState<P>>,
 
     // Host extensions
+    pub(super) host_ext_gui: *const clap_host_gui,
     pub(super) host_ext_params: *const clap_host_params,
     pub(super) host_ext_state: *const clap_host_state,
     host_ext_tail: *const clap_host_tail,
@@ -124,6 +125,7 @@ impl<P: ClapPlugin> PluginInstance<P> {
 
             audio_thread_state: Default::default(),
 
+            host_ext_gui: null(),
             host_ext_params: null(),
             host_ext_state: null(),
             host_ext_tail: null(),
@@ -164,6 +166,7 @@ impl<P: ClapPlugin> PluginInstance<P> {
     unsafe extern "C" fn init(plugin: *const clap_plugin) -> bool {
         Self::with_plugin_instance(plugin, |instance| {
             // Grab host extensions
+            instance.host_ext_gui = unsafe { ((*instance.host).get_extension.unwrap())(instance.host, CLAP_EXT_GUI.as_ptr()) as _ };
             instance.host_ext_params = unsafe { ((*instance.host).get_extension.unwrap())(instance.host, CLAP_EXT_PARAMS.as_ptr()) as _ };
             instance.host_ext_state = unsafe { ((*instance.host).get_extension.unwrap())(instance.host, CLAP_EXT_STATE.as_ptr()) as _ };
             instance.host_ext_tail = unsafe { ((*instance.host).get_extension.unwrap())(instance.host, CLAP_EXT_TAIL.as_ptr()) as _ };

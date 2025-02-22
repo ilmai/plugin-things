@@ -9,7 +9,7 @@ use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use atomic_refcell::AtomicRefCell;
 use plinth_core::signals::ptr_signal::{PtrSignal, PtrSignalMut};
 use plinth_core::signals::signal::SignalMut;
-use vst3::{ComPtr, ComRef, ComWrapper};
+use vst3::{ComPtr, ComRef};
 use vst3::Steinberg::{int16, int32, kInvalidArgument, kNoInterface, kResultFalse, kResultOk, tresult, uint32, FIDString, FUnknown, IBStream, IPlugView, IPluginBaseTrait, TBool, TUID};
 use vst3::Steinberg::Vst::{kInfiniteTail, kNoParentUnitId, kNoProgramListId, kNoTail, BusDirection, BusDirections_, BusInfo, BusInfo_::BusFlags_, BusTypes_, CString, IAudioProcessor, IAudioProcessorTrait, IComponent, IComponentHandler, IComponentTrait, IEditController, IEditController2, IEditController2Trait, IEditControllerTrait, IHostApplication, IHostApplicationTrait, IProcessContextRequirements, IProcessContextRequirementsTrait, IProcessContextRequirements_, IUnitInfo, IUnitInfoTrait, IoMode, IoModes_, KnobMode, MediaType, MediaTypes_, ParamID, ParamValue, ParameterInfo_, ProcessData, ProcessSetup, ProgramListID, ProgramListInfo, RoutingInfo, SpeakerArr, SpeakerArrangement, String128, SymbolicSampleSizes_, TChar, UnitID, UnitInfo, ViewType::kEditor};
 use widestring::U16CStr;
@@ -614,7 +614,7 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
             return null_mut();
         }
 
-        let view = ComWrapper::new(View::<P>::new(self.plugin.clone(), self.ui_thread_state.clone(), self.host_name.borrow().clone()));
+        let view = View::<P>::new(self.plugin.clone(), self.ui_thread_state.clone(), self.host_name.borrow().clone());
         view.to_com_ptr::<IPlugView>().unwrap().into_raw()
     }
 }

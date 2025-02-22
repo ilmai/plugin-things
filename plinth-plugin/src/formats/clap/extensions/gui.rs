@@ -79,6 +79,7 @@ impl<P: ClapPlugin> Gui<P> {
         PluginInstance::with_plugin_instance(plugin, |instance: &mut PluginInstance<P>| {
             let host = Rc::new(ClapHost::new(
                 instance.host,
+                instance.host_ext_gui,
                 instance.host_ext_params,
                 instance.host_ext_state,
                 instance.parameter_event_map.clone(),

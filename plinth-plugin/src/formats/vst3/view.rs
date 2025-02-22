@@ -1,13 +1,13 @@
 use std::{cell::RefCell, ffi::{c_void, CStr}, rc::Rc};
 
-use vst3::{ComPtr, ComRef, Steinberg::{char16, int16, kInvalidArgument, kResultFalse, kResultOk, tresult, FIDString, IPlugFrame, IPlugView, IPlugViewContentScaleSupport, IPlugViewContentScaleSupportTrait, IPlugViewContentScaleSupport_::ScaleFactor, IPlugViewTrait, TBool, ViewRect}};
+use vst3::{ComPtr, ComRef, ComWrapper, Steinberg::{char16, int16, kInvalidArgument, kResultFalse, kResultOk, tresult, FIDString, IPlugFrame, IPlugView, IPlugViewContentScaleSupport, IPlugViewContentScaleSupportTrait, IPlugViewContentScaleSupport_::ScaleFactor, IPlugViewTrait, TBool, ViewRect}};
 
 use crate::Editor;
 
 use super::{component::UiThreadState, host::Vst3Host, Vst3Plugin};
 
 pub struct ViewContext {
-    frame: Option<ComPtr<IPlugFrame>>,
+    pub(super) frame: Option<ComPtr<IPlugFrame>>,
     
     #[cfg(target_os="linux")]
     timer_handler: Option<ComPtr<vst3::Steinberg::Linux::ITimerHandler>>,
@@ -15,15 +15,16 @@ pub struct ViewContext {
 
 pub struct View<P: Vst3Plugin> {
     ui_thread_state: Rc<UiThreadState<P>>,
-    context: RefCell<ViewContext>,
+    context: Rc<RefCell<ViewContext>>,
 }
 
 impl<P: Vst3Plugin + 'static> View<P> {
+    #[expect(clippy::new_ret_no_self)]
     pub fn new(
         plugin: Rc<RefCell<P>>,
         ui_thread_state: Rc<UiThreadState<P>>,
         host_name: Option<String>,
-    ) -> Self {
+    ) -> ComWrapper<Self> {
         let context = ViewContext {
             frame: None,
 
@@ -31,22 +32,27 @@ impl<P: Vst3Plugin + 'static> View<P> {
             timer_handler: None,
         };
 
+        let context = Rc::new(RefCell::new(context));
+
         let mut editor = ui_thread_state.editor.borrow_mut();
         assert!(editor.is_none());
+
+        let view = ComWrapper::new(Self {
+            ui_thread_state: ui_thread_state.clone(),
+            context: context.clone(),
+        });
 
         let host = Rc::new(Vst3Host::new(
             plugin.clone(),
             ui_thread_state.handler.borrow().clone().unwrap(),
+            view.to_com_ptr().unwrap(),
+            context,
             host_name,
         ));
 
         *editor = Some(plugin.borrow().create_editor(host));
-        drop(editor);
 
-        Self {
-            ui_thread_state,
-            context: context.into(),
-        }
+        view
     }
 }
 
