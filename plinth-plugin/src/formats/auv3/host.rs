@@ -30,6 +30,11 @@ impl Auv3Host {
 }
 
 impl Host for Auv3Host {
+    fn name(&self) -> Option<&str> {
+        // TODO
+        None        
+    }
+
     fn start_parameter_change(&self, id: ParameterId) {
         self.sending_parameter_change_from_editor.store(true, Ordering::Release);
         unsafe { (self.start_parameter_change)(self.context, id); }

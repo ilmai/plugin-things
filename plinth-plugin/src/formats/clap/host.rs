@@ -1,4 +1,4 @@
-use std::sync::{atomic::Ordering, Arc};
+use std::{ffi::CStr, sync::{atomic::Ordering, Arc}};
 
 use clap_sys::{ext::{params::clap_host_params, state::clap_host_state}, host::clap_host};
 
@@ -32,6 +32,10 @@ impl ClapHost {
 }
 
 impl Host for ClapHost {
+    fn name(&self) -> Option<&str> {
+        unsafe { CStr::from_ptr((*self.raw).name).to_str().ok() }
+    }
+
     fn start_parameter_change(&self, id: ParameterId) {
         self.parameter_event_map.parameter_event_info(id).change_started.store(true, Ordering::Release);
         

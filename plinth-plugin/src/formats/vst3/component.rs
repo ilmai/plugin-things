@@ -1,11 +1,25 @@
-use std::{any::TypeId, cell::RefCell, ffi::CStr, iter::zip, ptr::null_mut, rc::Rc, sync::atomic::{AtomicBool, AtomicU32, Ordering}};
+use std::any::TypeId;
+use std::cell::RefCell;
+use std::ffi::CStr;
+use std::iter::zip;
+use std::ptr::null_mut;
+use std::rc::Rc;
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 
 use atomic_refcell::AtomicRefCell;
-use plinth_core::signals::{ptr_signal::{PtrSignal, PtrSignalMut}, signal::SignalMut};
-use vst3::{ComPtr, ComRef, ComWrapper, Steinberg::{int16, int32, kInvalidArgument, kNoInterface, kResultFalse, kResultOk, tresult, uint32, FIDString, FUnknown, IBStream, IPlugView, IPluginBaseTrait, TBool, Vst::{kInfiniteTail, kNoParentUnitId, kNoProgramListId, kNoTail, BusDirection, BusDirections_, BusInfo, BusInfo_::BusFlags_, BusTypes_, CString, IAudioProcessor, IAudioProcessorTrait, IComponent, IComponentHandler, IComponentTrait, IEditController, IEditController2, IEditController2Trait, IEditControllerTrait, IProcessContextRequirements, IProcessContextRequirementsTrait, IProcessContextRequirements_, IUnitInfo, IUnitInfoTrait, IoMode, IoModes_, KnobMode, MediaType, MediaTypes_, ParamID, ParamValue, ParameterInfo_, ProcessData, ProcessSetup, ProgramListID, ProgramListInfo, RoutingInfo, SpeakerArr, SpeakerArrangement, String128, SymbolicSampleSizes_, TChar, UnitID, UnitInfo, ViewType::kEditor}, TUID}};
+use plinth_core::signals::ptr_signal::{PtrSignal, PtrSignalMut};
+use plinth_core::signals::signal::SignalMut;
+use vst3::{ComPtr, ComRef, ComWrapper};
+use vst3::Steinberg::{int16, int32, kInvalidArgument, kNoInterface, kResultFalse, kResultOk, tresult, uint32, FIDString, FUnknown, IBStream, IPlugView, IPluginBaseTrait, TBool, TUID};
+use vst3::Steinberg::Vst::{kInfiniteTail, kNoParentUnitId, kNoProgramListId, kNoTail, BusDirection, BusDirections_, BusInfo, BusInfo_::BusFlags_, BusTypes_, CString, IAudioProcessor, IAudioProcessorTrait, IComponent, IComponentHandler, IComponentTrait, IEditController, IEditController2, IEditController2Trait, IEditControllerTrait, IHostApplication, IHostApplicationTrait, IProcessContextRequirements, IProcessContextRequirementsTrait, IProcessContextRequirements_, IUnitInfo, IUnitInfoTrait, IoMode, IoModes_, KnobMode, MediaType, MediaTypes_, ParamID, ParamValue, ParameterInfo_, ProcessData, ProcessSetup, ProgramListID, ProgramListInfo, RoutingInfo, SpeakerArr, SpeakerArrangement, String128, SymbolicSampleSizes_, TChar, UnitID, UnitInfo, ViewType::kEditor};
 use widestring::U16CStr;
 
-use crate::{editor::NoEditor, parameters::{group::{self, ParameterGroupRef}, info::ParameterInfo, has_duplicates}, processor::ProcessorConfig, string::copy_str_to_char16, vst3::{event::EventIterator, parameters::ParameterChangeIterator}, Event, Parameters, ProcessMode, ProcessState, Processor};
+use crate::{Event, Parameters, ProcessMode, ProcessState, Processor};
+use crate::editor::NoEditor;
+use crate::parameters::{group::{self, ParameterGroupRef}, has_duplicates, info::ParameterInfo};
+use crate::processor::ProcessorConfig;
+use crate::string::{char16_to_string, copy_str_to_char16};
+use crate::vst3::{event::EventIterator, parameters::ParameterChangeIterator};
 
 use super::{plugin::Vst3Plugin, stream::Stream, view::View};
 
@@ -62,6 +76,7 @@ pub struct PluginComponent<P: Vst3Plugin> {
     parameter_info: Vec<ParameterInfo>,
     processing: AtomicBool,
     tail_length: AtomicU32,
+    host_name: RefCell<Option<String>>,
 
     ui_thread_state: Rc<UiThreadState<P>>,
     audio_thread_state: AtomicRefCell<AudioThreadState<P>>,
@@ -99,6 +114,7 @@ impl<P: Vst3Plugin + 'static> PluginComponent<P> {
             parameter_info,
             processing: AtomicBool::new(false),
             tail_length: AtomicU32::new(0),
+            host_name: Default::default(),
 
             ui_thread_state: Rc::new(ui_thread_state),
             audio_thread_state: Default::default(),
@@ -111,8 +127,18 @@ impl<P: Vst3Plugin> vst3::Class for PluginComponent<P> {
 }
 
 impl<P: Vst3Plugin> IPluginBaseTrait for PluginComponent<P> {
-    unsafe fn initialize(&self, _context: *mut FUnknown) -> tresult {
+    unsafe fn initialize(&self, context: *mut FUnknown) -> tresult {
         log::trace!("IPluginBase::initialize");
+
+        if let Some(context) = unsafe { ComRef::from_raw(context) } {
+            if let Some(host_application) = context.cast::<IHostApplication>() {
+                let mut name = [0; 128];
+                if unsafe { host_application.getName(&mut name) == kResultOk } {
+                    *self.host_name.borrow_mut() = char16_to_string(&name);
+                }
+            }
+        }
+
         kResultOk
     }
 
@@ -588,7 +614,7 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
             return null_mut();
         }
 
-        let view = ComWrapper::new(View::<P>::new(self.plugin.clone(), self.ui_thread_state.clone()));
+        let view = ComWrapper::new(View::<P>::new(self.plugin.clone(), self.ui_thread_state.clone(), self.host_name.borrow().clone()));
         view.to_com_ptr::<IPlugView>().unwrap().into_raw()
     }
 }

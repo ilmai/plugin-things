@@ -22,6 +22,7 @@ impl<P: Vst3Plugin + 'static> View<P> {
     pub fn new(
         plugin: Rc<RefCell<P>>,
         ui_thread_state: Rc<UiThreadState<P>>,
+        host_name: Option<String>,
     ) -> Self {
         let context = ViewContext {
             frame: None,
@@ -33,7 +34,12 @@ impl<P: Vst3Plugin + 'static> View<P> {
         let mut editor = ui_thread_state.editor.borrow_mut();
         assert!(editor.is_none());
 
-        let host = Rc::new(Vst3Host::new(plugin.clone(), ui_thread_state.handler.borrow().clone().unwrap()));
+        let host = Rc::new(Vst3Host::new(
+            plugin.clone(),
+            ui_thread_state.handler.borrow().clone().unwrap(),
+            host_name,
+        ));
+
         *editor = Some(plugin.borrow().create_editor(host));
         drop(editor);
 

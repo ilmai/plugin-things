@@ -1,6 +1,15 @@
 use std::iter::zip;
 
 use vst3::Steinberg::{char16, char8};
+use widestring::U16CStr;
+
+pub fn char16_to_string(source: &[char16]) -> Option<String> {
+    let Ok(cstr) = U16CStr::from_slice(unsafe { std::mem::transmute::<&[i16], &[u16]>(source) }) else {
+        return None;
+    };
+
+    cstr.to_string().ok()
+}
 
 pub fn copy_u128_to_char8(source: &u128, target: &mut [char8; 16]) {
     target.fill(0);
