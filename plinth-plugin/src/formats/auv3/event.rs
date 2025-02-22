@@ -16,7 +16,7 @@ impl<'ids> EventIterator<'ids> {
     }
 }
 
-impl<'ids> Iterator for EventIterator<'ids> {
+impl Iterator for EventIterator<'_> {
     type Item = Event;
 
     fn next(&mut self) -> Option<Self::Item> {

@@ -247,14 +247,14 @@ unsafe extern "C" fn display_link_callback(
     let window = unsafe { OsWindow::from_ptr(display_link_context) };
     let view = window.window_handle.ns_view.as_ptr() as *const OsWindowView;
 
-    let operation = NSInvocationOperation::initWithTarget_selector_object(
+    let operation = unsafe { NSInvocationOperation::initWithTarget_selector_object(
         NSInvocationOperation::alloc(),
         &*view,
         sel!(drawRect:),
         None,
-    ).unwrap();
+    ).unwrap() };
 
-    NSOperationQueue::mainQueue().addOperation(&operation);
+    unsafe { NSOperationQueue::mainQueue().addOperation(&operation) };
 
     CVReturn::Success
 }

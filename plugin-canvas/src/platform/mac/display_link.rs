@@ -133,10 +133,10 @@ type CVDisplayLinkOutputCallback = unsafe extern "C" fn(
     display_link_context: *mut c_void,
 ) -> CVReturn;
 
-#[link(name = "CoreFoundation", kind = "framework")]
-#[link(name = "CoreVideo", kind = "framework")]
-#[allow(improper_ctypes)]
-extern "C" {
+// #[link(name = "CoreFoundation", kind = "framework")]
+// #[link(name = "CoreVideo", kind = "framework")]
+// #[allow(improper_ctypes)]
+unsafe extern "C" {
     fn CGGetDisplaysWithRect(
         rect: CGRect,
         maxDisplays: u32,

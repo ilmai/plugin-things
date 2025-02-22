@@ -2,7 +2,7 @@ use std::{ffi::c_void, sync::{atomic::AtomicBool, Arc, Mutex}};
 
 use portable_atomic::AtomicF64;
 
-use crate::{auv3::plugin::Auv3Plugin, parameters::{self, group::ParameterGroupRef, parameters::has_duplicates}, Event, ParameterId, Parameters};
+use crate::{auv3::plugin::Auv3Plugin, parameters::{self, group::ParameterGroupRef, has_duplicates}, Event, ParameterId, Parameters};
 
 const MAX_EVENTS: usize = 1024 * 10;
 
@@ -62,5 +62,11 @@ impl<P: Auv3Plugin> Auv3Wrapper<P> {
         Box::leak(wrapper);
     
         result
+    }
+}
+
+impl<P: Auv3Plugin> Default for Auv3Wrapper<P> {
+    fn default() -> Self {
+        Self::new()
     }
 }
