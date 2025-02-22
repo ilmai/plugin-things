@@ -209,7 +209,16 @@ impl<P: Vst3Plugin + 'static> IPlugViewTrait for View<P> {
     }
 
     unsafe fn canResize(&self) -> tresult {
-        kResultOk
+        let editor = self.ui_thread_state.editor.borrow();
+        let Some(editor) = editor.as_ref() else {
+            return kResultFalse;
+        };
+
+        if editor.can_resize() {
+            kResultOk
+        } else {
+            kResultFalse
+        }
     }
 
     unsafe fn checkSizeConstraint(&self, rect: *mut ViewRect) -> tresult {
