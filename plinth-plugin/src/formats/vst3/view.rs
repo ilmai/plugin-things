@@ -104,7 +104,7 @@ impl<P: Vst3Plugin + 'static> IPlugViewTrait for View<P> {
 
             if let Some(run_loop) = frame.cast::<vst3::Steinberg::Linux::IRunLoop>() {
                 if let Some(timer_handler) = context.timer_handler.take() {
-                    run_loop.unregisterTimer(timer_handler.as_ptr());
+                    unsafe { run_loop.unregisterTimer(timer_handler.as_ptr()) };
                 }
             }
         }
@@ -200,7 +200,7 @@ impl<P: Vst3Plugin + 'static> IPlugViewTrait for View<P> {
                 });
 
                 context.timer_handler = timer_handler.to_com_ptr();
-                run_loop.registerTimer(context.timer_handler.as_mut().unwrap().as_ptr(), crate::editor::FRAME_TIMER_MILLISECONDS);
+                unsafe { run_loop.registerTimer(context.timer_handler.as_mut().unwrap().as_ptr(), crate::editor::FRAME_TIMER_MILLISECONDS) };
             }
         }
 

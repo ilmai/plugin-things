@@ -46,7 +46,7 @@ impl<P: ClapPlugin> Gui<P> {
             return false;
         }
 
-        CStr::from_ptr(api) == clap_sys::ext::gui::CLAP_WINDOW_API_X11
+        unsafe { CStr::from_ptr(api) == clap_sys::ext::gui::CLAP_WINDOW_API_X11 }
     }
 
     #[cfg(target_os="macos")]
@@ -55,7 +55,7 @@ impl<P: ClapPlugin> Gui<P> {
             return false;
         }
 
-        CStr::from_ptr(api) == clap_sys::ext::gui::CLAP_WINDOW_API_COCOA
+        unsafe { CStr::from_ptr(api) == clap_sys::ext::gui::CLAP_WINDOW_API_COCOA }
     }
 
     #[cfg(target_os="windows")]
