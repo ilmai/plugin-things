@@ -186,10 +186,8 @@ impl OsWindowInterface for OsWindow {
                 if self.cursor_hidden.swap(false, Ordering::Relaxed) {
                     NSCursor::unhide();
                 }
-            } else {
-                if !self.cursor_hidden.swap(true, Ordering::Relaxed) {
-                    NSCursor::hide();
-                }
+            } else if !self.cursor_hidden.swap(true, Ordering::Relaxed) {
+                NSCursor::hide();
             }
         }
     }

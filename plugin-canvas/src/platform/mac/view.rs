@@ -39,10 +39,10 @@ unsafe impl Message for OsWindowView {}
 
 impl OsWindowView {
     pub(crate) fn register_class() -> &'static AnyClass {
-        let class_name = format!("plugin-canvas-OsWindowView-{}", Uuid::new_v4().simple().to_string());
+        let class_name = format!("plugin-canvas-OsWindowView-{}", Uuid::new_v4().simple());
 
         let mut builder = ClassBuilder::new(&class_name, NSView::class())
-            .expect(&format!("Class failed to register: {class_name}"));
+            .unwrap_or_else(|| panic!("Class failed to register: {class_name}"));
 
         builder.add_ivar::<Context>("_context");
 
@@ -238,10 +238,10 @@ impl OsWindowView {
             if let Some(items) = pasteboard.pasteboardItems() {
                 for i in 0..items.count() {
                     let item = items.objectAtIndex(i);
-                    if let Some(url) = item.stringForType(&NSPasteboardTypeFileURL)
+                    if let Some(url) = item.stringForType(NSPasteboardTypeFileURL)
                         .and_then(|url| NSURL::URLWithString(&url))
                         .and_then(|url| url.path())
-                        .and_then(|url| Some(PathBuf::from(url.to_string())))
+                        .map(|url| PathBuf::from(url.to_string()))
                     {
                         paths.push(url);
                     }
