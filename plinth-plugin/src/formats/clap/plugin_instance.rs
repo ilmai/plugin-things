@@ -38,7 +38,6 @@ pub struct PluginInstance<P: ClapPlugin> {
     pub(super) editor: Option<P::Editor>,
     pub(super) parameter_info: BTreeMap<ParameterId, ParameterInfo>,
 
-    pub(super) editor_scale: f64,
     sample_rate: f64,
     pub(super) timer_id: Option<u32>,
     pub(super) process_mode: ProcessMode,
@@ -115,7 +114,6 @@ impl<P: ClapPlugin> PluginInstance<P> {
             editor: None,
             parameter_info,
 
-            editor_scale: 1.0,
             sample_rate: 0.0,
             timer_id: None,
             process_mode: Default::default(),

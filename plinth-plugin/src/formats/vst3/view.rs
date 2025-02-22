@@ -8,8 +8,7 @@ use super::{component::UiThreadState, host::Vst3Host, Vst3Plugin};
 
 pub struct ViewContext {
     frame: Option<ComPtr<IPlugFrame>>,
-    scale_factor: ScaleFactor,
-
+    
     #[cfg(target_os="linux")]
     timer_handler: Option<ComPtr<vst3::Steinberg::Linux::ITimerHandler>>,
 }
@@ -26,7 +25,6 @@ impl<P: Vst3Plugin + 'static> View<P> {
     ) -> Self {
         let context = ViewContext {
             frame: None,
-            scale_factor: 1.0,
 
             #[cfg(target_os="linux")]            
             timer_handler: None,
@@ -140,13 +138,11 @@ impl<P: Vst3Plugin + 'static> IPlugViewTrait for View<P> {
             .map(|editor| editor.window_size())
             .unwrap_or(P::Editor::DEFAULT_SIZE);
 
-        let scale_factor = context.scale_factor as f64;
-
         let size = unsafe { &mut *size };
         size.left = 0;
         size.top = 0;
-        size.right = (editor_size.0 * scale_factor) as i32;
-        size.bottom = (editor_size.1 * scale_factor) as i32;
+        size.right = editor_size.0 as i32;
+        size.bottom = editor_size.1 as i32;
 
         kResultOk
     }
@@ -244,13 +240,7 @@ impl<P: Vst3Plugin + 'static> IPlugViewTrait for View<P> {
 #[allow(non_snake_case)]
 impl<P: Vst3Plugin + 'static> IPlugViewContentScaleSupportTrait for View<P> {
     #[allow(unused_variables)]
-    unsafe fn setContentScaleFactor(&self, factor: ScaleFactor) -> tresult {
-        // MacOS does its own scaling
-        #[cfg(not(target_os="macos"))]
-        {
-            self.context.borrow_mut().scale_factor = factor;
-        }
-
+    unsafe fn setContentScaleFactor(&self, _factor: ScaleFactor) -> tresult {
         kResultOk
     }
 }
