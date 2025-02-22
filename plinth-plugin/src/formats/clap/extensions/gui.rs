@@ -140,8 +140,14 @@ impl<P: ClapPlugin> Gui<P> {
         true
     }
 
-    unsafe extern "C" fn can_resize(_plugin: *const clap_plugin) -> bool {
-        P::Editor::CAN_RESIZE
+    unsafe extern "C" fn can_resize(plugin: *const clap_plugin) -> bool {
+        PluginInstance::with_plugin_instance(plugin, |instance: &mut PluginInstance<P>| {
+            let Some(editor) = instance.editor.as_ref() else {
+                return false;
+            };
+
+            editor.can_resize()
+        })
     }
     
     unsafe extern "C" fn get_resize_hints(_plugin: *const clap_plugin, _hints: *mut clap_gui_resize_hints) -> bool {

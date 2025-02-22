@@ -5,7 +5,6 @@ pub(crate) const FRAME_TIMER_MILLISECONDS: u64 = 16;
 
 pub trait Editor {
     const DEFAULT_SIZE: (f64, f64);
-    const CAN_RESIZE: bool = false;
 
     fn open(&mut self, parent: RawWindowHandle);
     fn close(&mut self);
@@ -15,6 +14,10 @@ pub trait Editor {
         Self::DEFAULT_SIZE
     }
     
+    fn can_resize(&self) -> bool {
+        false
+    }
+
     /// Called by the host to see if a window size is supported
     /// Return Some with a supported size if resizing based on the incoming size is supported
     /// Otherwise, return None
