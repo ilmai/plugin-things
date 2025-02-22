@@ -110,8 +110,15 @@ impl<P: ClapPlugin> Gui<P> {
         });
     }
 
-    unsafe extern "C" fn set_scale(_plugin: *const clap_plugin, _scale: f64) -> bool {
-        true
+    unsafe extern "C" fn set_scale(plugin: *const clap_plugin, scale: f64) -> bool {
+        PluginInstance::with_plugin_instance(plugin, |instance: &mut PluginInstance<P>| {
+            let Some(editor) = instance.editor.as_mut() else {
+                return false;
+            };
+
+            editor.set_scale(scale);
+            true
+        })
     }
 
     unsafe extern "C" fn get_size(plugin: *const clap_plugin, width: *mut u32, height: *mut u32) -> bool {

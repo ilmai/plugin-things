@@ -131,7 +131,6 @@ impl<P: Vst3Plugin + 'static> IPlugViewTrait for View<P> {
             return kInvalidArgument;
         }
 
-        let context = self.context.borrow();
         let editor = self.ui_thread_state.editor.borrow();
 
         let editor_size = editor.as_ref()
@@ -240,7 +239,12 @@ impl<P: Vst3Plugin + 'static> IPlugViewTrait for View<P> {
 #[allow(non_snake_case)]
 impl<P: Vst3Plugin + 'static> IPlugViewContentScaleSupportTrait for View<P> {
     #[allow(unused_variables)]
-    unsafe fn setContentScaleFactor(&self, _factor: ScaleFactor) -> tresult {
+    unsafe fn setContentScaleFactor(&self, factor: ScaleFactor) -> tresult {
+        let mut editor = self.ui_thread_state.editor.borrow_mut();
+        if let Some(editor) = editor.as_mut() {
+            editor.set_scale(factor as _);
+        }
+
         kResultOk
     }
 }
