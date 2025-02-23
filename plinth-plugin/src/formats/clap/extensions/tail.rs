@@ -1,4 +1,4 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, sync::atomic::Ordering};
 
 use clap_sys::{ext::tail::clap_plugin_tail, plugin::clap_plugin};
 
@@ -28,8 +28,7 @@ impl<P: ClapPlugin> Tail<P> {
 
     unsafe extern "C" fn get(plugin: *const clap_plugin) -> u32 {
         PluginInstance::with_plugin_instance(plugin, |instance: &mut PluginInstance<P>| {
-            let audio_thread_state = instance.audio_thread_state.borrow();
-            audio_thread_state.tail as _
+            instance.audio_thread_state.tail.load(Ordering::Acquire) as _
         })
     }
 }

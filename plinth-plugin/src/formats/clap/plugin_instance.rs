@@ -1,9 +1,10 @@
-use std::{collections::BTreeMap, ffi::{c_char, c_void, CStr}, iter::zip, ptr::{null, null_mut}, sync::Arc};
+use std::{collections::BTreeMap, ffi::{c_char, c_void, CStr}, iter::zip, ptr::{null, null_mut}, sync::{atomic::{AtomicUsize, Ordering}, Arc}};
 
 use atomic_refcell::AtomicRefCell;
 use clap_sys::{events::clap_input_events, ext::{audio_ports::CLAP_EXT_AUDIO_PORTS, gui::{clap_host_gui, CLAP_EXT_GUI}, latency::CLAP_EXT_LATENCY, note_ports::CLAP_EXT_NOTE_PORTS, params::{clap_host_params, CLAP_EXT_PARAMS}, render::CLAP_EXT_RENDER, state::{clap_host_state, CLAP_EXT_STATE}, tail::{clap_host_tail, CLAP_EXT_TAIL}, timer_support::{clap_host_timer_support, CLAP_EXT_TIMER_SUPPORT}}, host::clap_host, plugin::clap_plugin, process::{clap_process, clap_process_status, CLAP_PROCESS_CONTINUE, CLAP_PROCESS_CONTINUE_IF_NOT_QUIET, CLAP_PROCESS_ERROR, CLAP_PROCESS_TAIL}};
 use log::error;
 use plinth_core::signals::{ptr_signal::{PtrSignal, PtrSignalMut}, signal::SignalMut};
+use portable_atomic::AtomicBool;
 
 use crate::{Event, ParameterId, ProcessMode, ProcessState, Processor, ProcessorConfig};
 use crate::clap::{event::EventIterator, transport::convert_transport};
@@ -16,15 +17,18 @@ use super::parameters::ParameterEventMap;
 use super::plugin::ClapPlugin;
 
 pub struct AudioThreadState<P: ClapPlugin> {
-    pub(super) processor: Option<P::Processor>,
-    pub(super) tail: usize,
+    // When active is true, we have a processor
+    pub(super) active: AtomicBool,
+    pub(super) processor: AtomicRefCell<Option<P::Processor>>,
+    pub(super) tail: AtomicUsize,
 }
 
 impl<P: ClapPlugin> Default for AudioThreadState<P> {
     fn default() -> Self {
         Self {
-            processor: None,
-            tail: 0,
+            active: false.into(),
+            processor: Default::default(),
+            tail: 0.into(),
         }
     }
 }
@@ -46,7 +50,7 @@ pub struct PluginInstance<P: ClapPlugin> {
     to_plugin_event_receiver: rtrb::Consumer<Event>,
     pub(super) parameter_event_map: Arc<ParameterEventMap>,
 
-    pub(super) audio_thread_state: AtomicRefCell<AudioThreadState<P>>,
+    pub(super) audio_thread_state: AudioThreadState<P>,
 
     // Host extensions
     pub(super) host_ext_gui: *const clap_host_gui,
@@ -199,9 +203,10 @@ impl<P: ClapPlugin> PluginInstance<P> {
 
             instance.sample_rate = sample_rate;
 
-            let mut audio_thread_state = instance.audio_thread_state.borrow_mut();
-            assert!(audio_thread_state.processor.is_none());
-            audio_thread_state.processor = Some(instance.plugin.as_ref().unwrap().create_processor(&config));
+            let mut processor = instance.audio_thread_state.processor.borrow_mut();
+            *processor = Some(instance.plugin.as_ref().unwrap().create_processor(&config));
+
+            instance.audio_thread_state.active.store(true, Ordering::Release);
         });
 
         true
@@ -209,9 +214,10 @@ impl<P: ClapPlugin> PluginInstance<P> {
 
     unsafe extern "C" fn deactivate(plugin: *const clap_plugin) {
         Self::with_plugin_instance(plugin, |instance| {
-            let mut audio_thread_state = instance.audio_thread_state.borrow_mut();
-            assert!(audio_thread_state.processor.is_some());
-            audio_thread_state.processor = None;
+            let mut processor = instance.audio_thread_state.processor.borrow_mut();
+            *processor = None;
+
+            instance.audio_thread_state.active.store(false, Ordering::Release);
         });
     }
 
@@ -224,9 +230,10 @@ impl<P: ClapPlugin> PluginInstance<P> {
 
     unsafe extern "C" fn reset(plugin: *const clap_plugin) {
         Self::with_plugin_instance(plugin, |instance| {
-            let mut audio_thread_state = instance.audio_thread_state.borrow_mut();
-            let processor = audio_thread_state.processor.as_mut().unwrap();
-            processor.reset();
+            let mut processor = instance.audio_thread_state.processor.borrow_mut();
+            if let Some(processor) = processor.as_mut() {
+                processor.reset();
+            }
         });
     }
 
@@ -275,8 +282,10 @@ impl<P: ClapPlugin> PluginInstance<P> {
         }
 
         Self::with_plugin_instance(plugin, |instance| {
-            let mut audio_thread_state = instance.audio_thread_state.borrow_mut();
-            let processor = audio_thread_state.processor.as_mut().unwrap();           
+            let mut processor_ref = instance.audio_thread_state.processor.borrow_mut();
+            let Some(processor) = processor_ref.as_mut() else {
+                return CLAP_PROCESS_ERROR;
+            };
 
             // Send events from editor to host
             let editor_events = instance.parameter_event_map.iter_and_send_to_host(&instance.parameter_info, process.out_events);
@@ -298,9 +307,7 @@ impl<P: ClapPlugin> PluginInstance<P> {
                 ProcessState::Error => CLAP_PROCESS_ERROR,
                 ProcessState::Normal => CLAP_PROCESS_CONTINUE_IF_NOT_QUIET,
                 ProcessState::Tail(tail) => {
-                    if tail != audio_thread_state.tail {
-                        audio_thread_state.tail = tail;
-
+                    if tail != instance.audio_thread_state.tail.swap(tail, Ordering::Acquire) {
                         // Inform host if it supports the extension
                         if !instance.host_ext_tail.is_null() {
                             unsafe { ((*instance.host_ext_tail).changed.unwrap())(instance.host) };
@@ -312,7 +319,7 @@ impl<P: ClapPlugin> PluginInstance<P> {
                 ProcessState::KeepAlive => CLAP_PROCESS_CONTINUE,
             };
 
-            drop(audio_thread_state);
+            drop(processor_ref);
 
             // Also send events to the main thread
             instance.send_events_to_plugin(process.in_events);

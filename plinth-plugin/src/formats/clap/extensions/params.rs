@@ -1,4 +1,4 @@
-use std::{ffi::{c_char, CStr}, marker::PhantomData};
+use std::{ffi::{c_char, CStr}, marker::PhantomData, sync::atomic::Ordering};
 
 use clap_sys::{events::{clap_input_events, clap_output_events}, ext::params::{clap_param_info, clap_plugin_params, CLAP_PARAM_IS_AUTOMATABLE, CLAP_PARAM_IS_BYPASS, CLAP_PARAM_IS_MODULATABLE, CLAP_PARAM_IS_STEPPED}, id::clap_id, plugin::clap_plugin};
 
@@ -132,16 +132,19 @@ impl<P: ClapPlugin> Params<P> {
         PluginInstance::with_plugin_instance(plugin, |instance: &mut PluginInstance<P>| {
             instance.process_events_to_plugin();
 
-            let mut audio_thread_state = instance.audio_thread_state.borrow_mut();
-        
             let host_events = EventIterator::new(&instance.parameter_info, unsafe { &*in_events });    
             let editor_events = instance.parameter_event_map.iter_and_send_to_host(&instance.parameter_info, out_events);
             let all_events = host_events.chain(editor_events);
 
-            if let Some(processor) = audio_thread_state.processor.as_mut() {
+            if instance.audio_thread_state.active.load(Ordering::Acquire) {
+                let mut processor_ref = instance.audio_thread_state.processor.borrow_mut();
+                let Some(processor) = processor_ref.as_mut() else {
+                    return;
+                };
+
                 // When we have a processor, process events directly
                 processor.process_events(all_events);
-                drop(audio_thread_state);
+                drop(processor_ref);
     
                 // Also send them to the main thread through the queue
                 instance.send_events_to_plugin(in_events);
