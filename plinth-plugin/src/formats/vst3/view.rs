@@ -19,7 +19,6 @@ pub struct View<P: Vst3Plugin> {
 }
 
 impl<P: Vst3Plugin + 'static> View<P> {
-    #[expect(clippy::new_ret_no_self)]
     pub fn new(
         plugin: Rc<RefCell<P>>,
         ui_thread_state: Rc<UiThreadState<P>>,
