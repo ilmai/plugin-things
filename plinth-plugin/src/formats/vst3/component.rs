@@ -28,15 +28,15 @@ const ROOT_UNIT_ID: i32     = 0;
 const FIRST_UNIT_ID: i32    = 1;
 
 pub struct AudioThreadState<P: Vst3Plugin> {
-    processor: Option<P::Processor>,
-    aux_active: bool,
+    processor: AtomicRefCell<Option<P::Processor>>,
+    aux_active: AtomicBool,
 }
 
 impl<P: Vst3Plugin> Default for AudioThreadState<P> {
     fn default() -> Self {
         Self {
-            processor: None,
-            aux_active: true,
+            processor: Default::default(),
+            aux_active: true.into(),
         }
     }
 }
@@ -79,7 +79,7 @@ pub struct PluginComponent<P: Vst3Plugin> {
     host_name: OnceCell<String>,
 
     ui_thread_state: Rc<UiThreadState<P>>,
-    audio_thread_state: AtomicRefCell<AudioThreadState<P>>,
+    audio_thread_state: AudioThreadState<P>,
 }
 
 impl<P: Vst3Plugin + 'static> PluginComponent<P> {
@@ -225,9 +225,8 @@ impl<P: Vst3Plugin> IAudioProcessorTrait for PluginComponent<P> {
         let processing = state != 0;
         self.processing.store(processing, Ordering::Release);
 
-        let mut audio_thread_state = self.audio_thread_state.borrow_mut();
-
-        if let Some(processor) = audio_thread_state.processor.as_mut() {
+        let mut processor = self.audio_thread_state.processor.borrow_mut();
+        if let Some(processor) = processor.as_mut() {
             if !processing {
                 processor.reset();
             }
@@ -249,9 +248,12 @@ impl<P: Vst3Plugin> IAudioProcessorTrait for PluginComponent<P> {
         let event_iterator = EventIterator::new(data.inputEvents);
         let all_events = event_iterator.chain(parameter_change_iterator);
 
-        let mut audio_thread_state = self.audio_thread_state.borrow_mut();
-        let aux_active = audio_thread_state.aux_active;
-        let processor = audio_thread_state.processor.as_mut().unwrap();
+        let mut processor = self.audio_thread_state.processor.borrow_mut();
+        let Some(processor) = processor.as_mut() else {
+            return kResultFalse;
+        };
+
+        let aux_active = self.audio_thread_state.aux_active.load(Ordering::Acquire);
 
         // Empty input: this is a parameter dump
         if data.inputs.is_null() || data.outputs.is_null() || data.numInputs == 0 || data.numSamples == 0 {
@@ -400,8 +402,7 @@ impl<P: Vst3Plugin> IComponentTrait for PluginComponent<P> {
         // On some platforms, these casts are needed
         #[allow(clippy::unnecessary_cast)]
         if P::HAS_AUX_INPUT && media_type == MediaTypes_::kAudio as i32 && dir == BusDirections_::kInput as i32 && index == 1 {
-            let mut audio_thread_state = self.audio_thread_state.borrow_mut();
-            audio_thread_state.aux_active = state != 0;
+            self.audio_thread_state.aux_active.store(state != 0, Ordering::Release);
         }
 
         // TODO: Support disabling other buses
@@ -418,15 +419,13 @@ impl<P: Vst3Plugin> IComponentTrait for PluginComponent<P> {
             unsafe { self.setProcessing(0) };
         }
 
-        let mut audio_thread_state = self.audio_thread_state.borrow_mut();
+        let mut processor = self.audio_thread_state.processor.borrow_mut();
 
         if active {
             let plugin = self.plugin.borrow();
-
-            assert!(audio_thread_state.processor.is_none());
-            audio_thread_state.processor = Some(plugin.create_processor(&self.ui_thread_state.processor_config.borrow()));
+            *processor = Some(plugin.create_processor(&self.ui_thread_state.processor_config.borrow()));
         } else {
-            audio_thread_state.processor = None;
+            *processor = None;
         }
 
         kResultOk
