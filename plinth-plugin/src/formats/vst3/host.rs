@@ -71,8 +71,9 @@ impl<P: Plugin> Host for Vst3Host<P> {
         unsafe { self.handler.endEdit(id) };
     }
     
-    fn mark_state_dirty(&self) {
-        let handler2: ComPtr<IComponentHandler2> = self.handler.cast().unwrap();
-        unsafe { handler2.setDirty(1) };
+    fn mark_state_dirty(&self) {        
+        if let Some(handler2) = self.handler.cast::<IComponentHandler2>() {
+            unsafe { handler2.setDirty(1) };
+        }
     }
 }
