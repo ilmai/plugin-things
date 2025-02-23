@@ -1,5 +1,5 @@
 use std::any::TypeId;
-use std::cell::RefCell;
+use std::cell::{OnceCell, RefCell};
 use std::ffi::CStr;
 use std::iter::zip;
 use std::ptr::null_mut;
@@ -76,7 +76,7 @@ pub struct PluginComponent<P: Vst3Plugin> {
     parameter_info: Vec<ParameterInfo>,
     processing: AtomicBool,
     tail_length: AtomicU32,
-    host_name: RefCell<Option<String>>,
+    host_name: OnceCell<String>,
 
     ui_thread_state: Rc<UiThreadState<P>>,
     audio_thread_state: AtomicRefCell<AudioThreadState<P>>,
@@ -134,7 +134,9 @@ impl<P: Vst3Plugin> IPluginBaseTrait for PluginComponent<P> {
             if let Some(host_application) = context.cast::<IHostApplication>() {
                 let mut name = [0; 128];
                 if unsafe { host_application.getName(&mut name) == kResultOk } {
-                    *self.host_name.borrow_mut() = char16_to_string(&name);
+                    if let Some(name) = char16_to_string(&name) {
+                        self.host_name.set(name).unwrap();
+                    }
                 }
             }
         }
@@ -614,7 +616,7 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
             return null_mut();
         }
 
-        let view = View::<P>::new(self.plugin.clone(), self.ui_thread_state.clone(), self.host_name.borrow().clone());
+        let view = View::<P>::new(self.plugin.clone(), self.ui_thread_state.clone(), self.host_name.get().cloned());
         view.to_com_ptr::<IPlugView>().unwrap().into_raw()
     }
 }
