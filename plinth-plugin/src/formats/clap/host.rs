@@ -39,6 +39,10 @@ impl Host for ClapHost {
         unsafe { CStr::from_ptr((*self.raw).name).to_str().ok() }
     }
 
+    fn can_resize(&self) -> bool {
+        true
+    }
+
     fn resize_view(&self, width: f64, height: f64) -> bool {
         if self.host_ext_gui.is_null() {
             return false;

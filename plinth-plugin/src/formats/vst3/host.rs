@@ -37,6 +37,10 @@ impl<P: Plugin> Host for Vst3Host<P> {
         self.name.as_deref()
     }
 
+    fn can_resize(&self) -> bool {
+        true
+    }
+
     fn resize_view(&self, width: f64, height: f64) -> bool {
         let view_context = self.view_context.borrow();
         let Some(frame) = view_context.frame.as_ref() else {

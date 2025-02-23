@@ -35,8 +35,11 @@ impl Host for Auv3Host {
         None        
     }
 
+    fn can_resize(&self) -> bool {
+        false
+    }
+
     fn resize_view(&self, _width: f64, _height: f64) -> bool {
-        // TODO
         false
     }
 

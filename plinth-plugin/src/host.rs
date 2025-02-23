@@ -3,6 +3,8 @@ use crate::{parameters::ParameterValue, ParameterId};
 pub trait Host {
     fn name(&self) -> Option<&str>;
 
+    fn can_resize(&self) -> bool;
+
     /// Return true if the resize was accepted
     fn resize_view(&self, width: f64, height: f64) -> bool;
 
