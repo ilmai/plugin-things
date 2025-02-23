@@ -44,7 +44,6 @@ impl<P: Vst3Plugin> Default for AudioThreadState<P> {
 pub struct UiThreadState<P: Vst3Plugin> {
     processor_config: RefCell<ProcessorConfig>,
     groups: Vec<ParameterGroupRef>,
-    pub(super) handler: RefCell<Option<ComPtr<IComponentHandler>>>,
     pub(super) editor: RefCell<Option<P::Editor>>,
 }
 
@@ -65,7 +64,6 @@ impl<P: Vst3Plugin> Default for UiThreadState<P> {
         Self {
             processor_config: Default::default(),
             groups: Default::default(),
-            handler: Default::default(),
             editor: Default::default(),
         }
     }
@@ -77,6 +75,7 @@ pub struct PluginComponent<P: Vst3Plugin> {
     processing: AtomicBool,
     tail_length: AtomicU32,
     host_name: OnceCell<String>,
+    component_handler: RefCell<Option<ComPtr<IComponentHandler>>>,
 
     ui_thread_state: Rc<UiThreadState<P>>,
     audio_thread_state: AudioThreadState<P>,
@@ -115,6 +114,7 @@ impl<P: Vst3Plugin + 'static> PluginComponent<P> {
             processing: AtomicBool::new(false),
             tail_length: AtomicU32::new(0),
             host_name: Default::default(),
+            component_handler: Default::default(),
 
             ui_thread_state: Rc::new(ui_thread_state),
             audio_thread_state: Default::default(),
@@ -594,8 +594,8 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
         let Some(handler) = (unsafe { ComRef::from_raw(handler) }) else {
             return kInvalidArgument;
         };
-
-        *self.ui_thread_state.handler.borrow_mut() = Some(handler.to_com_ptr());
+        
+        *self.component_handler.borrow_mut() = Some(handler.to_com_ptr());
 
         kResultOk
     }
@@ -615,7 +615,17 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
             return null_mut();
         }
 
-        let view = View::<P>::new(self.plugin.clone(), self.ui_thread_state.clone(), self.host_name.get().cloned());
+        let Some(component_handler) = self.component_handler.borrow().clone() else {
+            return null_mut();
+        };
+
+        let view = View::<P>::new(
+            self.plugin.clone(),
+            self.ui_thread_state.clone(),
+            self.host_name.get().cloned(),
+            component_handler,
+        );
+
         view.to_com_ptr::<IPlugView>().unwrap().into_raw()
     }
 }

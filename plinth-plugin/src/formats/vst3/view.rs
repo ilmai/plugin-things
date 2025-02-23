@@ -1,6 +1,6 @@
 use std::{cell::RefCell, ffi::{c_void, CStr}, rc::Rc};
 
-use vst3::{ComPtr, ComRef, ComWrapper, Steinberg::{char16, int16, kInvalidArgument, kResultFalse, kResultOk, tresult, FIDString, IPlugFrame, IPlugView, IPlugViewContentScaleSupport, IPlugViewContentScaleSupportTrait, IPlugViewContentScaleSupport_::ScaleFactor, IPlugViewTrait, TBool, ViewRect}};
+use vst3::{ComPtr, ComRef, ComWrapper, Steinberg::{char16, int16, kInvalidArgument, kResultFalse, kResultOk, tresult, FIDString, IPlugFrame, IPlugView, IPlugViewContentScaleSupport, IPlugViewContentScaleSupportTrait, IPlugViewContentScaleSupport_::ScaleFactor, IPlugViewTrait, TBool, ViewRect, Vst::IComponentHandler}};
 
 use crate::Editor;
 
@@ -23,6 +23,7 @@ impl<P: Vst3Plugin + 'static> View<P> {
         plugin: Rc<RefCell<P>>,
         ui_thread_state: Rc<UiThreadState<P>>,
         host_name: Option<String>,
+        component_handler: ComPtr<IComponentHandler>,
     ) -> ComWrapper<Self> {
         let context = ViewContext {
             frame: None,
@@ -43,7 +44,7 @@ impl<P: Vst3Plugin + 'static> View<P> {
 
         let host = Rc::new(Vst3Host::new(
             plugin.clone(),
-            ui_thread_state.handler.borrow().clone().unwrap(),
+            component_handler,
             view.to_com_ptr().unwrap(),
             context,
             host_name,
