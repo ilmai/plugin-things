@@ -37,7 +37,7 @@ macro_rules! export_clap {
         }
         
         unsafe extern "C" fn get_factory(factory_id: *const ::std::ffi::c_char) -> *const ::std::ffi::c_void {
-            if !::plinth_plugin::clap::Factory::<$plugin>::is_valid_factory_id(factory_id) {
+            if unsafe { !::plinth_plugin::clap::Factory::<$plugin>::is_valid_factory_id(factory_id) } {
                 return ::std::ptr::null();
             }
         
