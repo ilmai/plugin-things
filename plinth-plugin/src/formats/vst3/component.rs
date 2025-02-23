@@ -41,43 +41,18 @@ impl<P: Vst3Plugin> Default for AudioThreadState<P> {
     }
 }
 
-pub struct UiThreadState<P: Vst3Plugin> {
-    processor_config: RefCell<ProcessorConfig>,
-    groups: Vec<ParameterGroupRef>,
-    pub(super) editor: RefCell<Option<P::Editor>>,
-}
-
-impl<P: Vst3Plugin> UiThreadState<P> {
-    fn parameter_group_id(&self, parameter_info: &ParameterInfo) -> i32 {
-        let parameter_path = parameter_info.path();
-        if parameter_path.is_empty() {
-            return ROOT_UNIT_ID;
-        }
-
-        let unit_index = self.groups.iter().position(|group| group.path == parameter_path).unwrap() as i32;
-        FIRST_UNIT_ID + unit_index
-    }
-}
-
-impl<P: Vst3Plugin> Default for UiThreadState<P> {
-    fn default() -> Self {
-        Self {
-            processor_config: Default::default(),
-            groups: Default::default(),
-            editor: Default::default(),
-        }
-    }
-}
-
 pub struct PluginComponent<P: Vst3Plugin> {
     plugin: Rc<RefCell<P>>,
+
     parameter_info: Vec<ParameterInfo>,
+    parameter_groups: Vec<ParameterGroupRef>,
+
+    processor_config: RefCell<ProcessorConfig>,
     processing: AtomicBool,
     tail_length: AtomicU32,
     host_name: OnceCell<String>,
     component_handler: RefCell<Option<ComPtr<IComponentHandler>>>,
 
-    ui_thread_state: Rc<UiThreadState<P>>,
     audio_thread_state: AudioThreadState<P>,
 }
 
@@ -86,12 +61,11 @@ impl<P: Vst3Plugin + 'static> PluginComponent<P> {
         let plugin = P::default();
         assert!(plugin.with_parameters(|parameters| !has_duplicates(parameters.ids())));
 
-        let mut ui_thread_state = UiThreadState::default();
         let mut parameter_info = Vec::new();
 
         // Create units based on parameter groups
         // Also verify parameters
-        plugin.with_parameters(|parameters| {
+        let groups = plugin.with_parameters(|parameters| {
             assert!(
                 parameters.ids().iter()
                     .copied()
@@ -100,25 +74,38 @@ impl<P: Vst3Plugin + 'static> PluginComponent<P> {
                 "You can only define one bypass parameter"
             );
 
-            ui_thread_state.groups = group::from_parameters(parameters);
-
             for &id in parameters.ids() {
                 let info = parameters.get(id).unwrap().info();
                 parameter_info.push(info.clone());
             }
+
+            group::from_parameters(parameters)
         });
         
         Self {
             plugin: Rc::new(RefCell::new(plugin)),
+            
             parameter_info,
+            parameter_groups: groups,
+
+            processor_config: Default::default(),
             processing: AtomicBool::new(false),
             tail_length: AtomicU32::new(0),
             host_name: Default::default(),
             component_handler: Default::default(),
 
-            ui_thread_state: Rc::new(ui_thread_state),
             audio_thread_state: Default::default(),
         }
+    }
+
+    fn parameter_group_id(&self, parameter_info: &ParameterInfo) -> i32 {
+        let parameter_path = parameter_info.path();
+        if parameter_path.is_empty() {
+            return ROOT_UNIT_ID;
+        }
+
+        let unit_index = self.parameter_groups.iter().position(|group| group.path == parameter_path).unwrap() as i32;
+        FIRST_UNIT_ID + unit_index
     }
 }
 
@@ -212,7 +199,7 @@ impl<P: Vst3Plugin> IAudioProcessorTrait for PluginComponent<P> {
         let setup = unsafe { &*setup };
         assert!(setup.maxSamplesPerBlock > 0);
 
-        let mut processor_config = self.ui_thread_state.processor_config.borrow_mut();
+        let mut processor_config = self.processor_config.borrow_mut();
         processor_config.sample_rate = setup.sampleRate;
         processor_config.max_block_size = setup.maxSamplesPerBlock as usize;
 
@@ -337,7 +324,7 @@ impl<P: Vst3Plugin> IComponentTrait for PluginComponent<P> {
             }
         };
 
-        self.ui_thread_state.processor_config.borrow_mut().process_mode = mode;
+        self.processor_config.borrow_mut().process_mode = mode;
 
         kResultOk
     }
@@ -423,7 +410,7 @@ impl<P: Vst3Plugin> IComponentTrait for PluginComponent<P> {
 
         if active {
             let plugin = self.plugin.borrow();
-            *processor = Some(plugin.create_processor(&self.ui_thread_state.processor_config.borrow()));
+            *processor = Some(plugin.create_processor(&self.processor_config.borrow()));
         } else {
             *processor = None;
         }
@@ -499,7 +486,7 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
         // TODO: info.shortTitle
         vst3_info.stepCount = parameter_info.steps() as _;
         vst3_info.defaultNormalizedValue = parameter_info.default_normalized_value();
-        vst3_info.unitId = self.ui_thread_state.parameter_group_id(parameter_info);
+        vst3_info.unitId = self.parameter_group_id(parameter_info);
 
         // On some platforms, this cast is needed
         #[allow(clippy::unnecessary_cast)]
@@ -621,7 +608,6 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
 
         let view = View::<P>::new(
             self.plugin.clone(),
-            self.ui_thread_state.clone(),
             self.host_name.get().cloned(),
             component_handler,
         );
@@ -663,13 +649,13 @@ impl<P: Vst3Plugin> IProcessContextRequirementsTrait for PluginComponent<P> {
 impl<P: Vst3Plugin> IUnitInfoTrait for PluginComponent<P> {
     unsafe fn getUnitCount(&self) -> int32 {
         log::trace!("IUnitInfo::getUnitCount");
-        self.ui_thread_state.groups.len() as int32 + 1 // +1 for the root unit
+        self.parameter_groups.len() as int32 + 1 // +1 for the root unit
     }
 
     unsafe fn getUnitInfo(&self, unit_index: int32, info: *mut UnitInfo) -> tresult {
         log::trace!("IUnitInfo::getUnitInfo");
 
-        let unit_count = self.ui_thread_state.groups.len() + 1; // +1 for the root unit
+        let unit_count = self.parameter_groups.len() + 1; // +1 for the root unit
 
         if unit_index < 0 {
             return kInvalidArgument;
@@ -688,11 +674,11 @@ impl<P: Vst3Plugin> IUnitInfoTrait for PluginComponent<P> {
             copy_str_to_char16(ROOT_UNIT_NAME, &mut info.name);
         } else {
             let unit_index = unit_index - FIRST_UNIT_ID;
-            let group = &self.ui_thread_state.groups[unit_index as usize];
+            let group = &self.parameter_groups[unit_index as usize];
             copy_str_to_char16(&group.name, &mut info.name);
 
             if let Some(parent) = &group.parent {
-                info.parentUnitId = FIRST_UNIT_ID + self.ui_thread_state.groups.iter().position(|group| group == parent).unwrap() as i32;
+                info.parentUnitId = FIRST_UNIT_ID + self.parameter_groups.iter().position(|group| group == parent).unwrap() as i32;
             } else {
                 info.parentUnitId = ROOT_UNIT_ID;
             }
