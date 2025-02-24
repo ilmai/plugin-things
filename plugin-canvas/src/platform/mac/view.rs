@@ -1,9 +1,9 @@
-use std::{ffi::c_void, ops::{Deref, DerefMut}, path::PathBuf, sync::atomic::{AtomicPtr, AtomicU8, AtomicUsize, Ordering}};
+use std::{ffi::{c_void, CString}, ops::{Deref, DerefMut}, path::PathBuf, str::FromStr, sync::atomic::{AtomicPtr, AtomicU8, AtomicUsize, Ordering}};
 
 use objc2::{declare::ClassBuilder, ffi::objc_disposeClassPair, msg_send, runtime::{AnyClass, Bool}, sel, ClassType, Encode, Encoding, Message, RefEncode};
 use objc2::runtime::{Sel, ProtocolObject};
 use objc2_app_kit::{NSDragOperation, NSDraggingInfo, NSEvent, NSEventModifierFlags, NSPasteboardTypeFileURL, NSView};
-use objc2_foundation::{CGPoint, NSRect, NSURL};
+use objc2_foundation::{NSPoint, NSRect, NSURL};
 use uuid::Uuid;
 
 use crate::{Event, MouseButton, LogicalPosition, event::EventResponse, drag_drop::{DropData, DropOperation}};
@@ -41,10 +41,10 @@ impl OsWindowView {
     pub(crate) fn register_class() -> &'static AnyClass {
         let class_name = format!("plugin-canvas-OsWindowView-{}", Uuid::new_v4().simple());
 
-        let mut builder = ClassBuilder::new(&class_name, NSView::class())
+        let mut builder = ClassBuilder::new(&CString::from_str(&class_name).unwrap(), NSView::class())
             .unwrap_or_else(|| panic!("Class failed to register: {class_name}"));
 
-        builder.add_ivar::<Context>("_context");
+        builder.add_ivar::<Context>(c"_context");
 
         unsafe {
             // NSView
@@ -102,7 +102,7 @@ impl OsWindowView {
     }
 
     fn with_context<T>(&self, f: impl FnOnce(&Context) -> T) -> T {
-        let ivar = self.class().instance_variable("_context").unwrap();
+        let ivar = self.class().instance_variable(c"_context").unwrap();
         let context: &Context = unsafe { ivar.load(self) };
         f(context)
     }
@@ -152,10 +152,10 @@ impl OsWindowView {
         });
 
         for (modifier, text) in [
-            (NSEventModifierFlags::NSEventModifierFlagCommand, "\u{0017}"),
-            (NSEventModifierFlags::NSEventModifierFlagControl, "\u{0011}"),
-            (NSEventModifierFlags::NSEventModifierFlagOption, "\u{0012}"),
-            (NSEventModifierFlags::NSEventModifierFlagShift, "\u{0010}"),
+            (NSEventModifierFlags::Command, "\u{0017}"),
+            (NSEventModifierFlags::Control, "\u{0011}"),
+            (NSEventModifierFlags::Option, "\u{0012}"),
+            (NSEventModifierFlags::Shift, "\u{0010}"),
         ] {
             let was_down = old_flags & modifier.bits() > 0;
             let is_down = !(event_flags & modifier).is_empty();
@@ -216,7 +216,7 @@ impl OsWindowView {
         self.window_point_to_position(point)
     }
 
-    fn window_point_to_position(&self, point_in_window: CGPoint) -> LogicalPosition {
+    fn window_point_to_position(&self, point_in_window: NSPoint) -> LogicalPosition {
         let local_position = self.convertPoint_fromView(point_in_window, None);
 
         LogicalPosition {

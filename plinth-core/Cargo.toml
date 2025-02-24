@@ -12,6 +12,6 @@ license = "MIT"
 serde = ["dep:serde"]
 
 [dependencies]
-itertools = "0.10"
+itertools = "0.14"
 num-traits.workspace = true
 serde = { version = "1.0", features = ["serde_derive"], optional = true }

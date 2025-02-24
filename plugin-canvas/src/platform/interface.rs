@@ -30,9 +30,7 @@ pub struct OsWindowHandle {
 }
 
 impl OsWindowHandle {
-    pub(super) fn new(
-        os_window: Rc<OsWindow>
-    ) -> Self {
+    pub(super) fn new(os_window: Rc<OsWindow>) -> Self {
         Self {
             os_window: Some(os_window),
         }
