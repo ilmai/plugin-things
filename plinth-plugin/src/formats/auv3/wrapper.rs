@@ -1,13 +1,16 @@
 use ::std::sync::atomic::Ordering;
-use std::{ffi::{c_char, c_void}, rc::Rc, sync::{atomic::AtomicBool, Arc, Mutex}};
+use std::{collections::HashMap, ffi::{c_char, c_void}, rc::Rc, sync::{atomic::AtomicBool, Arc, Mutex}};
 
 use plinth_core::{signals::ptr_signal::{PtrSignal, PtrSignalMut}, util::ptr::{any_null, any_null_mut}};
 use portable_atomic::AtomicF64;
 use raw_window_handle::{AppKitWindowHandle, RawWindowHandle};
 
-use crate::{auv3::{plugin::Auv3Plugin, Auv3Host, EventIterator, PLINTH_AUV3_MAX_STRING_LENGTH}, parameters::{self, group::ParameterGroupRef, has_duplicates}, string::copy_str_to_char8, Editor, Event, ParameterId, Parameters, ProcessMode, ProcessState, Processor, ProcessorConfig, Transport};
+use crate::{Editor, Event, ParameterId, Parameters, ProcessMode, ProcessState, Processor, ProcessorConfig, Transport};
+use crate::auv3::{plugin::Auv3Plugin, Auv3Host, EventIterator, PLINTH_AUV3_MAX_STRING_LENGTH};
+use crate::parameters::{self, group::ParameterGroupRef, has_duplicates};
+use crate::string::copy_str_to_char8;
 
-use super::{parameter_multiplier, AURenderEvent, Auv3Reader, Auv3Writer, ParameterGroupInfo, ParameterInfo};
+use super::{parameter_multiplier, parameters::CachedParameter, AURenderEvent, Auv3Reader, Auv3Writer, ParameterGroupInfo};
 
 const MAX_EVENTS: usize = 1024 * 10;
 
@@ -18,6 +21,8 @@ pub struct Auv3Wrapper<P: Auv3Plugin> {
 
     parameter_ids: Vec<ParameterId>,
     parameter_groups: Vec<ParameterGroupRef>,
+    cached_parameters: Arc<Mutex<Vec<CachedParameter>>>,
+    parameter_index_from_id: HashMap<ParameterId, usize>,
 
     sample_rate: AtomicF64,
     tail_length_seconds: AtomicF64,
@@ -34,12 +39,35 @@ impl<P: Auv3Plugin> Auv3Wrapper<P> {
 
         let plugin = P::default();
 
-        let parameter_ids: Vec<_> = plugin.with_parameters(|parameters| parameters.ids().into());
-        assert!(!has_duplicates(&parameter_ids));
+        let (parameter_groups, cached_parameters) = plugin.with_parameters(|parameters| {
+            let parameter_groups = parameters::group::from_parameters(parameters);
 
-        let parameter_groups = plugin.with_parameters(|parameters| {
-            parameters::group::from_parameters(parameters)
+            let cached_parameters: Vec<_> = parameters.ids()
+                .iter()
+                .map(|&id| {
+                    let info = parameters.get(id).unwrap().info().clone();
+
+                    CachedParameter {
+                        id,
+                        info,
+                        value: 0.0,
+                    }
+                })
+                .collect();
+
+            (parameter_groups, cached_parameters)
         });
+
+        let parameter_ids: Vec<_> = cached_parameters
+            .iter()
+            .map(|parameter| parameter.id)
+            .collect();
+
+        let parameter_index_from_id: HashMap<_, _> = parameter_ids.iter().enumerate()
+            .map(|(index, &id)| (id, index))
+            .collect();
+
+        assert!(!has_duplicates(&parameter_ids));
 
         Self {
             plugin: plugin.into(),
@@ -48,6 +76,8 @@ impl<P: Auv3Plugin> Auv3Wrapper<P> {
 
             parameter_ids,
             parameter_groups,
+            cached_parameters: Arc::new(cached_parameters.into()),
+            parameter_index_from_id,
 
             sample_rate: Default::default(),
             tail_length_seconds: Default::default(),
@@ -92,58 +122,64 @@ impl<P: Auv3Plugin> Auv3Wrapper<P> {
     }
 
     pub fn parameter_count(&self) -> u64 {
-        let plugin = self.plugin.lock().unwrap();
-        plugin.with_parameters(|parameters| {
-            parameters.ids().len() as _
-        })
+        self.cached_parameters.lock().unwrap().len() as _
     }
 
-    pub fn parameter_info(&self, index: usize, info: &mut ParameterInfo) {
+    pub fn parameter_info(&self, index: usize, info: &mut super::ParameterInfo) {
         assert!(!info.name.is_null());
         assert!(!info.identifier.is_null());
 
-        let plugin = self.plugin.lock().unwrap();
-        plugin.with_parameters(|parameters| {
-            let Some(&id) = parameters.ids().get(index) else {
-                return;
-            };
-            
-            let parameter = parameters.get(id).unwrap();
+        let cached_parameters = self.cached_parameters.lock().unwrap();
+        let Some(parameter) = cached_parameters.get(index) else {
+            return;
+        };
 
-            info.address = id as _;
-            info.steps = parameter.info().steps() as _;
+        info.address = parameter.id as _;
+        info.steps = parameter.info.steps() as _;
 
-            let name_slice = unsafe { std::slice::from_raw_parts_mut(info.name as _, PLINTH_AUV3_MAX_STRING_LENGTH) };
-            let identifier_slice = unsafe { std::slice::from_raw_parts_mut(info.identifier as _, PLINTH_AUV3_MAX_STRING_LENGTH) };
-            copy_str_to_char8(parameter.info().name(), name_slice);
-            copy_str_to_char8(&format!("ID{id}"), identifier_slice);
+        let name_slice = unsafe { std::slice::from_raw_parts_mut(info.name as _, PLINTH_AUV3_MAX_STRING_LENGTH) };
+        let identifier_slice = unsafe { std::slice::from_raw_parts_mut(info.identifier as _, PLINTH_AUV3_MAX_STRING_LENGTH) };
+        copy_str_to_char8(parameter.info.name(), name_slice);
+        copy_str_to_char8(&format!("ID{}", parameter.id), identifier_slice);
 
-            info.parentGroupIndex = self.parameter_groups
-                .iter()
-                .position(|group| group.path == parameter.info().path())
-                .map(|position| position as i64)
-                .unwrap_or(-1);
-        })
+        info.parentGroupIndex = self.parameter_groups
+            .iter()
+            .position(|group| group.path == parameter.info.path())
+            .map(|position| position as i64)
+            .unwrap_or(-1);
     }
 
     pub fn parameter_value(&self, address: u64) -> f32 {
-        let plugin = self.plugin.lock().unwrap();
-        plugin.with_parameters(|parameters| {
-            if let Some(parameter) = parameters.get(address as ParameterId) {
-                (parameter.normalized_value() * parameter_multiplier(parameter)) as _
-            } else {
-                0.0
-            }
-        })
+        let Some(index) = self.parameter_index_from_id.get(&(address as _)) else {
+            return 0.0;
+        };
+        let cached_parameters = self.cached_parameters.lock().unwrap();
+
+        let value = cached_parameters.get(*index)
+            .map(|parameter| parameter.value)
+            .unwrap_or_default();
+
+        value
     }
 
     pub fn set_parameter_value(&mut self, address: u64, value: f32) {
+        let Some(index) = self.parameter_index_from_id.get(&(address as _)) else {
+            return;
+        };
+        let mut cached_parameters = self.cached_parameters.lock().unwrap();
+
+        let Some(parameter) = cached_parameters.get_mut(*index) else {
+            return;
+        };
+
+        parameter.value = value;
+
         let mut plugin = self.plugin.lock().unwrap();
         if let Some(event) = plugin.with_parameters(|parameters| {
             parameters.get(address as ParameterId).map(|parameter| Event::ParameterValue {
                 sample_offset: 0,
                 id: address as _,
-                value: (value as f64 / parameter_multiplier(parameter)),
+                value: (value as f64 / parameter_multiplier(parameter.info())),
             })
         }) {
             if !self.sending_parameter_change_from_editor.load(::std::sync::atomic::Ordering::Acquire) {
@@ -159,9 +195,11 @@ impl<P: Auv3Plugin> Auv3Wrapper<P> {
     /// `string` must be a valid pointer to string with at least PLINTH_AUV3_MAX_STRING_LENGTH characters
     pub unsafe fn normalized_parameter_to_string(&self, address: u64, value: f32, string: *mut c_char) {
         let plugin = self.plugin.lock().unwrap();
+
+        // TODO: Thread safety
         plugin.with_parameters(|parameters| {
             if let Some(parameter) = parameters.get(address as ParameterId) {
-                let value = value as f64 / parameter_multiplier(parameter);
+                let value = value as f64 / parameter_multiplier(parameter.info());
                 let value_string = parameter.normalized_to_string(value);
                 let string_slice = unsafe { std::slice::from_raw_parts_mut(string, PLINTH_AUV3_MAX_STRING_LENGTH) };
 
@@ -204,6 +242,7 @@ impl<P: Auv3Plugin> Auv3Wrapper<P> {
         plugin.load_state(&mut reader).unwrap();
 
         // Send events to processor
+        // TODO: Thread safety
         plugin.with_parameters(|parameters| {
             for &id in parameters.ids().iter() {
                 let event = Event::ParameterValue {
@@ -248,6 +287,8 @@ impl<P: Auv3Plugin> Auv3Wrapper<P> {
             change_parameter_value,
             end_parameter_change,
             self.sending_parameter_change_from_editor.clone(),
+            self.cached_parameters.clone(),
+            self.parameter_index_from_id.clone(),
         );
 
         let plugin = self.plugin.lock().unwrap();

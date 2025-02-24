@@ -6,6 +6,7 @@ mod au_render_event;
 mod event;
 mod host;
 mod macros;
+mod parameters;
 mod plugin;
 mod reader;
 mod util;
