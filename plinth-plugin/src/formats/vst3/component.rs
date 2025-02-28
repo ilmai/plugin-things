@@ -409,7 +409,7 @@ impl<P: Vst3Plugin> IComponentTrait for PluginComponent<P> {
         let mut processor = self.audio_thread_state.processor.borrow_mut();
 
         if active {
-            let plugin = self.plugin.borrow();
+            let mut plugin = self.plugin.borrow_mut();
             *processor = Some(plugin.create_processor(&self.processor_config.borrow()));
         } else {
             *processor = None;

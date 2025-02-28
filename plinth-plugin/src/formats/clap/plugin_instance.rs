@@ -204,7 +204,7 @@ impl<P: ClapPlugin> PluginInstance<P> {
             instance.sample_rate = sample_rate;
 
             let mut processor = instance.audio_thread_state.processor.borrow_mut();
-            *processor = Some(instance.plugin.as_ref().unwrap().create_processor(&config));
+            *processor = Some(instance.plugin.as_mut().unwrap().create_processor(&config));
 
             instance.audio_thread_state.active.store(true, Ordering::Release);
         });

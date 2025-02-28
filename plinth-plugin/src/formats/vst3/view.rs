@@ -48,7 +48,7 @@ impl<P: Vst3Plugin + 'static> View<P> {
             host_name,
         ));
 
-        *view.editor.borrow_mut() = Some(plugin.borrow().create_editor(host));
+        *view.editor.borrow_mut() = Some(plugin.borrow_mut().create_editor(host));
 
         view
     }

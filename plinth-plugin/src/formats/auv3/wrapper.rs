@@ -109,7 +109,7 @@ impl<P: Auv3Plugin> Auv3Wrapper<P> {
 
         self.sample_rate.store(sample_rate, Ordering::Release);
 
-        let plugin = self.plugin.lock().unwrap();
+        let mut plugin = self.plugin.lock().unwrap();
         self.processor = Some(plugin.create_processor(&processor_config));
     }
 
@@ -291,7 +291,7 @@ impl<P: Auv3Plugin> Auv3Wrapper<P> {
             self.parameter_index_from_id.clone(),
         );
 
-        let plugin = self.plugin.lock().unwrap();
+        let mut plugin = self.plugin.lock().unwrap();
         self.editor = Some(plugin.create_editor(Rc::new(host)));
     }
 
