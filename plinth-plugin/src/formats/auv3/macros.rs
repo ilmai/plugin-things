@@ -229,8 +229,6 @@ macro_rules! export_auv3 {
         unsafe extern "C-unwind" fn plinth_auv3_editor_set_size(wrapper: *mut ::std::ffi::c_void, width: f64, height: f64) {
             log::trace!("plinth_auv3_editor_set_size() from thread {:?}", std::thread::current().id());
 
-            use ::plinth_plugin::Editor;
-
             ::plinth_plugin::auv3::Auv3Wrapper::<$plugin>::with_wrapper(wrapper, |wrapper| {
                 wrapper.set_window_size(width, height);
             });
