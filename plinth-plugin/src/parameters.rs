@@ -62,6 +62,13 @@ pub trait Parameters {
         }
     }
 
+    fn reset(&self) {
+        for id in self.ids().iter().copied() {
+            let parameter = self.get(id).unwrap();
+            parameter.set_normalized_value(parameter.info().default_normalized_value()).unwrap();
+        }
+    }
+
     fn serialize(&self) -> impl Iterator<Item = (ParameterId, ParameterValue)> {
         self.ids().iter()
             .map(|&id| {
@@ -71,11 +78,7 @@ pub trait Parameters {
     }
 
     fn deserialize(&self, parameters: impl IntoIterator<Item = (ParameterId, ParameterValue)>) {
-        // Reset parameters to default and apply whatever we read
-        for id in self.ids().iter().copied() {
-            let parameter = self.get(id).unwrap();
-            parameter.set_normalized_value(parameter.info().default_normalized_value()).unwrap();
-        }
+        self.reset();
 
         for (id, value) in parameters.into_iter() {
             // TODO: Error handling
