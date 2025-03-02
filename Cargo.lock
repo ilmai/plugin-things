@@ -2910,6 +2910,7 @@ dependencies = [
  "i-slint-core",
  "i-slint-renderer-skia",
  "plugin-canvas",
+ "portable-atomic",
  "raw-window-handle",
  "slint",
 ]

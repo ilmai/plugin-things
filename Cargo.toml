@@ -18,6 +18,7 @@ plugin-canvas-slint = { path = "plugin-canvas-slint" }
 
 cursor-icon = "1.1"
 num-traits = "0.2"
+portable-atomic = { version = "1.10", features = ["float", "serde"] }
 raw-window-handle = "0.6"
 slint = { version = "1.10.0", default-features = false, features = ["accessibility", "compat-1-2", "std"] }
 

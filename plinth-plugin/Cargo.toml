@@ -15,7 +15,7 @@ log = "0.4"
 num-derive = "0.4"
 num-traits.workspace = true
 plinth-core.workspace = true
-portable-atomic = { version = "1.10", features = ["float", "serde"] }
+portable-atomic.workspace = true
 raw-window-handle = "0.6"
 rtrb = "0.3"
 thiserror = "2.0"

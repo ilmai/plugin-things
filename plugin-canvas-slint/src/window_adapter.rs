@@ -4,6 +4,7 @@ use cursor_icon::CursorIcon;
 use i_slint_core::{window::{WindowAdapter, WindowAdapterInternal}, renderer::Renderer, platform::{PlatformError, WindowEvent}};
 use i_slint_renderer_skia::SkiaRenderer;
 use plugin_canvas::{event::EventResponse, LogicalSize};
+use portable_atomic::AtomicF64;
 
 use crate::plugin_component_handle::PluginComponentHandle;
 
@@ -24,7 +25,7 @@ pub struct PluginCanvasWindowAdapter {
     context: RefCell<Option<Context>>,
 
     physical_size: RefCell<slint::PhysicalSize>,
-    scale: RefCell<f64>,
+    scale: AtomicF64,
 
     pending_draw: AtomicBool,
     buttons_down: AtomicUsize,
@@ -87,7 +88,7 @@ impl PluginCanvasWindowAdapter {
     }
 
     pub fn set_scale(&self, scale: f64) {
-        *self.scale.borrow_mut() = scale;
+        self.scale.store(scale, Ordering::Release);
 
         let combined_scale = scale * self.plugin_canvas_window.os_scale();
         
@@ -216,11 +217,11 @@ impl PluginCanvasWindowAdapter {
     }
 
     fn convert_logical_position(&self, position: &plugin_canvas::LogicalPosition) -> slint::LogicalPosition {
-        let scale = *self.scale.borrow() as f32;
+        let scale = self.scale.load(Ordering::Acquire);
 
         slint::LogicalPosition {
-            x: position.x as f32 / scale,
-            y: position.y as f32 / scale,
+            x: (position.x / scale) as _,
+            y: (position.y / scale) as _,
         }
     }
 }
@@ -235,7 +236,7 @@ impl WindowAdapter for PluginCanvasWindowAdapter {
     }
 
     fn set_size(&self, size: slint::WindowSize) {
-        let scale = *self.scale.borrow();
+        let scale = self.scale.load(Ordering::Acquire);
         let os_scale = self.plugin_canvas_window.os_scale();
 
         let physical_size = size.to_physical(os_scale as _);
