@@ -15,7 +15,7 @@ pub struct ViewContext {
 }
 
 pub struct View<P: Vst3Plugin> {
-    editor: RefCell<Option<P::Editor>>,
+    editor: Rc<RefCell<Option<P::Editor>>>,
     context: Rc<RefCell<ViewContext>>,
 }
 
@@ -181,8 +181,8 @@ impl<P: Vst3Plugin + 'static> IPlugViewTrait for View<P> {
 
             let frame = context.frame.as_mut().unwrap();
             if let Some(run_loop) = frame.cast::<vst3::Steinberg::Linux::IRunLoop>() {
-                let timer_handler = vst3::ComWrapper::new(TimerHandler {
-                    ui_thread_state: self.ui_thread_state.clone(),
+                let timer_handler = vst3::ComWrapper::new(TimerHandler::<P> {
+                    editor: self.editor.clone(),
                 });
 
                 context.timer_handler = timer_handler.to_com_ptr();
@@ -239,7 +239,7 @@ impl<P: Vst3Plugin + 'static> IPlugViewContentScaleSupportTrait for View<P> {
 
 #[cfg(target_os="linux")]
 struct TimerHandler<P: Vst3Plugin> {
-    ui_thread_state: Rc<UiThreadState<P>>,
+    editor: Rc<RefCell<Option<P::Editor>>>,
 }
 
 #[cfg(target_os="linux")]
@@ -250,7 +250,7 @@ impl<P: Vst3Plugin> vst3::Class for TimerHandler<P> {
 #[cfg(target_os="linux")]
 impl<P: Vst3Plugin> vst3::Steinberg::Linux::ITimerHandlerTrait for TimerHandler<P> {
     unsafe fn onTimer(&self) {
-        if let Some(editor) = self.ui_thread_state.editor.borrow_mut().as_mut() {
+        if let Some(editor) = self.editor.borrow_mut().as_mut() {
             editor.on_frame();
         }
     }
