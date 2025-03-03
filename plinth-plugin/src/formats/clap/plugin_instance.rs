@@ -143,7 +143,9 @@ impl<P: ClapPlugin> PluginInstance<P> {
         }
     }
 
-    pub(super) fn with_plugin_instance<T>(plugin: *const clap_plugin, mut f: impl FnMut(&mut PluginInstance<P>) -> T) -> T{
+    pub(super) fn with_plugin_instance<T>(plugin: *const clap_plugin, mut f: impl FnMut(&mut PluginInstance<P>) -> T) -> T {
+        assert!(!plugin.is_null());
+
         let mut plugin_instance = unsafe { Box::from_raw(plugin as *mut PluginInstance<P>) };
         let result = f(&mut plugin_instance);
         Box::leak(plugin_instance);

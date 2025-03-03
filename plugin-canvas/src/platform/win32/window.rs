@@ -1,10 +1,10 @@
-use std::{cell::RefCell, collections::HashMap, ffi::OsString, mem::{self, size_of}, num::NonZeroIsize, os::windows::prelude::OsStringExt, ptr::{null, null_mut}, rc::Rc, sync::{atomic::{AtomicBool, AtomicUsize, Ordering}, Arc}, time::Duration};
+use std::{cell::RefCell, collections::HashMap, ffi::OsString, mem::{self, size_of}, num::NonZeroIsize, os::windows::prelude::OsStringExt, ptr::{null, null_mut}, rc::Rc, sync::{atomic::{AtomicBool, AtomicUsize, Ordering}, Arc}, thread::JoinHandle, time::Duration};
 
 use cursor_icon::CursorIcon;
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle, RawWindowHandle, Win32WindowHandle};
 use uuid::Uuid;
 use windows::core::PCWSTR;
-use windows::Win32::Foundation::{HINSTANCE, HWND, LPARAM, LRESULT, POINT, WPARAM};
+use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, WPARAM};
 use windows::Win32::Graphics::{Dwm::{DwmFlush, DwmIsCompositionEnabled}, Dxgi::{CreateDXGIFactory, IDXGIFactory, IDXGIOutput}, Gdi::{ClientToScreen, MonitorFromWindow, ScreenToClient, HBRUSH, MONITOR_DEFAULTTOPRIMARY}};
 use windows::Win32::System::{Ole::{IDropTarget, OleInitialize, RegisterDragDrop, RevokeDragDrop}, Threading::GetCurrentThreadId};
 use windows::Win32::UI::{Controls::WM_MOUSELEAVE, Input::KeyboardAndMouse::{GetAsyncKeyState, SetCapture, TrackMouseEvent, TME_LEAVE, TRACKMOUSEEVENT, VK_CONTROL, VK_MENU, VK_SHIFT}, WindowsAndMessaging::{CallNextHookEx, CreateWindowExW, DefWindowProcW, DestroyWindow, GetWindowLongPtrW, LoadCursorW, MoveWindow, PostMessageW, RegisterClassW, SendMessageW, SetCursor, SetCursorPos, SetWindowLongPtrW, SetWindowsHookExW, ShowCursor, UnhookWindowsHookEx, UnregisterClassW, CS_OWNDC, GWLP_USERDATA, HHOOK, HICON, IDC_ARROW, MOUSEHOOKSTRUCTEX, WH_MOUSE, WINDOW_EX_STYLE, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEMOVE, WM_MOUSEWHEEL, WM_MOVE, WM_RBUTTONDOWN, WM_RBUTTONUP, WNDCLASSW, WS_CHILD, WS_VISIBLE}};
@@ -24,7 +24,10 @@ pub struct OsWindow {
     cursors: Cursors,
     buttons_down: AtomicUsize,
 
+    running: Arc<AtomicBool>,
     moved: Arc<AtomicBool>,
+    frame_pacing_thread_handle: Option<JoinHandle<()>>,
+    message_window_thread_handle: Option<JoinHandle<()>>,
 
     modifier_pressed: HashMap<u16, bool>,
 }
@@ -34,10 +37,6 @@ impl OsWindow {
         (self.event_callback)(event)
     }
     
-    pub(super) fn hinstance(&self) -> HINSTANCE {
-        HINSTANCE(self.window_handle.hinstance.unwrap().get() as _)
-    }
-
     pub(super) fn hwnd(&self) -> HWND {
         HWND(self.window_handle.hwnd.get() as _)
     }
@@ -126,7 +125,8 @@ impl OsWindowInterface for OsWindow {
 
         let window_handle = Win32WindowHandle::new(NonZeroIsize::new(hwnd.0 as _).unwrap());
 
-        let moved: Arc<AtomicBool> = Default::default();
+        let running: Arc<AtomicBool> = Arc::new(true.into());
+        let moved: Arc<AtomicBool> = Arc::new(false.into());
 
         let hook_handle = unsafe {
             SetWindowsHookExW(
@@ -136,18 +136,21 @@ impl OsWindowInterface for OsWindow {
                 GetCurrentThreadId(),
             ).unwrap()
         };
-
-        std::thread::spawn({
+        let frame_pacing_thread_handle = std::thread::spawn({
             let hwnd = hwnd.0 as usize;
+            let running = running.clone();
             let moved = moved.clone();
-            move || frame_pacing_thread(hwnd, moved)
+
+            move || frame_pacing_thread(hwnd, running, moved)
         });
 
         let message_window = Arc::new(MessageWindow::new(hwnd).unwrap());
 
-        std::thread::spawn({
+        let message_window_thread_handle = std::thread::spawn({
             let message_window = message_window.clone();
-            move || message_window.run()
+            let running = running.clone();
+
+            move || message_window.run(running)
         });
 
         let modifier_pressed = [VK_SHIFT, VK_CONTROL, VK_MENU]
@@ -166,7 +169,10 @@ impl OsWindowInterface for OsWindow {
             cursors: Cursors::new(),
             buttons_down: Default::default(),
 
+            running,
             moved,
+            frame_pacing_thread_handle: Some(frame_pacing_thread_handle),
+            message_window_thread_handle: Some(message_window_thread_handle),
 
             modifier_pressed,
         });
@@ -273,12 +279,20 @@ impl OsWindowInterface for OsWindow {
 
 impl Drop for OsWindow {
     fn drop(&mut self) {
+        self.running.store(false, Ordering::Release);
+        if let Some(handle) = self.frame_pacing_thread_handle.take() {
+            handle.join().unwrap();
+        }
+        if let Some(handle) = self.message_window_thread_handle.take() {
+            handle.join().unwrap();
+        }
+
         unsafe {
-            RevokeDragDrop(self.hwnd()).unwrap();
             SetWindowLongPtrW(self.hwnd(), GWLP_USERDATA, 0);
             UnhookWindowsHookEx(self.hook_handle).unwrap();
+            RevokeDragDrop(self.hwnd()).unwrap();
             DestroyWindow(self.hwnd()).unwrap();
-            UnregisterClassW(PCWSTR(self.window_class as _), Some(self.hinstance())).unwrap();
+            UnregisterClassW(PCWSTR(self.window_class as _), Some(PLUGIN_HINSTANCE.with(|hinstance| *hinstance))).unwrap();
         }
     }
 }
@@ -434,12 +448,11 @@ unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -
 
     unsafe { CallNextHookEx(None, code, wparam, lparam) }
 }
-
-fn frame_pacing_thread(hwnd: usize, moved: Arc<AtomicBool>) {
+fn frame_pacing_thread(hwnd: usize, running: Arc<AtomicBool>, moved: Arc<AtomicBool>) {
     let hwnd = HWND(hwnd as _);
     let mut maybe_output: Option<IDXGIOutput> = None;
 
-    loop {
+    while running.load(Ordering::Acquire) {
         if moved.swap(false, Ordering::AcqRel) {
             maybe_output = None;
         }

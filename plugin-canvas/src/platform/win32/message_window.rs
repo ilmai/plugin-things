@@ -1,4 +1,4 @@
-use std::{mem, ptr::{null, null_mut}};
+use std::{mem, ptr::{null, null_mut}, sync::{atomic::{AtomicBool, Ordering}, Arc}};
 
 use uuid::Uuid;
 use windows::{Win32::{UI::{WindowsAndMessaging::{WNDCLASSW, CS_OWNDC, DefWindowProcW, HICON, HCURSOR, RegisterClassW, CreateWindowExW, WS_EX_NOACTIVATE, GetMessageW, TranslateMessage, DispatchMessageW, WM_CHAR, PostMessageW, SetWindowLongPtrW, GWLP_USERDATA, GetWindowLongPtrW, DestroyWindow, UnregisterClassW, WS_CHILD, WM_KEYDOWN, WM_KEYUP}, Input::KeyboardAndMouse::{SetFocus, VIRTUAL_KEY}}, Graphics::Gdi::HBRUSH, Foundation::{HWND, WPARAM, LPARAM, LRESULT}}, core::PCWSTR};
@@ -61,12 +61,12 @@ impl MessageWindow {
         })
     }
 
-    pub fn run(&self) {
+    pub fn run(&self, running: Arc<AtomicBool>) {
         unsafe {
             let hwnd = HWND(self.hwnd as _);
             let mut msg = mem::zeroed();
 
-            loop {
+            while running.load(Ordering::Acquire) {
                 match GetMessageW(&mut msg, Some(hwnd), 0, 0) {
                     BOOL(-1) => {
                         panic!()
