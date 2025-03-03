@@ -100,7 +100,8 @@ impl MessageWindow {
 impl Drop for MessageWindow {
     fn drop(&mut self) {
         unsafe {
-            DestroyWindow(HWND(self.hwnd as _)).unwrap();
+            // It's ok if this fails; window might already be deleted if our parent window was deleted
+            DestroyWindow(HWND(self.hwnd as _)).ok();
             UnregisterClassW(PCWSTR(self.window_class as _), Some(PLUGIN_HINSTANCE.with(|hinstance| *hinstance))).unwrap();
         }
     }

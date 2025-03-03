@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashMap, ffi::OsString, mem::{self, size_of}, num::NonZeroIsize, os::windows::prelude::OsStringExt, ptr::{null, null_mut}, rc::Rc, sync::{atomic::{AtomicBool, AtomicUsize, Ordering}, Arc}, thread::JoinHandle, time::Duration};
+use std::{cell::RefCell, collections::HashMap, ffi::OsString, mem::{self, size_of}, num::NonZeroIsize, os::windows::prelude::OsStringExt, ptr::{null, null_mut}, rc::Rc, sync::{atomic::{AtomicBool, AtomicUsize, Ordering}, Arc}, time::Duration};
 
 use cursor_icon::CursorIcon;
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle, RawWindowHandle, Win32WindowHandle};
@@ -26,8 +26,6 @@ pub struct OsWindow {
 
     running: Arc<AtomicBool>,
     moved: Arc<AtomicBool>,
-    frame_pacing_thread_handle: Option<JoinHandle<()>>,
-    message_window_thread_handle: Option<JoinHandle<()>>,
 
     modifier_pressed: HashMap<u16, bool>,
 }
@@ -136,7 +134,8 @@ impl OsWindowInterface for OsWindow {
                 GetCurrentThreadId(),
             ).unwrap()
         };
-        let frame_pacing_thread_handle = std::thread::spawn({
+
+        std::thread::spawn({
             let hwnd = hwnd.0 as usize;
             let running = running.clone();
             let moved = moved.clone();
@@ -146,7 +145,7 @@ impl OsWindowInterface for OsWindow {
 
         let message_window = Arc::new(MessageWindow::new(hwnd).unwrap());
 
-        let message_window_thread_handle = std::thread::spawn({
+        std::thread::spawn({
             let message_window = message_window.clone();
             let running = running.clone();
 
@@ -171,8 +170,6 @@ impl OsWindowInterface for OsWindow {
 
             running,
             moved,
-            frame_pacing_thread_handle: Some(frame_pacing_thread_handle),
-            message_window_thread_handle: Some(message_window_thread_handle),
 
             modifier_pressed,
         });
@@ -280,12 +277,6 @@ impl OsWindowInterface for OsWindow {
 impl Drop for OsWindow {
     fn drop(&mut self) {
         self.running.store(false, Ordering::Release);
-        if let Some(handle) = self.frame_pacing_thread_handle.take() {
-            handle.join().unwrap();
-        }
-        if let Some(handle) = self.message_window_thread_handle.take() {
-            handle.join().unwrap();
-        }
 
         unsafe {
             SetWindowLongPtrW(self.hwnd(), GWLP_USERDATA, 0);
@@ -448,6 +439,7 @@ unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -
 
     unsafe { CallNextHookEx(None, code, wparam, lparam) }
 }
+
 fn frame_pacing_thread(hwnd: usize, running: Arc<AtomicBool>, moved: Arc<AtomicBool>) {
     let hwnd = HWND(hwnd as _);
     let mut maybe_output: Option<IDXGIOutput> = None;
