@@ -108,6 +108,7 @@ impl<P: ClapPlugin> Gui<P> {
             }
 
             instance.editor = None;
+            instance.parent_window_handle = None;
         });
     }
 
@@ -189,14 +190,22 @@ impl<P: ClapPlugin> Gui<P> {
 
     unsafe extern "C" fn set_parent(plugin: *const clap_plugin, window: *const clap_window) -> bool {
         PluginInstance::with_plugin_instance(plugin, |instance: &mut PluginInstance<P>| {
-            let parent = crate::window_handle::from_ptr(unsafe { (*window).specific.ptr });
-
             let Some(editor) = instance.editor.as_mut() else {
                 return false;
             };
 
-            editor.open(parent);
-            
+            if window.is_null() {
+                editor.close();
+                instance.parent_window_handle = None;
+                return false;
+            }
+
+            let parent_window_handle = crate::window_handle::from_ptr(unsafe { (*window).specific.ptr });
+            instance.parent_window_handle = Some(parent_window_handle);
+
+            editor.open(parent_window_handle);
+            instance.editor_open = true;
+
             true
         })
     }
@@ -208,13 +217,40 @@ impl<P: ClapPlugin> Gui<P> {
     unsafe extern "C" fn suggest_title(_plugin: *const clap_plugin, _title: *const c_char) {
     }
 
-    unsafe extern "C" fn show(_plugin: *const clap_plugin) -> bool {
-        // TODO
-        true
+    unsafe extern "C" fn show(plugin: *const clap_plugin) -> bool {
+        PluginInstance::with_plugin_instance(plugin, |instance: &mut PluginInstance<P>| {
+            if instance.editor_open {
+                return true;
+            }
+
+            let Some(editor) = instance.editor.as_mut() else {
+                return false;
+            };
+            let Some(parent_window_handle) = instance.parent_window_handle else {
+                return false;
+            };
+
+            editor.open(parent_window_handle);
+            instance.editor_open = true;
+
+            true
+        })
     }
 
-    unsafe extern "C" fn hide(_plugin: *const clap_plugin) -> bool {
-        // TODO
-        true
+    unsafe extern "C" fn hide(plugin: *const clap_plugin) -> bool {
+        PluginInstance::with_plugin_instance(plugin, |instance: &mut PluginInstance<P>| {
+            if !instance.editor_open {
+                return true;
+            }
+
+            let Some(editor) = instance.editor.as_mut() else {
+                return false;
+            };
+
+            editor.close();
+            instance.editor_open = false;
+
+            true
+        })
     }
 }

@@ -5,6 +5,7 @@ use clap_sys::{events::clap_input_events, ext::{audio_ports::CLAP_EXT_AUDIO_PORT
 use log::error;
 use plinth_core::signals::{ptr_signal::{PtrSignal, PtrSignalMut}, signal::SignalMut};
 use portable_atomic::AtomicBool;
+use raw_window_handle::RawWindowHandle;
 
 use crate::{Event, ParameterId, ProcessMode, ProcessState, Processor, ProcessorConfig};
 use crate::clap::{event::EventIterator, transport::convert_transport};
@@ -37,9 +38,12 @@ impl<P: ClapPlugin> Default for AudioThreadState<P> {
 pub struct PluginInstance<P: ClapPlugin> {
     raw: clap_plugin,
     pub(super) host: *const clap_host,
+    pub(super) parent_window_handle: Option<RawWindowHandle>,
+
 
     pub(super) plugin: Option<P>,
     pub(super) editor: Option<P::Editor>,
+    pub(super) editor_open: bool,
     pub(super) parameter_info: BTreeMap<ParameterId, ParameterInfo>,
 
     sample_rate: f64,
@@ -114,9 +118,11 @@ impl<P: ClapPlugin> PluginInstance<P> {
                 on_main_thread: Some(Self::on_main_thread),
             },
             host,
+            parent_window_handle: None,
 
             plugin: Some(plugin),
             editor: None,
+            editor_open: false,
             parameter_info,
 
             sample_rate: 0.0,
