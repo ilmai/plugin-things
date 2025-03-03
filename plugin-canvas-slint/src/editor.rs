@@ -127,7 +127,8 @@ impl Drop for EditorHandle {
     fn drop(&mut self) {
         let window_adapter_ptr = self.window_adapter_ptr.swap(null_mut(), Ordering::Relaxed);
         if !window_adapter_ptr.is_null() {
-            unsafe { Rc::from_raw(window_adapter_ptr) };
+            let window_adapter = unsafe { Rc::from_raw(window_adapter_ptr) };
+            window_adapter.close();
         }
     }
 }
