@@ -5,7 +5,7 @@ use objc2::{msg_send, rc::{Allocated, Retained}, runtime::AnyClass, sel, AllocAn
 use objc2_app_kit::{NSCursor, NSPasteboardTypeFileURL, NSScreen, NSTrackingArea, NSTrackingAreaOptions, NSView};
 use objc2_core_foundation::{CGPoint, CGSize};
 use objc2_core_graphics::CGWarpMouseCursorPosition;
-use objc2_foundation::{MainThreadMarker, NSArray, NSPoint, NSRect, NSRunLoop, NSSize};
+use objc2_foundation::{MainThreadMarker, NSArray, NSDefaultRunLoopMode, NSPoint, NSRect, NSRunLoop, NSSize};
 use objc2_quartz_core::CADisplayLink;
 use raw_window_handle::{AppKitWindowHandle, HasDisplayHandle, HasWindowHandle, RawWindowHandle};
 
@@ -101,10 +101,7 @@ impl OsWindowInterface for OsWindow {
         let display_link = unsafe { view.displayLinkWithTarget_selector(&view, sel!(drawRect:)) };
 
         unsafe {
-            display_link.addToRunLoop_forMode(
-                &NSRunLoop::mainRunLoop(),
-                &NSRunLoop::mainRunLoop().currentMode().unwrap()
-            )
+            display_link.addToRunLoop_forMode(&NSRunLoop::mainRunLoop(), NSDefaultRunLoopMode)
         };
 
         *window.display_link.borrow_mut() = Some(display_link);
@@ -203,10 +200,7 @@ impl Drop for OsWindow {
     fn drop(&mut self) {
         if let Some(display_link) = self.display_link.borrow().as_ref() {
             unsafe {
-                display_link.removeFromRunLoop_forMode(
-                    &NSRunLoop::mainRunLoop(),
-                    &NSRunLoop::mainRunLoop().currentMode().unwrap()
-                )
+                display_link.removeFromRunLoop_forMode(&NSRunLoop::mainRunLoop(), NSDefaultRunLoopMode)
             };
         }
 
