@@ -1,4 +1,4 @@
-use std::{ffi::{c_void, CString}, ops::{Deref, DerefMut}, path::PathBuf, str::FromStr, sync::atomic::{AtomicPtr, AtomicU8, AtomicUsize, Ordering}};
+use std::{ffi::{c_void, CString}, ops::{Deref, DerefMut}, path::PathBuf, rc::Weak, str::FromStr, sync::atomic::{AtomicPtr, AtomicU8, AtomicUsize, Ordering}};
 
 use objc2::{declare::ClassBuilder, ffi::objc_disposeClassPair, msg_send, runtime::{AnyClass, Bool}, sel, ClassType, Encode, Encoding, Message, RefEncode};
 use objc2::runtime::{Sel, ProtocolObject};
@@ -15,7 +15,7 @@ pub struct OsWindowView {
 }
 
 struct Context {
-    os_window_ptr: AtomicPtr<c_void>,
+    os_window_ptr: AtomicPtr<OsWindow>,
     input_focus: AtomicU8,
     modifier_flags: AtomicUsize,
 }
@@ -85,16 +85,26 @@ impl OsWindowView {
         unsafe { objc_disposeClassPair(class as *const _ as _) };
     }
 
-    pub(crate) fn set_os_window_ptr(&self, ptr: *mut c_void) {
+    pub(crate) fn set_os_window_ptr(&self, ptr: *mut OsWindow) {
         self.with_context(|context| context.os_window_ptr.store(ptr, Ordering::Release));
     }
 
-    pub(crate) fn with_os_window<T>(&self, f: impl FnOnce(&mut OsWindow) -> T) -> Option<T> {
+    pub(crate) fn with_os_window<T>(&self, f: impl FnOnce(&OsWindow) -> T) -> Option<T> {
         self.with_context(|context| {
-            let window_ptr = context.os_window_ptr.load(Ordering::Acquire) as *mut OsWindow;
-            if !window_ptr.is_null() {
-                let os_window = unsafe { &mut *window_ptr };
-                Some(f(os_window))
+            let os_window_ptr = context.os_window_ptr.load(Ordering::Acquire) as *mut OsWindow;
+            if !os_window_ptr.is_null() {
+                let os_window_weak = unsafe { Weak::from_raw(os_window_ptr) };
+                
+                let result = if let Some(os_window) = os_window_weak.upgrade() {
+                    Some(f(&os_window))
+                } else {
+                    None
+                };
+
+                // Leak weak reference so it isn't dropped
+                let _ = os_window_weak.into_raw();
+
+                result
             } else {
                 None
             }
