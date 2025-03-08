@@ -122,7 +122,8 @@ impl<P: Vst3Plugin> IPluginBaseTrait for PluginComponent<P> {
                 let mut name = [0; 128];
                 if unsafe { host_application.getName(&mut name) == kResultOk } {
                     if let Some(name) = char16_to_string(&name) {
-                        self.host_name.set(name).unwrap();
+                        // VST3 validator will call initialize() multiple times so allow this to fail
+                        self.host_name.set(name).ok();
                     }
                 }
             }
