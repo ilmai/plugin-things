@@ -4,10 +4,9 @@ use raw_window_handle::RawWindowHandle;
 use plugin_canvas::{event::EventResponse, window::WindowAttributes, Event};
 use slint::platform::WindowAdapter;
 
-use crate::{platform::PluginCanvasPlatform, plugin_component_handle::PluginComponentHandle, window_adapter::{Context, PluginCanvasWindowAdapter, WINDOW_ADAPTER_FROM_SLINT, WINDOW_TO_SLINT}};
+use crate::{platform::PluginCanvasPlatform, plugin_component_handle::PluginComponentHandle, window_adapter::{PluginCanvasWindowAdapter, WINDOW_ADAPTER_FROM_SLINT, WINDOW_TO_SLINT}};
 
-pub struct SlintEditor {
-}
+pub struct SlintEditor;
 
 impl SlintEditor {
     pub fn open<C, B>(
@@ -48,12 +47,8 @@ impl SlintEditor {
         let component = component_builder(window);
         component.window().show().unwrap();
 
-        let context = Context {
-            component: Box::new(component),
-        };
-
         let window_adapter = WINDOW_ADAPTER_FROM_SLINT.take().unwrap();
-        window_adapter.set_context(context);
+        window_adapter.set_component(Box::new(component));
 
         editor_handle.set_window_adapter(window_adapter);
         editor_handle

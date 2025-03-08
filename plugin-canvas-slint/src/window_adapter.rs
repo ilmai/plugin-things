@@ -13,16 +13,12 @@ thread_local! {
     pub static WINDOW_ADAPTER_FROM_SLINT: RefCell<Option<Rc<PluginCanvasWindowAdapter>>> = Default::default();
 }
 
-pub struct Context {
-    pub component: Box<dyn PluginComponentHandle>,
-}
-
 pub struct PluginCanvasWindowAdapter {
     plugin_canvas_window: Rc<plugin_canvas::Window>,
     slint_window: slint::Window,
     renderer: SkiaRenderer,
 
-    context: RefCell<Option<Context>>,
+    component: RefCell<Option<Box<dyn PluginComponentHandle>>>,
 
     physical_size: RefCell<slint::PhysicalSize>,
     scale: AtomicF64,
@@ -58,7 +54,7 @@ impl PluginCanvasWindowAdapter {
                 slint_window,
                 renderer,
 
-                context: Default::default(),
+                component: Default::default(),
 
                 physical_size: slint_size.into(),
                 scale: scale.into(),
@@ -78,13 +74,8 @@ impl PluginCanvasWindowAdapter {
         Ok(self_rc as _)
     }
 
-    pub fn with_context<T>(&self, f: impl Fn(&Context) -> T) -> T {
-        let context = self.context.borrow();
-        f(context.as_ref().unwrap())
-    }
-
-    pub fn set_context(&self, context: Context) {
-        *self.context.borrow_mut() = Some(context);
+    pub fn set_component(&self, component: Box<dyn PluginComponentHandle>) {
+        *self.component.borrow_mut() = Some(component);
     }
 
     pub fn set_scale(&self, scale: f64) {
@@ -99,13 +90,13 @@ impl PluginCanvasWindowAdapter {
 
     pub fn close(&self) {
         // Remove context to unravel the cyclic reference
-        self.context.borrow_mut().take();
+        self.component.borrow_mut().take();
         self.slint_window.dispatch_event(WindowEvent::CloseRequested);
     }
 
     pub fn on_event(&self, event: &plugin_canvas::Event) -> EventResponse {
-        if let Some(context) = self.context.borrow().as_ref() {
-            context.component.on_event(event);
+        if let Some(component) = self.component.borrow().as_ref() {
+            component.on_event(event);
         }
 
         match event {
