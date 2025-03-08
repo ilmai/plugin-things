@@ -106,7 +106,7 @@ impl OsWindowInterface for OsWindow {
 
         *window.display_link.borrow_mut() = Some(display_link);
 
-        view.set_os_window_ptr(Rc::into_raw(window.clone()) as _);
+        view.set_os_window_ptr(Rc::downgrade(&window).into_raw() as _);
 
         Ok(OsWindowHandle::new(window))
     }

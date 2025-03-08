@@ -1,4 +1,4 @@
-use std::{cell::RefCell, collections::HashMap, ffi::OsString, mem::{self, size_of}, num::NonZeroIsize, os::windows::prelude::OsStringExt, ptr::{null, null_mut}, rc::Rc, sync::{atomic::{AtomicBool, AtomicUsize, Ordering}, Arc}, time::Duration};
+use std::{cell::RefCell, collections::HashMap, ffi::OsString, mem::{self, size_of}, num::NonZeroIsize, os::windows::prelude::OsStringExt, ptr::{null, null_mut}, rc::{Rc, Weak}, sync::{atomic::{AtomicBool, AtomicUsize, Ordering}, Arc}, time::Duration};
 
 use cursor_icon::CursorIcon;
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle, RawWindowHandle, Win32WindowHandle};
@@ -27,7 +27,7 @@ pub struct OsWindow {
     running: Arc<AtomicBool>,
     moved: Arc<AtomicBool>,
 
-    modifier_pressed: HashMap<u16, bool>,
+    modifier_pressed: RefCell<HashMap<u16, bool>>,
 }
 
 impl OsWindow {
@@ -152,10 +152,10 @@ impl OsWindowInterface for OsWindow {
             move || message_window.run(running)
         });
 
-        let modifier_pressed = [VK_SHIFT, VK_CONTROL, VK_MENU]
+        let modifier_pressed = RefCell::new([VK_SHIFT, VK_CONTROL, VK_MENU]
             .iter()
             .map(|key| (key.0, false))
-            .collect();
+            .collect());
 
         let window = Rc::new(Self {
             window_class,
@@ -183,10 +183,7 @@ impl OsWindowInterface for OsWindow {
 
         *window.drop_target.borrow_mut() = Some(drop_target);
 
-        let window_ptr = Rc::into_raw(window);
-        unsafe { SetWindowLongPtrW(hwnd, GWLP_USERDATA, window_ptr as _) };
-        
-        let window = unsafe { Rc::from_raw(window_ptr) };
+        unsafe { SetWindowLongPtrW(hwnd, GWLP_USERDATA, Rc::downgrade(&window).into_raw() as _) };
 
         Ok(OsWindowHandle::new(window))
     }
@@ -306,111 +303,121 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
     if window_ptr.is_null() {
         return unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) };
     }
+    let window_weak = unsafe { Weak::from_raw(window_ptr) };
 
-    let window = unsafe { &mut *window_ptr };
+    let result = if let Some(window) = window_weak.upgrade() {
+        match msg {
+            WM_LBUTTONDOWN => {
+                window.button_down(MouseButton::Left, window.logical_mouse_position(lparam));
+                LRESULT(0)
+            },
+    
+            WM_LBUTTONUP => {
+                window.button_up(MouseButton::Left, window.logical_mouse_position(lparam));
+                LRESULT(0)
+            },
+    
+            WM_MBUTTONDOWN => {
+                window.button_down(MouseButton::Middle, window.logical_mouse_position(lparam));
+                LRESULT(0)
+            },
+    
+            WM_MBUTTONUP => {
+                window.button_up(MouseButton::Middle, window.logical_mouse_position(lparam));
+                LRESULT(0)
+            },
+    
+            WM_RBUTTONDOWN => {
+                window.button_down(MouseButton::Right, window.logical_mouse_position(lparam));
+                LRESULT(0)
+            },
+    
+            WM_RBUTTONUP => {
+                window.button_up(MouseButton::Right, window.logical_mouse_position(lparam));
+                LRESULT(0)
+            },
+    
+            WM_MOVE => {
+                window.moved.store(true, Ordering::Release);
+                LRESULT(0)
+            },
+    
+            WM_MOUSELEAVE => {
+                window.send_event(Event::MouseExited);
+                LRESULT(0)
+            },
+    
+            WM_MOUSEMOVE => {
+                window.send_event(Event::MouseMoved { position: window.logical_mouse_position(lparam) });
+                LRESULT(0)
+            },
+    
+            WM_MOUSEWHEEL => {
+                let wheel_delta: i16 = unsafe { mem::transmute((wparam.0 >> 16) as u16) };
+                let x: i16 = unsafe { mem::transmute(((lparam.0 as usize) & 0xFFFF) as u16) };
+                let y: i16 = unsafe { mem::transmute(((lparam.0 as usize) >> 16) as u16) };
+    
+                let mut position = POINT { x: x as i32, y: y as i32 };
+                let result = unsafe { ScreenToClient(hwnd, &mut position) };
+                assert!(result.as_bool());
+    
+                window.send_event(Event::MouseWheel {
+                    position: LogicalPosition { x: position.x as f64, y: position.y as f64 },
+                    delta_x: 0.0,
+                    delta_y: wheel_delta as f64 / 120.0,
+                });
+    
+                LRESULT(0)
+            },
+    
+            WM_USER_KEY_DOWN => {
+                let string = OsString::from_wide(&[wparam.0 as _]);
+                window.send_event(Event::KeyDown { text: string.to_string_lossy().to_string() });
+                LRESULT(0)
+            },
+    
+            WM_USER_KEY_UP => {
+                let string = OsString::from_wide(&[wparam.0 as _]);
+                window.send_event(Event::KeyUp { text: string.to_string_lossy().to_string() });
+                LRESULT(0)
+            },
+    
+            WM_USER_FRAME_TIMER => {
+                // Check modifiers
+                for &key in MODIFIERS.iter() {
+                    let mut modifier_pressed = window.modifier_pressed.borrow_mut();
 
-    match msg {
-        WM_LBUTTONDOWN => {
-            window.button_down(MouseButton::Left, window.logical_mouse_position(lparam));
-            LRESULT(0)
-        },
-
-        WM_LBUTTONUP => {
-            window.button_up(MouseButton::Left, window.logical_mouse_position(lparam));
-            LRESULT(0)
-        },
-
-        WM_MBUTTONDOWN => {
-            window.button_down(MouseButton::Middle, window.logical_mouse_position(lparam));
-            LRESULT(0)
-        },
-
-        WM_MBUTTONUP => {
-            window.button_up(MouseButton::Middle, window.logical_mouse_position(lparam));
-            LRESULT(0)
-        },
-
-        WM_RBUTTONDOWN => {
-            window.button_down(MouseButton::Right, window.logical_mouse_position(lparam));
-            LRESULT(0)
-        },
-
-        WM_RBUTTONUP => {
-            window.button_up(MouseButton::Right, window.logical_mouse_position(lparam));
-            LRESULT(0)
-        },
-
-        WM_MOVE => {
-            window.moved.store(true, Ordering::Release);
-            LRESULT(0)
-        },
-
-        WM_MOUSELEAVE => {
-            window.send_event(Event::MouseExited);
-            LRESULT(0)
-        },
-
-        WM_MOUSEMOVE => {
-            window.send_event(Event::MouseMoved { position: window.logical_mouse_position(lparam) });
-            LRESULT(0)
-        },
-
-        WM_MOUSEWHEEL => {
-            let wheel_delta: i16 = unsafe { mem::transmute((wparam.0 >> 16) as u16) };
-            let x: i16 = unsafe { mem::transmute(((lparam.0 as usize) & 0xFFFF) as u16) };
-            let y: i16 = unsafe { mem::transmute(((lparam.0 as usize) >> 16) as u16) };
-
-            let mut position = POINT { x: x as i32, y: y as i32 };
-            let result = unsafe { ScreenToClient(hwnd, &mut position) };
-            assert!(result.as_bool());
-
-            window.send_event(Event::MouseWheel {
-                position: LogicalPosition { x: position.x as f64, y: position.y as f64 },
-                delta_x: 0.0,
-                delta_y: wheel_delta as f64 / 120.0,
-            });
-
-            LRESULT(0)
-        },
-
-        WM_USER_KEY_DOWN => {
-            let string = OsString::from_wide(&[wparam.0 as _]);
-            window.send_event(Event::KeyDown { text: string.to_string_lossy().to_string() });
-            LRESULT(0)
-        },
-
-        WM_USER_KEY_UP => {
-            let string = OsString::from_wide(&[wparam.0 as _]);
-            window.send_event(Event::KeyUp { text: string.to_string_lossy().to_string() });
-            LRESULT(0)
-        },
-
-        WM_USER_FRAME_TIMER => {
-            // Check modifiers
-            for &key in MODIFIERS.iter() {
-                let pressed = unsafe { GetAsyncKeyState(key.0 as _) } != 0;
-                let was_pressed = window.modifier_pressed[&key.0];
-                
-                if pressed != was_pressed {
-                    window.modifier_pressed.insert(key.0, pressed);
-
-                    let string = OsString::from_wide(&[key.0 as _]);
-                    let text = string.to_string_lossy().to_string();
-
-                    if pressed {
-                        window.send_event(Event::KeyDown { text });
-                    } else {
-                        window.send_event(Event::KeyUp { text });
+                    let pressed = unsafe { GetAsyncKeyState(key.0 as _) } != 0;
+                    let was_pressed = modifier_pressed[&key.0];
+                    
+                    if pressed != was_pressed {
+                        modifier_pressed.insert(key.0, pressed);
+    
+                        let string = OsString::from_wide(&[key.0 as _]);
+                        let text = string.to_string_lossy().to_string();
+    
+                        if pressed {
+                            window.send_event(Event::KeyDown { text });
+                        } else {
+                            window.send_event(Event::KeyUp { text });
+                        }
                     }
                 }
-            }
+    
+                window.send_event(Event::Draw);
+                LRESULT(0)
+            },
+    
+            _ => unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) },
+        }
+    } else {
+        LRESULT(0)
+    };
 
-            window.send_event(Event::Draw);
-            LRESULT(0)
-        },
+    // Leak the weak reference so it's not dropped
+    let _ = window_weak.into_raw();
 
-        _ => unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) },
-    }   
+    result
 }
 
 unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
