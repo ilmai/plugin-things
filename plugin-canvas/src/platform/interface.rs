@@ -53,7 +53,6 @@ impl Drop for OsWindowHandle {
             let ptr = Rc::into_raw(os_window);
             unsafe {
                 Rc::decrement_strong_count(ptr);
-                Rc::decrement_strong_count(ptr);
             }
         }
     }
