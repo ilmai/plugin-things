@@ -207,7 +207,7 @@ impl<P: Vst3Plugin> IAudioProcessorTrait for PluginComponent<P> {
     }
 
     unsafe fn setProcessing(&self, state: TBool) -> tresult {
-        log::trace!("IAudioProcessor::setProcessing");
+        log::trace!("IAudioProcessor::setProcessing: {state}");
 
         let processing = state != 0;
         self.processing.store(processing, Ordering::Release);
@@ -397,7 +397,7 @@ impl<P: Vst3Plugin> IComponentTrait for PluginComponent<P> {
     }
 
     unsafe fn setActive(&self, state: TBool) -> tresult {
-        log::trace!("IComponent::setActive");
+        log::trace!("IComponent::setActive: {state}");
 
         let active = state > 0;
 
