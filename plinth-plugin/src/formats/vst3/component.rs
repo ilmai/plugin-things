@@ -224,11 +224,6 @@ impl<P: Vst3Plugin> IAudioProcessorTrait for PluginComponent<P> {
 
     // Called from the audio thread
     unsafe fn process(&self, data: *mut ProcessData) -> tresult {
-        if !self.processing.load(Ordering::Acquire) {
-            // KLUDGE: Ableton Live can call process() while plugin isn't active
-            return kResultFalse;
-        }        
-
         let data = unsafe { &mut *data };
 
         let parameter_change_iterator = ParameterChangeIterator::new(data.inputParameterChanges);
@@ -400,11 +395,6 @@ impl<P: Vst3Plugin> IComponentTrait for PluginComponent<P> {
         log::trace!("IComponent::setActive: {state}");
 
         let active = state > 0;
-
-        if self.processing.load(Ordering::Acquire) && !active {
-            // KLUDGE: Ableton Live calls setActive(0) without calling setProcessing(0) first
-            unsafe { self.setProcessing(0) };
-        }
 
         let mut processor = self.audio_thread_state.processor.borrow_mut();
 
