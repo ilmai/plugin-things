@@ -2909,6 +2909,7 @@ dependencies = [
  "cursor-icon",
  "i-slint-core",
  "i-slint-renderer-skia",
+ "log",
  "plugin-canvas",
  "portable-atomic",
  "raw-window-handle",

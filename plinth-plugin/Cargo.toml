@@ -11,7 +11,7 @@ license = "MIT"
 [dependencies]
 atomic_refcell = "0.1"
 clap-sys = "0.5"
-log = "0.4"
+log.workspace = true
 num-derive = "0.4"
 num-traits.workspace = true
 plinth-core.workspace = true

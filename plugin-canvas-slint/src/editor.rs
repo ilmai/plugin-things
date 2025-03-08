@@ -1,4 +1,4 @@
-use std::{ptr::null_mut, rc::Rc, sync::{atomic::{AtomicPtr, Ordering}, Mutex}, thread::ThreadId};
+use std::{ptr::null_mut, rc::{Rc, Weak}, sync::{atomic::{AtomicPtr, Ordering}, Mutex}, thread::ThreadId};
 
 use raw_window_handle::RawWindowHandle;
 use plugin_canvas::{event::EventResponse, window::WindowAttributes, Event};
@@ -24,14 +24,23 @@ impl SlintEditor {
             parent,
             window_attributes.clone(),
             {
-                let editor_handle = Rc::downgrade(&editor_handle.clone());
+                let editor_weak_ptr = Rc::downgrade(&editor_handle).into_raw();
+                let editor_thread = std::thread::current().id();
 
                 Box::new(move |event| {
-                    let Some(editor_handle) = editor_handle.upgrade() else {
+                    if std::thread::current().id() != editor_thread {
+                        log::warn!("Tried to call event callback from non-editor thread");
                         return EventResponse::Ignored;
-                    };
+                    }
 
-                    editor_handle.on_event(&event)
+                    let editor_weak = unsafe { Weak::from_raw(editor_weak_ptr) };                    
+                    if let Some(editor_handle) = editor_weak.upgrade() {
+                        editor_handle.on_event(&event);
+                    }
+
+                    // Leak the weak reference to avoid dropping it
+                    let _ = editor_weak.into_raw();
+                    EventResponse::Ignored
                 })
             },
         ).unwrap();

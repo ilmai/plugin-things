@@ -12,6 +12,7 @@ license = "MIT"
 cursor-icon.workspace = true
 i-slint-core.workspace = true
 i-slint-renderer-skia.workspace = true
+log.workspace = true
 plugin-canvas.workspace = true
 portable-atomic.workspace = true
 raw-window-handle.workspace = true

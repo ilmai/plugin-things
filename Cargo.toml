@@ -17,6 +17,7 @@ plugin-canvas = { path = "plugin-canvas" }
 plugin-canvas-slint = { path = "plugin-canvas-slint" }
 
 cursor-icon = "1.1"
+log = "0.4"
 num-traits = "0.2"
 portable-atomic = { version = "1.10", features = ["float", "serde"] }
 raw-window-handle = "0.6"
