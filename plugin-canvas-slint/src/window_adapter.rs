@@ -1,4 +1,7 @@
-use std::{cell::RefCell, rc::Rc, sync::atomic::{AtomicBool, Ordering, AtomicUsize}};
+use std::cell::RefCell;
+use std::fmt::Debug;
+use std::rc::Rc;
+use std::sync::atomic::{AtomicBool, Ordering, AtomicUsize};
 
 use cursor_icon::CursorIcon;
 use i_slint_core::{window::{WindowAdapter, WindowAdapterInternal}, renderer::Renderer, platform::{PlatformError, WindowEvent}};
@@ -212,6 +215,18 @@ impl PluginCanvasWindowAdapter {
             x: (position.x / scale) as _,
             y: (position.y / scale) as _,
         }
+    }
+}
+
+impl Debug for PluginCanvasWindowAdapter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PluginCanvasWindowAdapter")
+            .field("physical_size", &self.physical_size)
+            .field("scale", &self.scale)
+            .field("pending_draw", &self.pending_draw)
+            .field("buttons_down", &self.buttons_down)
+            .field("pending_mouse_exit", &self.pending_mouse_exit)
+            .finish()
     }
 }
 
