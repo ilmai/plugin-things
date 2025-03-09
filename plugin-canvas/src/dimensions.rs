@@ -1,6 +1,6 @@
 use std::ops::Mul;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct LogicalPosition {
     pub x: f64,
     pub y: f64,
