@@ -40,7 +40,6 @@ pub struct PluginInstance<P: ClapPlugin> {
     pub(super) host: *const clap_host,
     pub(super) parent_window_handle: Option<RawWindowHandle>,
 
-
     pub(super) plugin: Option<P>,
     pub(super) editor: Option<P::Editor>,
     pub(super) editor_open: bool,
@@ -176,6 +175,8 @@ impl<P: ClapPlugin> PluginInstance<P> {
 
 
     unsafe extern "C" fn init(plugin: *const clap_plugin) -> bool {
+        log::trace!("plugin::init");
+
         Self::with_plugin_instance(plugin, |instance| {
             // Grab host extensions
             instance.host_ext_gui = unsafe { ((*instance.host).get_extension.unwrap())(instance.host, CLAP_EXT_GUI.as_ptr()) as _ };
@@ -189,6 +190,8 @@ impl<P: ClapPlugin> PluginInstance<P> {
     }
 
     unsafe extern "C" fn destroy(plugin: *const clap_plugin) {
+        log::trace!("plugin::destroy");
+
         Self::with_plugin_instance(plugin, |instance| {
             instance.plugin = None;
         })
@@ -201,6 +204,8 @@ impl<P: ClapPlugin> PluginInstance<P> {
         max_frames_count: u32
     ) -> bool
     {
+        log::trace!("plugin::activate");
+
         Self::with_plugin_instance(plugin, |instance| {
             let config = ProcessorConfig {
                 sample_rate,
@@ -221,22 +226,27 @@ impl<P: ClapPlugin> PluginInstance<P> {
     }
 
     unsafe extern "C" fn deactivate(plugin: *const clap_plugin) {
-        Self::with_plugin_instance(plugin, |instance| {
-            let mut processor = instance.audio_thread_state.processor.borrow_mut();
-            *processor = None;
+        log::trace!("plugin::deactivate");
 
+        Self::with_plugin_instance(plugin, |instance| {
+            *instance.audio_thread_state.processor.borrow_mut() = None;
             instance.audio_thread_state.active.store(false, Ordering::Release);
         });
     }
 
     unsafe extern "C" fn start_processing(_plugin: *const clap_plugin) -> bool {
+        log::trace!("plugin::start_processing");
+
         true
     }
 
     unsafe extern "C" fn stop_processing(_plugin: *const clap_plugin) {
+        log::trace!("plugin::stop_processing");
     }
 
     unsafe extern "C" fn reset(plugin: *const clap_plugin) {
+        log::trace!("plugin::reset");
+
         Self::with_plugin_instance(plugin, |instance| {
             let mut processor = instance.audio_thread_state.processor.borrow_mut();
             if let Some(processor) = processor.as_mut() {
@@ -246,6 +256,8 @@ impl<P: ClapPlugin> PluginInstance<P> {
     }
 
     unsafe extern "C" fn process(plugin: *const clap_plugin, process: *const clap_process) -> clap_process_status {
+        log::trace!("plugin::process");
+
         let process = unsafe { &*process };
 
         if process.audio_inputs.is_null() || process.audio_outputs.is_null() {
@@ -337,6 +349,8 @@ impl<P: ClapPlugin> PluginInstance<P> {
     }
 
     unsafe extern "C" fn get_extension(_plugin: *const clap_plugin, id: *const c_char) -> *const c_void {
+        log::trace!("plugin::get_extension");
+
         let id = unsafe { CStr::from_ptr(id) };
 
         if id == CLAP_EXT_AUDIO_PORTS {
@@ -363,6 +377,8 @@ impl<P: ClapPlugin> PluginInstance<P> {
     }
 
     unsafe extern "C" fn on_main_thread(plugin: *const clap_plugin) {
+        log::trace!("plugin::on_main_thread");
+
         Self::with_plugin_instance(plugin, |instance| {
             instance.process_events_to_plugin();
         })        

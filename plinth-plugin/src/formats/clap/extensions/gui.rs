@@ -42,6 +42,8 @@ impl<P: ClapPlugin> Gui<P> {
 
     #[cfg(target_os="linux")]
     unsafe extern "C" fn is_api_supported(_plugin: *const clap_plugin, api: *const c_char, is_floating: bool) -> bool {
+        log::trace!("gui::is_api_supported");
+
         if is_floating {
             return false;
         }
@@ -51,6 +53,8 @@ impl<P: ClapPlugin> Gui<P> {
 
     #[cfg(target_os="macos")]
     unsafe extern "C" fn is_api_supported(_plugin: *const clap_plugin, api: *const c_char, is_floating: bool) -> bool {
+        log::trace!("gui::is_api_supported");
+
         if is_floating {
             return false;
         }
@@ -60,6 +64,8 @@ impl<P: ClapPlugin> Gui<P> {
 
     #[cfg(target_os="windows")]
     unsafe extern "C" fn is_api_supported(_plugin: *const clap_plugin, api: *const c_char, is_floating: bool) -> bool {
+        log::trace!("gui::is_api_supported");
+
         if is_floating {
             return false;
         }
@@ -68,10 +74,14 @@ impl<P: ClapPlugin> Gui<P> {
     }
 
     unsafe extern "C" fn get_preferred_api(_plugin: *const clap_plugin, _api: *mut *const c_char, _is_floating: *mut bool) -> bool {
+        log::trace!("gui::get_preferred_api");
+
         false
     }
 
     unsafe extern "C" fn create(plugin: *const clap_plugin, _api: *const c_char, is_floating: bool) -> bool {
+        log::trace!("gui::create");
+
         if is_floating {
             return false;
         }
@@ -99,6 +109,8 @@ impl<P: ClapPlugin> Gui<P> {
     }
 
     unsafe extern "C" fn destroy(plugin: *const clap_plugin) {
+        log::trace!("gui::destroy");
+
         PluginInstance::with_plugin_instance(plugin, |instance: &mut PluginInstance<P>| {
             #[cfg(target_os="linux")]
             if let Some(timer_id) = instance.timer_id {
@@ -113,6 +125,8 @@ impl<P: ClapPlugin> Gui<P> {
     }
 
     unsafe extern "C" fn set_scale(plugin: *const clap_plugin, scale: f64) -> bool {
+        log::trace!("gui::set_scale");
+
         PluginInstance::with_plugin_instance(plugin, |instance: &mut PluginInstance<P>| {
             let Some(editor) = instance.editor.as_mut() else {
                 return false;
@@ -124,6 +138,8 @@ impl<P: ClapPlugin> Gui<P> {
     }
 
     unsafe extern "C" fn get_size(plugin: *const clap_plugin, width: *mut u32, height: *mut u32) -> bool {
+        log::trace!("gui::get_size");
+
         PluginInstance::with_plugin_instance(plugin, |instance: &mut PluginInstance<P>| {
             let Some(editor) = instance.editor.as_ref() else {
                 return false;
@@ -143,6 +159,8 @@ impl<P: ClapPlugin> Gui<P> {
     }
 
     unsafe extern "C" fn can_resize(plugin: *const clap_plugin) -> bool {
+        log::trace!("gui::can_resize");
+
         PluginInstance::with_plugin_instance(plugin, |instance: &mut PluginInstance<P>| {
             let Some(editor) = instance.editor.as_ref() else {
                 return false;
@@ -153,10 +171,14 @@ impl<P: ClapPlugin> Gui<P> {
     }
     
     unsafe extern "C" fn get_resize_hints(_plugin: *const clap_plugin, _hints: *mut clap_gui_resize_hints) -> bool {
+        log::trace!("gui::get_resize_hints");
+
         false
     }
 
     unsafe extern "C" fn adjust_size(plugin: *const clap_plugin, width: *mut u32, height: *mut u32) -> bool {
+        log::trace!("gui::adjust_size");
+
         PluginInstance::with_plugin_instance(plugin, |instance: &mut PluginInstance<P>| {
             let Some(editor) = instance.editor.as_ref() else {
                 return false;
@@ -177,6 +199,8 @@ impl<P: ClapPlugin> Gui<P> {
     }
 
     unsafe extern "C" fn set_size(plugin: *const clap_plugin, width: u32, height: u32) -> bool {
+        log::trace!("gui::set_size");
+
         PluginInstance::with_plugin_instance(plugin, |instance: &mut PluginInstance<P>| {
             let Some(editor) = instance.editor.as_mut() else {
                 return false;
@@ -189,6 +213,8 @@ impl<P: ClapPlugin> Gui<P> {
     }
 
     unsafe extern "C" fn set_parent(plugin: *const clap_plugin, window: *const clap_window) -> bool {
+        log::trace!("gui::set_parent");
+
         PluginInstance::with_plugin_instance(plugin, |instance: &mut PluginInstance<P>| {
             let Some(editor) = instance.editor.as_mut() else {
                 return false;
@@ -211,13 +237,18 @@ impl<P: ClapPlugin> Gui<P> {
     }
 
     unsafe extern "C" fn set_transient(_plugin: *const clap_plugin, _window: *const clap_window) -> bool {
+        log::trace!("gui::set_transient");
+
         false
     }
     
     unsafe extern "C" fn suggest_title(_plugin: *const clap_plugin, _title: *const c_char) {
+        log::trace!("gui::suggest_title");
     }
 
     unsafe extern "C" fn show(plugin: *const clap_plugin) -> bool {
+        log::trace!("gui::show");
+
         PluginInstance::with_plugin_instance(plugin, |instance: &mut PluginInstance<P>| {
             if instance.editor_open {
                 return true;
@@ -238,6 +269,8 @@ impl<P: ClapPlugin> Gui<P> {
     }
 
     unsafe extern "C" fn hide(plugin: *const clap_plugin) -> bool {
+        log::trace!("gui::hide");
+
         PluginInstance::with_plugin_instance(plugin, |instance: &mut PluginInstance<P>| {
             if !instance.editor_open {
                 return true;
