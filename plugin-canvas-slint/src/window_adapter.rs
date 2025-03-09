@@ -92,7 +92,7 @@ impl PluginCanvasWindowAdapter {
     }
 
     pub fn close(&self) {
-        // Remove context to unravel the cyclic reference
+        // Remove component to unravel the cyclic reference
         self.component.borrow_mut().take();
         self.slint_window.dispatch_event(WindowEvent::CloseRequested);
     }
