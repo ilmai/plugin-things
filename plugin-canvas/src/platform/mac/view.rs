@@ -91,15 +91,11 @@ impl OsWindowView {
 
     pub(crate) fn with_os_window<T>(&self, f: impl FnOnce(&OsWindow) -> T) -> Option<T> {
         self.with_context(|context| {
-            let os_window_ptr = context.os_window_ptr.load(Ordering::Acquire) as *mut OsWindow;
+            let os_window_ptr = context.os_window_ptr.load(Ordering::Acquire);
             if !os_window_ptr.is_null() {
                 let os_window_weak = unsafe { Weak::from_raw(os_window_ptr) };
-                
-                let result = if let Some(os_window) = os_window_weak.upgrade() {
-                    Some(f(&os_window))
-                } else {
-                    None
-                };
+
+                let result = os_window_weak.upgrade().map(|os_window| f(&os_window));
 
                 // Leak weak reference so it isn't dropped
                 let _ = os_window_weak.into_raw();
