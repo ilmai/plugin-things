@@ -111,3 +111,11 @@ impl EditorHandle {
         }
     } 
 }
+
+impl Drop for EditorHandle {
+    fn drop(&mut self) {
+        if let Some(window_adapter) = self.window_adapter.get() {
+            window_adapter.close();
+        }
+    }
+}
