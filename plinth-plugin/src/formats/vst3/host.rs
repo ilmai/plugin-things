@@ -8,7 +8,7 @@ use super::view::ViewContext;
 
 pub struct Vst3Host<P: Plugin> {
     plugin: Rc<RefCell<P>>,
-    handler: ComPtr<IComponentHandler>,
+    component_handler: Rc<RefCell<Option<ComPtr<IComponentHandler>>>>,
     plug_view: ComPtr<IPlugView>,
     view_context: Rc<RefCell<ViewContext>>,
     name: Option<String>,
@@ -17,14 +17,14 @@ pub struct Vst3Host<P: Plugin> {
 impl<P: Plugin> Vst3Host<P> {
     pub fn new(
         plugin: Rc<RefCell<P>>,
-        handler: ComPtr<IComponentHandler>,
+        handler: Rc<RefCell<Option<ComPtr<IComponentHandler>>>>,
         plug_view: ComPtr<IPlugView>,
         view_context: Rc<RefCell<ViewContext>>,
         name: Option<String>,
     ) -> Self {
         Self {
             plugin,
-            handler,
+            component_handler: handler,
             plug_view,
             view_context,
             name,
@@ -59,7 +59,9 @@ impl<P: Plugin> Host for Vst3Host<P> {
     }
 
     fn start_parameter_change(&self, id: ParameterId) {
-        unsafe { self.handler.beginEdit(id) };
+        if let Some(handler) = self.component_handler.borrow_mut().as_mut() {
+            unsafe { handler.beginEdit(id) };
+        }
     }
 
     fn change_parameter_value(&self, id: ParameterId, normalized: ParameterValue) {
@@ -68,16 +70,22 @@ impl<P: Plugin> Host for Vst3Host<P> {
             parameter.set_normalized_value(normalized).unwrap();
         });
 
-        unsafe { self.handler.performEdit(id, normalized) };
+        if let Some(handler) = self.component_handler.borrow_mut().as_mut() {
+            unsafe { handler.performEdit(id, normalized) };
+        }
     }
 
     fn end_parameter_change(&self, id: ParameterId) {
-        unsafe { self.handler.endEdit(id) };
+        if let Some(handler) = self.component_handler.borrow_mut().as_mut() {
+            unsafe { handler.endEdit(id) };
+        }
     }
     
     fn mark_state_dirty(&self) {        
-        if let Some(handler2) = self.handler.cast::<IComponentHandler2>() {
-            unsafe { handler2.setDirty(1) };
+        if let Some(handler) = self.component_handler.borrow_mut().as_mut() {
+            if let Some(handler2) = handler.cast::<IComponentHandler2>() {
+                unsafe { handler2.setDirty(1) };
+            }
         }
     }
 }

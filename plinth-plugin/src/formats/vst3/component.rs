@@ -51,7 +51,7 @@ pub struct PluginComponent<P: Vst3Plugin> {
     processing: AtomicBool,
     tail_length: AtomicU32,
     host_name: OnceCell<String>,
-    component_handler: RefCell<Option<ComPtr<IComponentHandler>>>,
+    component_handler: Rc<RefCell<Option<ComPtr<IComponentHandler>>>>,
 
     audio_thread_state: AudioThreadState<P>,
 }
@@ -567,13 +567,17 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
     }
 
     unsafe fn setComponentHandler(&self, handler: *mut IComponentHandler) -> tresult {
-        log::trace!("IEditController::setComponentHandler");
+        log::trace!("IEditController::setComponentHandler: {:x}", handler as usize);
 
-        let Some(handler) = (unsafe { ComRef::from_raw(handler) }) else {
-            return kInvalidArgument;
-        };
-        
-        *self.component_handler.borrow_mut() = Some(handler.to_com_ptr());
+        if handler.is_null() {
+            *self.component_handler.borrow_mut() = None;
+        } else {
+            let Some(handler) = (unsafe { ComRef::from_raw(handler) }) else {
+                return kInvalidArgument;
+            };
+            
+            *self.component_handler.borrow_mut() = Some(handler.to_com_ptr());    
+        }
 
         kResultOk
     }
@@ -593,14 +597,10 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
             return null_mut();
         }
 
-        let Some(component_handler) = self.component_handler.borrow().clone() else {
-            return null_mut();
-        };
-
         let view = View::<P>::new(
             self.plugin.clone(),
             self.host_name.get().cloned(),
-            component_handler,
+            self.component_handler.clone(),
         );
 
         view.to_com_ptr::<IPlugView>().unwrap().into_raw()

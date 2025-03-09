@@ -23,7 +23,7 @@ impl<P: Vst3Plugin + 'static> View<P> {
     pub fn new(
         plugin: Rc<RefCell<P>>,
         host_name: Option<String>,
-        component_handler: ComPtr<IComponentHandler>,
+        component_handler: Rc<RefCell<Option<ComPtr<IComponentHandler>>>>,
     ) -> ComWrapper<Self> {
         let context = ViewContext {
             frame: None,
