@@ -3,7 +3,7 @@ use std::ffi::OsString;
 use std::ops::Deref;
 use std::os::windows::prelude::OsStringExt;
 use std::ptr::null_mut;
-use std::rc::Rc;
+use std::rc::Weak;
 
 use windows::Win32::Foundation::{POINTL, POINT};
 use windows::Win32::Graphics::Gdi::MapWindowPoints;
@@ -22,12 +22,12 @@ use super::window::OsWindow;
 
 #[implement(IDropTarget)]
 pub(super) struct DropTarget {
-    window: Rc<OsWindow>,
+    window: Weak<OsWindow>,
     drop_data: RefCell<DropData>,
 }
 
 impl DropTarget {
-    pub fn new(window: Rc<OsWindow>) -> Self {
+    pub fn new(window: Weak<OsWindow>) -> Self {
         Self {
             window,
             drop_data: Default::default(),
@@ -91,14 +91,18 @@ impl DropTarget {
     }
 
     fn convert_coordinates(&self, point: &POINTL) -> LogicalPosition {
-        let scale = self.window.os_scale();
+        let Some(window) = self.window.upgrade() else {
+            return LogicalPosition::default();
+        };
+
+        let scale = window.os_scale();
 
         // It looks like MapWindowPoints isn't DPI aware (and neither is ScreenToClient),
         // so we need to pre-scale the point here?
         // TODO: Find out what's going on
         let mut points = [POINT { x: (point.x as f64 / scale) as i32, y: (point.y as f64 / scale) as i32 }];
 
-        unsafe { MapWindowPoints(Some(HWND_DESKTOP), Some(self.window.hwnd()), &mut points); }
+        unsafe { MapWindowPoints(Some(HWND_DESKTOP), Some(window.hwnd()), &mut points); }
 
         PhysicalPosition {
             x: points[0].x,
@@ -110,9 +114,13 @@ impl DropTarget {
 #[allow(non_snake_case)]
 impl IDropTarget_Impl for DropTarget_Impl {
     fn DragEnter(&self, pdataobj: windows_core::Ref<'_, IDataObject>, _grfkeystate: MODIFIERKEYS_FLAGS, pt: &POINTL, pdweffect: *mut DROPEFFECT) -> windows_core::Result<()> {
+        let Some(window) = self.window.upgrade() else {
+            return Ok(());
+        };
+
         self.parse_drag_data(pdataobj)?;
 
-        let response = self.window.send_event(crate::Event::DragEntered {
+        let response = window.send_event(crate::Event::DragEntered {
             position: self.convert_coordinates(pt),
             data: self.drop_data.borrow().clone(),
         });
@@ -123,7 +131,11 @@ impl IDropTarget_Impl for DropTarget_Impl {
     }
 
     fn DragOver(&self, _grfkeystate: MODIFIERKEYS_FLAGS, pt: &POINTL, pdweffect: *mut DROPEFFECT) -> windows::core::Result<()> {
-        let response = self.window.send_event(crate::Event::DragMoved {
+        let Some(window) = self.window.upgrade() else {
+            return Ok(());
+        };
+
+        let response = window.send_event(crate::Event::DragMoved {
             position: self.convert_coordinates(pt),
             data: self.drop_data.borrow().clone(),
         });
@@ -134,14 +146,23 @@ impl IDropTarget_Impl for DropTarget_Impl {
     }
 
     fn DragLeave(&self) -> windows::core::Result<()> {
-        self.window.send_event(crate::Event::DragExited);
+        let Some(window) = self.window.upgrade() else {
+            return Ok(());
+        };
+
+        window.send_event(crate::Event::DragExited);
+
         Ok(())
     }
 
     fn Drop(&self, pdataobj: windows_core::Ref<'_, IDataObject>, _grfkeystate: MODIFIERKEYS_FLAGS, pt: &POINTL, pdweffect: *mut DROPEFFECT) -> windows_core::Result<()> {
+        let Some(window) = self.window.upgrade() else {
+            return Ok(());
+        };
+
         self.parse_drag_data(pdataobj)?;
 
-        let response = self.window.send_event(crate::Event::DragDropped {
+        let response = window.send_event(crate::Event::DragDropped {
             position: self.convert_coordinates(pt),
             data: self.drop_data.borrow().clone(),
         });

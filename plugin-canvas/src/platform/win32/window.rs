@@ -174,7 +174,7 @@ impl OsWindowInterface for OsWindow {
             modifier_pressed,
         });
 
-        let drop_target: Box<IDropTarget> = Box::new(DropTarget::new(window.clone()).into());
+        let drop_target: Box<IDropTarget> = Box::new(DropTarget::new(Rc::downgrade(&window)).into());
 
         unsafe {
             OleInitialize(None)?;
