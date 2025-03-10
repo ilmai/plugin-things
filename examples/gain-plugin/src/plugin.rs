@@ -2,15 +2,16 @@ use std::collections::HashMap;
 use std::io::{Read, Result, Write};
 use std::rc::Rc;
 
-use plinth_plugin::{export_clap, export_vst3, Event, Host, NoEditor, Parameters, Plugin, ProcessorConfig};
+use plinth_plugin::{export_clap, export_vst3, Event, Host, Parameters, Plugin, ProcessorConfig};
 use plinth_plugin::clap::ClapPlugin;
 use plinth_plugin::vst3::Vst3Plugin;
 
-use crate::{parameters::GainParameters, processor::GainProcessor};
+use crate::editor::GainPluginEditor;
+use crate::{parameters::GainParameters, processor::GainPluginProcessor};
 
 #[derive(Default)]
 struct GainPlugin {
-    parameters: GainParameters,
+    parameters: Rc<GainParameters>,
 }
 
 impl Plugin for GainPlugin {
@@ -18,8 +19,8 @@ impl Plugin for GainPlugin {
     const VENDOR: &'static str = "Viiri Audio";
     const VERSION: &'static str = "0.1";
 
-    type Processor = GainProcessor;
-    type Editor = NoEditor;
+    type Processor = GainPluginProcessor;
+    type Editor = GainPluginEditor;
     type Parameters = GainParameters;
 
     fn with_parameters<T>(&self, mut f: impl FnMut(&Self::Parameters) -> T) -> T {
@@ -31,11 +32,11 @@ impl Plugin for GainPlugin {
     }
 
     fn create_processor(&mut self, _config: &ProcessorConfig) -> Self::Processor {
-        GainProcessor::new(self.parameters.clone())
+        GainPluginProcessor::new((*self.parameters).clone())
     }
 
-    fn create_editor(&mut self, _host: Rc<dyn Host>) -> Self::Editor {
-        NoEditor
+    fn create_editor(&mut self, host: Rc<dyn Host>) -> Self::Editor {
+        GainPluginEditor::new(host, self.parameters.clone())
     }
 
     fn save_state(&self, writer: &mut impl Write) -> Result<()> {        

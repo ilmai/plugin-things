@@ -1,0 +1,25 @@
+export struct UiParameter {
+    id: int,
+    normalized-value: float,
+    default-value: float,
+    display-value: string,
+}
+
+export global UiParameters {
+    callback start-parameter-change(int);
+    callback change-parameter-value(int, float);
+    callback change-parameter-string(int, string);
+    callback end-parameter-change(int);    
+}
+
+export component PluginWindow inherits Window {
+    width: 400px;
+    height: 300px;
+
+    in property <UiParameter> gain;
+
+    Text {
+        text: gain.display-value;
+        font-size: 40px;
+    }
+}

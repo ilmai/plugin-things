@@ -6,11 +6,11 @@ fn db_to_amplitude(db: f32) -> f32 {
     10.0_f32.powf(db / 20.0)
 }
 
-pub struct GainProcessor {
+pub struct GainPluginProcessor {
     parameters: GainParameters,
 }
 
-impl GainProcessor {
+impl GainPluginProcessor {
     pub fn new(parameters: GainParameters) -> Self {
         Self {
             parameters,
@@ -18,7 +18,7 @@ impl GainProcessor {
     }
 }
 
-impl Processor for GainProcessor {
+impl Processor for GainPluginProcessor {
     fn reset(&mut self) {
     }
 
