@@ -19,6 +19,7 @@ pub use transport::Transport;
 pub use formats::auv3;
 
 // Re-exports
+pub use plinth_core;
 pub use raw_window_handle;
 pub use xxhash_rust;
 
