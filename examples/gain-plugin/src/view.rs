@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
-use plinth_plugin::{FloatParameter, Parameter, Parameters};
-use plugin_canvas_slint::{plugin_canvas::{event::EventResponse, Event, Window}, view::PluginView};
+use plinth_plugin::{FloatParameter, Host, Parameter, ParameterId, Parameters};
+use plugin_canvas_slint::{plugin_canvas::{event::EventResponse, Event}, view::PluginView};
 
 use crate::parameters::{GainParameter, GainParameters};
 
@@ -13,8 +13,47 @@ pub struct GainPluginView {
 }
 
 impl GainPluginView {
-    pub fn new(_window: Rc<Window>, parameters: Rc<GainParameters>) -> Self {
+    pub fn new(parameters: Rc<GainParameters>, host: Rc<dyn Host>) -> Self {
         let plugin_window = PluginWindow::new().unwrap();
+
+        plugin_window.on_start_parameter_change({
+            let host = host.clone();
+
+            move |id| {
+                host.start_parameter_change(id as _);
+            }
+        });
+
+        plugin_window.on_change_parameter_value({
+            let host = host.clone();
+
+            move |id, value| {
+                host.change_parameter_value(id as _, value as _);
+            }
+        });
+
+        plugin_window.on_end_parameter_change({
+            let host = host.clone();
+
+            move |id| {
+                host.end_parameter_change(id as _);
+            }
+        });
+
+        plugin_window.on_change_parameter_string({
+            let parameters = parameters.clone();
+            let host = host.clone();
+
+            move |id, string| {
+                let parameter = parameters.get(id as ParameterId).unwrap();
+
+                if let Some(normalized) = parameter.string_to_normalized(string.as_str()) {
+                    host.start_parameter_change(id as _);
+                    host.change_parameter_value(id as _, normalized);
+                    host.end_parameter_change(id as _);
+                }
+            }
+        });
 
         Self {
             plugin_window,
@@ -35,10 +74,10 @@ impl PluginView for GainPluginView {
                 let gain_parameter = self.parameters.typed::<FloatParameter>(GainParameter::Gain).unwrap();
 
                 self.plugin_window.set_gain(UiParameter {
-                    default_value: gain_parameter.default_value() as _,
-                    display_value: gain_parameter.to_string().into(),
                     id: gain_parameter.info().id() as _,
                     normalized_value: gain_parameter.normalized_value() as _,
+                    default_normalized_value: gain_parameter.info().default_normalized_value() as _,
+                    display_value: gain_parameter.to_string().into(),
                 });
             }
 

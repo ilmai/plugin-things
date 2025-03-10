@@ -33,9 +33,10 @@ impl Editor for GainPluginEditor {
             WindowAttributes::new(Self::DEFAULT_SIZE.into(), 1.0),
             {
                 let parameters = self.parameters.clone();
+                let host = self.host.clone();
                 
-                move |window| {
-                    GainPluginView::new(window.clone(), parameters.clone())
+                move |_| {
+                    GainPluginView::new(parameters.clone(), host.clone())
                 }
             },
         );

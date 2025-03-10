@@ -1,15 +1,8 @@
 export struct UiParameter {
     id: int,
     normalized-value: float,
-    default-value: float,
+    default-normalized-value: float,
     display-value: string,
-}
-
-export global UiParameters {
-    callback start-parameter-change(int);
-    callback change-parameter-value(int, float);
-    callback change-parameter-string(int, string);
-    callback end-parameter-change(int);    
 }
 
 export component PluginWindow inherits Window {
@@ -18,8 +11,21 @@ export component PluginWindow inherits Window {
 
     in property <UiParameter> gain;
 
+    callback start-parameter-change(int);
+    callback change-parameter-value(int, float);
+    callback change-parameter-string(int, string);
+    callback end-parameter-change(int);    
+
     Text {
         text: gain.display-value;
         font-size: 40px;
+
+        TouchArea {
+            double-clicked => {
+                start-parameter-change(gain.id);
+                change-parameter-value(gain.id, gain.default-normalized-value);
+                end-parameter-change(gain.id);
+            }        
+        }
     }
 }
