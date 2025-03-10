@@ -40,21 +40,6 @@ impl GainPluginView {
             }
         });
 
-        plugin_window.on_change_parameter_string({
-            let parameters = parameters.clone();
-            let host = host.clone();
-
-            move |id, string| {
-                let parameter = parameters.get(id as ParameterId).unwrap();
-
-                if let Some(normalized) = parameter.string_to_normalized(string.as_str()) {
-                    host.start_parameter_change(id as _);
-                    host.change_parameter_value(id as _, normalized);
-                    host.end_parameter_change(id as _);
-                }
-            }
-        });
-
         Self {
             plugin_window,
             parameters,
