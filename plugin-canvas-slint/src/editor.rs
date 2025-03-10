@@ -5,7 +5,7 @@ use raw_window_handle::RawWindowHandle;
 use plugin_canvas::{event::EventResponse, window::WindowAttributes, Event};
 use slint::platform::WindowAdapter;
 
-use crate::{platform::PluginCanvasPlatform, plugin_component_handle::PluginComponentHandle, window_adapter::{PluginCanvasWindowAdapter, WINDOW_ADAPTER_FROM_SLINT, WINDOW_TO_SLINT}};
+use crate::{platform::PluginCanvasPlatform, view::PluginView, window_adapter::{PluginCanvasWindowAdapter, WINDOW_ADAPTER_FROM_SLINT, WINDOW_TO_SLINT}};
 
 pub struct SlintEditor;
 
@@ -13,10 +13,10 @@ impl SlintEditor {
     pub fn open<C, B>(
         parent: RawWindowHandle,
         window_attributes: WindowAttributes,
-        component_builder: B
+        view_builder: B
     ) -> Rc<EditorHandle>
     where
-        C: PluginComponentHandle + 'static,
+        C: PluginView + 'static,
         B: Fn(Rc<plugin_canvas::Window>) -> C + 'static,
     {
         let editor_handle = Rc::new(EditorHandle::new());
@@ -52,11 +52,11 @@ impl SlintEditor {
         let window = Rc::new(window);
         WINDOW_TO_SLINT.set(Some(window.clone()));
 
-        let component = component_builder(window);
-        component.window().show().unwrap();
+        let view = view_builder(window);
+        view.window().show().unwrap();
 
         let window_adapter = WINDOW_ADAPTER_FROM_SLINT.take().unwrap();
-        window_adapter.set_component(Box::new(component));
+        window_adapter.set_view(Box::new(view));
 
         editor_handle.set_window_adapter(window_adapter);
         editor_handle

@@ -1,0 +1,57 @@
+export struct UiParameter {
+    id: int,
+    normalized-value: float,
+    default-normalized-value: float,
+    display-value: string,
+}
+
+export component PluginWindow inherits Window {
+    width: 400px;
+    height: 300px;
+
+    in property <UiParameter> gain;
+
+    callback start-parameter-change(int);
+    callback change-parameter-value(int, float);
+    callback end-parameter-change(int);    
+
+    Text {
+        text: gain.display-value;
+        font-size: 40px;
+
+        TouchArea {
+            property <float> sensitivity: 0.003;
+            property <length> mouse-pos: self.mouse-y;
+            property <float> absolute-mouse-pos: (self.height - self.mouse-y) / self.height;
+            property <length> last-mouse-pos;
+            property <length> mouse-delta: mouse-pos - last-mouse-pos;
+            property <float> value;
+    
+            double-clicked => {
+                start-parameter-change(gain.id);
+                change-parameter-value(gain.id, gain.default-normalized-value);
+                end-parameter-change(gain.id);
+            }
+    
+            pointer-event(event) => {
+                if self.enabled && event.button == PointerEventButton.left {
+                    if event.kind == PointerEventKind.down {
+                        start-parameter-change(gain.id);  
+                        value = gain.normalized-value;
+                        last-mouse-pos = mouse-pos;
+                    } else if event.kind == PointerEventKind.up || event.kind == PointerEventKind.cancel {
+                        end-parameter-change(gain.id);
+                    }
+                }
+            }
+    
+            moved => {
+                if self.enabled {
+                    value = clamp(value - mouse-delta * sensitivity / 1px, 0.0, 1.0);   
+                    change-parameter-value(gain.id, value);
+                    last-mouse-pos = mouse-pos;
+                }
+            }
+        }
+    }
+}

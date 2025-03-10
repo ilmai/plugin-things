@@ -9,7 +9,7 @@ use i_slint_renderer_skia::SkiaRenderer;
 use plugin_canvas::{event::EventResponse, LogicalSize};
 use portable_atomic::AtomicF64;
 
-use crate::plugin_component_handle::PluginComponentHandle;
+use crate::view::PluginView;
 
 thread_local! {
     pub static WINDOW_TO_SLINT: RefCell<Option<Rc<plugin_canvas::Window>>> = Default::default();
@@ -21,7 +21,7 @@ pub struct PluginCanvasWindowAdapter {
     slint_window: slint::Window,
     renderer: SkiaRenderer,
 
-    component: RefCell<Option<Box<dyn PluginComponentHandle>>>,
+    view: RefCell<Option<Box<dyn PluginView>>>,
 
     physical_size: RefCell<slint::PhysicalSize>,
     scale: AtomicF64,
@@ -57,7 +57,7 @@ impl PluginCanvasWindowAdapter {
                 slint_window,
                 renderer,
 
-                component: Default::default(),
+                view: Default::default(),
 
                 physical_size: slint_size.into(),
                 scale: scale.into(),
@@ -77,8 +77,8 @@ impl PluginCanvasWindowAdapter {
         Ok(self_rc as _)
     }
 
-    pub fn set_component(&self, component: Box<dyn PluginComponentHandle>) {
-        *self.component.borrow_mut() = Some(component);
+    pub fn set_view(&self, view: Box<dyn PluginView>) {
+        *self.view.borrow_mut() = Some(view);
     }
 
     pub fn set_scale(&self, scale: f64) {
@@ -93,12 +93,12 @@ impl PluginCanvasWindowAdapter {
 
     pub fn close(&self) {
         // Remove component to unravel the cyclic reference
-        self.component.borrow_mut().take();
+        self.view.borrow_mut().take();
         self.slint_window.dispatch_event(WindowEvent::CloseRequested);
     }
 
     pub fn on_event(&self, event: &plugin_canvas::Event) -> EventResponse {
-        if let Some(component) = self.component.borrow().as_ref() {
+        if let Some(component) = self.view.borrow().as_ref() {
             component.on_event(event);
         }
 

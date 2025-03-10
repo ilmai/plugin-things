@@ -1,6 +1,7 @@
 pub mod editor;
 pub mod platform;
-pub mod plugin_component_handle;
+pub mod view;
 pub mod window_adapter;
 
+// Re-exports
 pub use plugin_canvas;

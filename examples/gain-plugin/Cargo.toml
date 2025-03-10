@@ -1,0 +1,18 @@
+[package]
+name = "gain-plugin"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib", "lib", "staticlib"]
+
+[dependencies]
+plinth-derive.workspace = true
+plinth-plugin.workspace = true
+plugin-canvas-slint.workspace = true
+serde = "1.0"
+serde_json = "1.0"
+slint = { version = "1.10", default-features = false, features = ["accessibility", "compat-1-2", "std"] }
+
+[build-dependencies]
+slint-build = "1.10"
