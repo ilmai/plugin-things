@@ -26,6 +26,7 @@ impl Default for GainParameters {
                 "Gain",
                 Arc::new(LinearFloatRange::new(MIN_GAIN, MAX_GAIN)),
             )
+            .with_default_value(0.0)
             .with_formatter(Arc::new(FloatFormatter::new(1, "dB")))
         );
 
