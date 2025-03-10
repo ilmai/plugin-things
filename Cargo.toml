@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "examples/*",
     "plinth-core",
     "plinth-derive",
     "plinth-plugin",
