@@ -1305,6 +1305,8 @@ version = "0.1.0"
 dependencies = [
  "plinth-derive",
  "plinth-plugin",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

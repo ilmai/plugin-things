@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::io::{Read, Result, Write};
 use std::rc::Rc;
 
@@ -37,11 +38,19 @@ impl Plugin for GainPlugin {
         NoEditor
     }
 
-    fn save_state(&self, _writer: &mut impl Write) -> Result<()> {
-        Ok(())
+    fn save_state(&self, writer: &mut impl Write) -> Result<()> {        
+        let serialized_parameters: HashMap<_, _> = self.parameters.serialize().collect();
+        let parameters_json = serde_json::to_string(&serialized_parameters)?;
+        write!(writer, "{parameters_json}")
     }
 
-    fn load_state(&mut self, _reader: &mut impl Read) -> Result<()> {
+    fn load_state(&mut self, reader: &mut impl Read) -> Result<()> {
+        let mut parameters_json = String::new();
+        reader.read_to_string(&mut parameters_json)?;
+
+        let serialized_parameters: HashMap<_, _> = serde_json::from_str(&parameters_json)?;
+        self.parameters.deserialize(serialized_parameters);
+
         Ok(())
     }
 }
