@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use plinth_plugin::{FloatParameter, Host, Parameter, ParameterId, Parameters};
+use plinth_plugin::{FloatParameter, Host, Parameter, Parameters};
 use plugin_canvas_slint::{plugin_canvas::{event::EventResponse, Event}, view::PluginView};
 
 use crate::parameters::{GainParameter, GainParameters};
