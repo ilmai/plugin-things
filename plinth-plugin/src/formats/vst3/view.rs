@@ -21,7 +21,7 @@ pub struct View<P: Vst3Plugin> {
 
 impl<P: Vst3Plugin + 'static> View<P> {
     pub fn new(
-        plugin: Rc<RefCell<P>>,
+        plugin: Rc<RefCell<Option<P>>>,
         host_name: Option<String>,
         component_handler: Rc<RefCell<Option<ComPtr<IComponentHandler>>>>,
     ) -> ComWrapper<Self> {
@@ -48,7 +48,9 @@ impl<P: Vst3Plugin + 'static> View<P> {
             host_name,
         ));
 
-        *view.editor.borrow_mut() = Some(plugin.borrow_mut().create_editor(host));
+        let mut plugin = plugin.borrow_mut();
+
+        *view.editor.borrow_mut() = Some(plugin.as_mut().unwrap().create_editor(host));
 
         view
     }

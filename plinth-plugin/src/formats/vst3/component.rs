@@ -42,10 +42,10 @@ impl<P: Vst3Plugin> Default for AudioThreadState<P> {
 }
 
 pub struct PluginComponent<P: Vst3Plugin> {
-    plugin: Rc<RefCell<P>>,
+    plugin: Rc<RefCell<Option<P>>>,
 
-    parameter_info: Vec<ParameterInfo>,
-    parameter_groups: Vec<ParameterGroupRef>,
+    parameter_info: RefCell<Vec<ParameterInfo>>,
+    parameter_groups: RefCell<Vec<ParameterGroupRef>>,
 
     processor_config: RefCell<ProcessorConfig>,
     processing: AtomicBool,
@@ -58,35 +58,11 @@ pub struct PluginComponent<P: Vst3Plugin> {
 
 impl<P: Vst3Plugin + 'static> PluginComponent<P> {
     pub fn new() -> Self {
-        let plugin = P::default();
-        assert!(plugin.with_parameters(|parameters| !has_duplicates(parameters.ids())));
-
-        let mut parameter_info = Vec::new();
-
-        // Create units based on parameter groups
-        // Also verify parameters
-        let groups = plugin.with_parameters(|parameters| {
-            assert!(
-                parameters.ids().iter()
-                    .copied()
-                    .filter(|&id| parameters.get(id).unwrap().info().is_bypass())
-                    .count() <= 1,
-                "You can only define one bypass parameter"
-            );
-
-            for &id in parameters.ids() {
-                let info = parameters.get(id).unwrap().info();
-                parameter_info.push(info.clone());
-            }
-
-            group::from_parameters(parameters)
-        });
-        
         Self {
-            plugin: Rc::new(RefCell::new(plugin)),
+            plugin: Default::default(),
             
-            parameter_info,
-            parameter_groups: groups,
+            parameter_info: Default::default(),
+            parameter_groups: Default::default(),
 
             processor_config: Default::default(),
             processing: AtomicBool::new(false),
@@ -104,7 +80,7 @@ impl<P: Vst3Plugin + 'static> PluginComponent<P> {
             return ROOT_UNIT_ID;
         }
 
-        let unit_index = self.parameter_groups.iter().position(|group| group.path == parameter_path).unwrap() as i32;
+        let unit_index = self.parameter_groups.borrow().iter().position(|group| group.path == parameter_path).unwrap() as i32;
         FIRST_UNIT_ID + unit_index
     }
 }
@@ -117,6 +93,11 @@ impl<P: Vst3Plugin> IPluginBaseTrait for PluginComponent<P> {
     unsafe fn initialize(&self, context: *mut FUnknown) -> tresult {
         log::trace!("IPluginBase::initialize");
 
+        if self.plugin.borrow().is_some() {
+            return kResultOk;
+        }
+
+        // Get plugin name if available
         if let Some(context) = unsafe { ComRef::from_raw(context) } {
             if let Some(host_application) = context.cast::<IHostApplication>() {
                 let mut name = [0; 128];
@@ -129,11 +110,43 @@ impl<P: Vst3Plugin> IPluginBaseTrait for PluginComponent<P> {
             }
         }
 
+        // Create plugin and find parameter info
+        let plugin = P::default();
+        assert!(plugin.with_parameters(|parameters| !has_duplicates(parameters.ids())));
+
+        let mut parameter_info = self.parameter_info.borrow_mut();
+
+        // Create units based on parameter groups
+        // Also verify parameters
+        *self.parameter_groups.borrow_mut() = plugin.with_parameters(|parameters| {
+            assert!(
+                parameters.ids().iter()
+                    .copied()
+                    .filter(|&id| parameters.get(id).unwrap().info().is_bypass())
+                    .count() <= 1,
+                "You can only define one bypass parameter"
+            );
+
+            for &id in parameters.ids() {
+                let info = parameters.get(id).unwrap().info();
+                parameter_info.push(info.clone());
+            }
+
+            group::from_parameters(parameters)
+        });
+
+        *self.plugin.borrow_mut() = Some(plugin);
+
         kResultOk
     }
 
     unsafe fn terminate(&self) -> tresult {
         log::trace!("IPluginBase::terminate");
+
+        *self.plugin.borrow_mut() = None;
+        self.parameter_info.borrow_mut().clear();        
+        self.parameter_groups.borrow_mut().clear();        
+
         kResultOk
     }
 }
@@ -191,7 +204,8 @@ impl<P: Vst3Plugin> IAudioProcessorTrait for PluginComponent<P> {
 
     unsafe fn getLatencySamples(&self) -> uint32 {
         log::trace!("IAudioProcessor::getLatencySamples");
-        self.plugin.borrow().latency() as _
+        let plugin = self.plugin.borrow();
+        plugin.as_ref().map(|plugin| plugin.latency() as _).unwrap_or_default()
     }
 
     unsafe fn setupProcessing(&self, setup: *mut ProcessSetup) -> tresult {
@@ -395,12 +409,15 @@ impl<P: Vst3Plugin> IComponentTrait for PluginComponent<P> {
     unsafe fn setActive(&self, state: TBool) -> tresult {
         log::trace!("IComponent::setActive: {state}");
 
-        let active = state > 0;
+        let mut plugin = self.plugin.borrow_mut();
+        let Some(plugin) = plugin.as_mut() else {
+            return kResultFalse;
+        };
 
+        let active = state > 0;
         let mut processor = self.audio_thread_state.processor.borrow_mut();
 
         if active {
-            let mut plugin = self.plugin.borrow_mut();
             *processor = Some(plugin.create_processor(&self.processor_config.borrow()));
         } else {
             *processor = None;
@@ -413,13 +430,17 @@ impl<P: Vst3Plugin> IComponentTrait for PluginComponent<P> {
         log::trace!("IComponent::setState");
 
         let mut plugin = self.plugin.borrow_mut();
+        let Some(plugin) = plugin.as_mut() else {
+            return kResultFalse;
+        };
+
         let Some(mut stream) = Stream::new(state) else {
-            return kInvalidArgument;
+            return kResultFalse;
         };
 
         match plugin.load_state(&mut stream) {
             Ok(_) => kResultOk,
-            Err(_) => kInvalidArgument, // TODO: Extract actual error code
+            Err(_) => kResultFalse, // TODO: Extract actual error code
         }
     }
 
@@ -427,13 +448,16 @@ impl<P: Vst3Plugin> IComponentTrait for PluginComponent<P> {
         log::trace!("IComponent::getState");
 
         let plugin = self.plugin.borrow();
+        let Some(plugin) = plugin.as_ref() else {
+            return kResultFalse;
+        };
         let Some(mut stream) = Stream::new(state) else {
-            return kInvalidArgument;
+            return kResultFalse;
         };
 
         match plugin.save_state(&mut stream) {
             Ok(_) => kResultOk,
-            Err(_) => kInvalidArgument, // TODO: Extract actual error code
+            Err(_) => kResultFalse, // TODO: Extract actual error code
         }
     }
 }
@@ -456,7 +480,10 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
 
     unsafe fn getParameterCount(&self) -> int32 {
         log::trace!("IEditController::getParameterCount");
-        self.plugin.borrow().with_parameters(|parameters| parameters.ids().len() as _)
+        let plugin = self.plugin.borrow();
+        plugin.as_ref()
+            .map(|plugin| plugin.with_parameters(|parameters| parameters.ids().len() as _))
+            .unwrap_or_default()
     }
 
     unsafe fn getParameterInfo(&self, param_index: int32, info: *mut vst3::Steinberg::Vst::ParameterInfo) -> tresult {
@@ -466,7 +493,8 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
             return kInvalidArgument;
         }
 
-        let Some(parameter_info) = self.parameter_info.get(param_index as usize) else {
+        let parameter_info = self.parameter_info.borrow();
+        let Some(parameter_info) = parameter_info.get(param_index as usize) else {
             return kInvalidArgument;
         };
 
@@ -497,7 +525,12 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
     unsafe fn getParamStringByValue(&self, id: ParamID, value_normalized: ParamValue, string: *mut String128) -> tresult {
         log::trace!("IEditController::getParamStringByValue");
 
-        self.plugin.borrow().with_parameters(|parameters| {
+        let plugin = self.plugin.borrow();
+        let Some(plugin) = plugin.as_ref() else {
+            return kResultFalse;
+        };
+
+        plugin.with_parameters(|parameters| {
             let Some(parameter) = parameters.get(id) else {
                 return kInvalidArgument;
             };
@@ -516,12 +549,17 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
             return kInvalidArgument;
         }
 
+        let plugin = self.plugin.borrow();
+        let Some(plugin) = plugin.as_ref() else {
+            return kResultFalse;
+        };
+
         let string = unsafe { U16CStr::from_ptr_str(string as _) };
         let Ok(string) = string.to_string() else {
             return kInvalidArgument;
         };
 
-        self.plugin.borrow().with_parameters(|parameters| {
+        plugin.with_parameters(|parameters| {
             let Some(parameter) = parameters.get(id) else {
                 return kInvalidArgument;
             };
@@ -546,6 +584,10 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
 
     unsafe fn getParamNormalized(&self, id: ParamID) -> ParamValue {
         let plugin = self.plugin.borrow();
+        let Some(plugin) = plugin.as_ref() else {
+            return 0.0;
+        };
+
         plugin.with_parameters(|parameters| {
             let Some(parameter) = parameters.get(id) else {
                 return 0.0;
@@ -557,6 +599,10 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
 
     unsafe fn setParamNormalized(&self, id: ParamID, normalized: ParamValue) -> tresult {
         let mut plugin = self.plugin.borrow_mut();
+        let Some(plugin) = plugin.as_mut() else {
+            return kResultFalse;
+        };
+
         plugin.process_event(&Event::ParameterValue {
             sample_offset: 0,
             id,
@@ -640,13 +686,15 @@ impl<P: Vst3Plugin> IProcessContextRequirementsTrait for PluginComponent<P> {
 impl<P: Vst3Plugin> IUnitInfoTrait for PluginComponent<P> {
     unsafe fn getUnitCount(&self) -> int32 {
         log::trace!("IUnitInfo::getUnitCount");
-        self.parameter_groups.len() as int32 + 1 // +1 for the root unit
+        let parameter_groups = self.parameter_groups.borrow();
+        parameter_groups.len() as int32 + 1 // +1 for the root unit
     }
 
     unsafe fn getUnitInfo(&self, unit_index: int32, info: *mut UnitInfo) -> tresult {
         log::trace!("IUnitInfo::getUnitInfo");
 
-        let unit_count = self.parameter_groups.len() + 1; // +1 for the root unit
+        let parameter_groups = self.parameter_groups.borrow();
+        let unit_count = parameter_groups.len() + 1; // +1 for the root unit
 
         if unit_index < 0 {
             return kInvalidArgument;
@@ -665,11 +713,11 @@ impl<P: Vst3Plugin> IUnitInfoTrait for PluginComponent<P> {
             copy_str_to_char16(ROOT_UNIT_NAME, &mut info.name);
         } else {
             let unit_index = unit_index - FIRST_UNIT_ID;
-            let group = &self.parameter_groups[unit_index as usize];
+            let group = &parameter_groups[unit_index as usize];
             copy_str_to_char16(&group.name, &mut info.name);
 
             if let Some(parent) = &group.parent {
-                info.parentUnitId = FIRST_UNIT_ID + self.parameter_groups.iter().position(|group| group == parent).unwrap() as i32;
+                info.parentUnitId = FIRST_UNIT_ID + parameter_groups.iter().position(|group| group == parent).unwrap() as i32;
             } else {
                 info.parentUnitId = ROOT_UNIT_ID;
             }

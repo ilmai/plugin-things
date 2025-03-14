@@ -7,7 +7,7 @@ use crate::{host::Host, parameters::ParameterValue, ParameterId, Parameters, Plu
 use super::view::ViewContext;
 
 pub struct Vst3Host<P: Plugin> {
-    plugin: Rc<RefCell<P>>,
+    plugin: Rc<RefCell<Option<P>>>,
     component_handler: Rc<RefCell<Option<ComPtr<IComponentHandler>>>>,
     plug_view: ComPtr<IPlugView>,
     view_context: Rc<RefCell<ViewContext>>,
@@ -16,7 +16,7 @@ pub struct Vst3Host<P: Plugin> {
 
 impl<P: Plugin> Vst3Host<P> {
     pub fn new(
-        plugin: Rc<RefCell<P>>,
+        plugin: Rc<RefCell<Option<P>>>,
         handler: Rc<RefCell<Option<ComPtr<IComponentHandler>>>>,
         plug_view: ComPtr<IPlugView>,
         view_context: Rc<RefCell<ViewContext>>,
@@ -65,7 +65,12 @@ impl<P: Plugin> Host for Vst3Host<P> {
     }
 
     fn change_parameter_value(&self, id: ParameterId, normalized: ParameterValue) {
-        self.plugin.borrow().with_parameters(|parameters| {
+        let plugin = self.plugin.borrow();
+        let Some(plugin) = plugin.as_ref() else {
+            return;
+        };
+
+        plugin.with_parameters(|parameters| {
             let parameter = parameters.get(id).unwrap();
             parameter.set_normalized_value(normalized).unwrap();
         });
