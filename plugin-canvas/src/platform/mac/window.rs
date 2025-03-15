@@ -1,7 +1,7 @@
 use std::{cell::RefCell, ptr::{null_mut, NonNull}, rc::Rc, sync::atomic::{AtomicBool, Ordering}};
 
 use cursor_icon::CursorIcon;
-use objc2::{msg_send, rc::{Allocated, Retained}, runtime::AnyClass, sel, AllocAnyThread};
+use objc2::{msg_send, rc::{Allocated, Retained}, sel, AllocAnyThread};
 use objc2_app_kit::{NSCursor, NSPasteboardTypeFileURL, NSScreen, NSTrackingArea, NSTrackingAreaOptions, NSView};
 use objc2_core_foundation::{CGPoint, CGSize};
 use objc2_core_graphics::CGWarpMouseCursorPosition;
@@ -18,8 +18,6 @@ use crate::window::WindowAttributes;
 use super::view::OsWindowView;
 
 pub(crate) struct OsWindow {
-    view_class: &'static AnyClass,
-
     window_handle: AppKitWindowHandle,
     display_link: RefCell<Option<Retained<CADisplayLink>>>,
     event_callback: Box<EventCallback>,
@@ -91,8 +89,6 @@ impl OsWindowInterface for OsWindow {
         let main_thread_marker = MainThreadMarker::new().unwrap();
 
         let window = Rc::new(Self {
-            view_class,
-
             window_handle,
             display_link: Default::default(),
             event_callback,
@@ -209,8 +205,6 @@ impl Drop for OsWindow {
         }
 
         self.view().set_os_window_ptr(null_mut());
-
-        OsWindowView::unregister_class(self.view_class);
     }
 }
 

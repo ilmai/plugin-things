@@ -81,10 +81,6 @@ impl OsWindowView {
         builder.register()
     }
 
-    pub(crate) fn unregister_class(class: &'static AnyClass) {
-        unsafe { objc_disposeClassPair(class as *const _ as _) };
-    }
-
     pub(crate) fn set_os_window_ptr(&self, ptr: *mut OsWindow) {
         self.with_context(|context| context.os_window_ptr.store(ptr, Ordering::Release));
     }
