@@ -1,6 +1,6 @@
 use std::{ffi::{c_void, CString}, ops::{Deref, DerefMut}, path::PathBuf, rc::Weak, str::FromStr, sync::atomic::{AtomicPtr, AtomicU8, AtomicUsize, Ordering}};
 
-use objc2::{declare::ClassBuilder, ffi::objc_disposeClassPair, msg_send, runtime::{AnyClass, Bool}, sel, ClassType, Encode, Encoding, Message, RefEncode};
+use objc2::{declare::ClassBuilder, msg_send, runtime::{AnyClass, Bool}, sel, ClassType, Encode, Encoding, Message, RefEncode};
 use objc2::runtime::{Sel, ProtocolObject};
 use objc2_app_kit::{NSDragOperation, NSDraggingInfo, NSEvent, NSEventModifierFlags, NSPasteboardTypeFileURL, NSView};
 use objc2_foundation::{NSPoint, NSRect, NSURL};
