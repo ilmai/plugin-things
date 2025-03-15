@@ -246,44 +246,11 @@ impl<P: ClapPlugin> Gui<P> {
         log::trace!("gui::suggest_title");
     }
 
-    unsafe extern "C" fn show(plugin: *const clap_plugin) -> bool {
-        log::trace!("gui::show");
-
-        PluginInstance::with_plugin_instance(plugin, |instance: &mut PluginInstance<P>| {
-            if instance.editor_open {
-                return true;
-            }
-
-            let Some(editor) = instance.editor.as_mut() else {
-                return false;
-            };
-            let Some(parent_window_handle) = instance.parent_window_handle else {
-                return false;
-            };
-
-            editor.open(parent_window_handle);
-            instance.editor_open = true;
-
-            true
-        })
+    unsafe extern "C" fn show(_plugin: *const clap_plugin) -> bool {
+        true
     }
 
-    unsafe extern "C" fn hide(plugin: *const clap_plugin) -> bool {
-        log::trace!("gui::hide");
-
-        PluginInstance::with_plugin_instance(plugin, |instance: &mut PluginInstance<P>| {
-            if !instance.editor_open {
-                return true;
-            }
-
-            let Some(editor) = instance.editor.as_mut() else {
-                return false;
-            };
-
-            editor.close();
-            instance.editor_open = false;
-
-            true
-        })
+    unsafe extern "C" fn hide(_plugin: *const clap_plugin) -> bool {
+        true
     }
 }
