@@ -5,7 +5,7 @@ use sys_locale::get_locales;
 use x11rb::{connection::Connection, protocol::xproto::{ConfigureWindowAux, ConnectionExt, CreateWindowAux, EventMask, GrabMode, WindowClass}, xcb_ffi::XCBConnection, COPY_DEPTH_FROM_PARENT, COPY_FROM_PARENT};
 use xkbcommon::xkb;
 
-use crate::{dimensions::Size, error::Error, event::{EventCallback, EventResponse}, platform::interface::{OsWindowHandle, OsWindowInterface}, window::WindowAttributes, Event, MouseButton, PhysicalPosition};
+use crate::{dimensions::Size, error::Error, event::{EventCallback, EventResponse}, platform::{interface::OsWindowInterface, os_window_handle::OsWindowHandle}, window::WindowAttributes, Event, MouseButton, PhysicalPosition};
 
 pub struct OsWindow {
     window_attributes: WindowAttributes,
