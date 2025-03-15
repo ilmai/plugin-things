@@ -9,7 +9,7 @@ use windows::Win32::Graphics::{Dwm::{DwmFlush, DwmIsCompositionEnabled}, Dxgi::{
 use windows::Win32::System::{Ole::{IDropTarget, OleInitialize, RegisterDragDrop, RevokeDragDrop}, Threading::GetCurrentThreadId};
 use windows::Win32::UI::{Controls::WM_MOUSELEAVE, Input::KeyboardAndMouse::{GetAsyncKeyState, SetCapture, TrackMouseEvent, TME_LEAVE, TRACKMOUSEEVENT, VK_CONTROL, VK_MENU, VK_SHIFT}, WindowsAndMessaging::{CallNextHookEx, CreateWindowExW, DefWindowProcW, DestroyWindow, GetWindowLongPtrW, LoadCursorW, MoveWindow, PostMessageW, RegisterClassW, SendMessageW, SetCursor, SetCursorPos, SetWindowLongPtrW, SetWindowsHookExW, ShowCursor, UnhookWindowsHookEx, UnregisterClassW, CS_OWNDC, GWLP_USERDATA, HHOOK, HICON, IDC_ARROW, MOUSEHOOKSTRUCTEX, WH_MOUSE, WINDOW_EX_STYLE, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEMOVE, WM_MOUSEWHEEL, WM_MOVE, WM_RBUTTONDOWN, WM_RBUTTONUP, WNDCLASSW, WS_CHILD, WS_VISIBLE}};
 
-use crate::{dimensions::Size, error::Error, event::{Event, EventCallback, EventResponse, MouseButton}, platform::interface::{OsWindowHandle, OsWindowInterface}, window::WindowAttributes, LogicalPosition, LogicalSize, PhysicalPosition};
+use crate::{dimensions::Size, error::Error, event::{Event, EventCallback, EventResponse, MouseButton}, platform::{interface::OsWindowInterface, os_window_handle::OsWindowHandle}, window::WindowAttributes, LogicalPosition, LogicalSize, PhysicalPosition};
 
 use super::{cursors::Cursors, drop_target::DropTarget, key_codes::MODIFIERS, message_window::MessageWindow, to_wstr, version::is_windows10_or_greater, PLUGIN_HINSTANCE, WM_USER_FRAME_TIMER, WM_USER_KEY_DOWN, WM_USER_KEY_UP};
 
