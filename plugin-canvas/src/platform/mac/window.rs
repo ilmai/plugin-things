@@ -9,11 +9,15 @@ use objc2_foundation::{MainThreadMarker, NSArray, NSDefaultRunLoopMode, NSPoint,
 use objc2_quartz_core::CADisplayLink;
 use raw_window_handle::{AppKitWindowHandle, HasDisplayHandle, HasWindowHandle, RawWindowHandle};
 
-use crate::{error::Error, platform::interface::{OsWindowInterface, OsWindowHandle}, event::{EventCallback, EventResponse}, window::WindowAttributes, Event, LogicalPosition};
+use crate::{platform::os_window_handle::OsWindowHandle, Event, LogicalPosition};
+use crate::error::Error;
+use crate::event::{EventCallback, EventResponse};
+use crate::platform::interface::OsWindowInterface;
+use crate::window::WindowAttributes;
 
 use super::view::OsWindowView;
 
-pub struct OsWindow {
+pub(crate) struct OsWindow {
     view_class: &'static AnyClass,
 
     window_handle: AppKitWindowHandle,

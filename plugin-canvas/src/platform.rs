@@ -1,4 +1,5 @@
 pub mod interface;
+pub mod os_window_handle;
 
 #[cfg(target_os="linux")]
 pub mod x11;

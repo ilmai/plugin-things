@@ -1,7 +1,12 @@
 use cursor_icon::CursorIcon;
 use raw_window_handle::{RawWindowHandle, HasWindowHandle, HasDisplayHandle};
 
-use crate::{platform::{window::OsWindow, interface::{OsWindowInterface, OsWindowHandle}}, error::Error, event::EventCallback, dimensions::LogicalSize, LogicalPosition};
+use crate::platform::os_window_handle::OsWindowHandle;
+use crate::LogicalPosition;
+use crate::dimensions::LogicalSize;
+use crate::error::Error;
+use crate::event::EventCallback;
+use crate::platform::{window::OsWindow, interface::OsWindowInterface};
 
 #[derive(Clone)]
 pub struct WindowAttributes {
@@ -62,28 +67,28 @@ impl Window {
     }
 
     pub fn os_scale(&self) -> f64 {
-        self.os_window_handle.window().os_scale()
+        self.os_window_handle.os_scale()
     }
 
     pub fn resized(&self, size: LogicalSize) {
-        self.os_window_handle.window().resized(size);
+        self.os_window_handle.resized(size);
     }
 
     /// This only needs to be called on Linux
     pub fn poll_events(&self) -> Result<(), Error> {
-        self.os_window_handle.window().poll_events()
+        self.os_window_handle.poll_events()
     }
 
     pub fn set_cursor(&self, cursor: Option<CursorIcon>) {
-        self.os_window_handle.window().set_cursor(cursor);
+        self.os_window_handle.set_cursor(cursor);
     }
 
     pub fn set_input_focus(&self, focus: bool) {
-        self.os_window_handle.window().set_input_focus(focus);
+        self.os_window_handle.set_input_focus(focus);
     }
 
     pub fn warp_mouse(&self, position: LogicalPosition) {
-        self.os_window_handle.window().warp_mouse(position);
+        self.os_window_handle.warp_mouse(position);
     }
 }
 
