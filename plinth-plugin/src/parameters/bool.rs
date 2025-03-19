@@ -4,19 +4,23 @@ use portable_atomic::{AtomicF64, Ordering};
 
 use crate::{Parameter, ParameterFormatter, ParameterId, ParameterValue};
 
-use super::{error::Error, info::ParameterInfo, parameter::ParameterPlain};
+use super::{error::Error, info::ParameterInfo, parameter::ParameterPlain, ModulationChangedCallback};
 
 const DEFAULT_FALSE_STRING: &str = "False";
 const DEFAULT_TRUE_STRING: &str = "True";
 
-pub type ValueChangedCallback = Arc<dyn Fn(bool) + Send + Sync>;
+pub type ValueChangedCallback = Arc<dyn Fn(ParameterId, bool) + Send + Sync>;
 
 pub struct BoolParameter {
     info: ParameterInfo,
+
     value: AtomicBool,
     normalized_modulation: AtomicF64,
+
     formatter: Arc<dyn ParameterFormatter<bool>>,
+
     value_changed: Option<ValueChangedCallback>,
+    modulation_changed: Option<ModulationChangedCallback>,
 }
 
 impl BoolParameter {
@@ -30,6 +34,7 @@ impl BoolParameter {
             normalized_modulation: 0.0.into(),
             formatter: Arc::new(BoolFormatter::new(DEFAULT_FALSE_STRING, DEFAULT_TRUE_STRING)),
             value_changed: None,
+            modulation_changed: None,
         }
     }
 
@@ -56,6 +61,11 @@ impl BoolParameter {
         self
     }
 
+    pub fn on_modulation_changed(mut self, modulation_changed: ModulationChangedCallback) -> Self {
+        self.modulation_changed = Some(modulation_changed);
+        self
+    }
+
     pub fn as_bypass(mut self) -> Self {
         self.info = self.info.as_bypass();
         self
@@ -63,17 +73,14 @@ impl BoolParameter {
 
     pub fn set_value(&self, value: bool) {
         self.value.store(value, Ordering::Release);
-        self.changed();
+
+        if let Some(on_value_changed) = self.value_changed.as_ref() {
+            on_value_changed(self.info.id(), self.plain());
+        }
     }
 
     pub fn default_value(&self) -> bool {
         self.normalized_to_plain(self.info.default_normalized_value())
-    }
-
-    fn changed(&self) {
-        if let Some(on_value_changed) = self.value_changed.as_ref() {
-            on_value_changed(self.plain());
-        }
     }
 }
 
@@ -81,10 +88,14 @@ impl Clone for BoolParameter {
     fn clone(&self) -> Self {
         Self {
             info: self.info.clone(),
+
             value: self.value.load(Ordering::Acquire).into(),
             normalized_modulation: self.normalized_modulation.load(Ordering::Acquire).into(),
+
             formatter: self.formatter.clone(),
+
             value_changed: self.value_changed.clone(),
+            modulation_changed: self.modulation_changed.clone(),
         }
     }
 }
@@ -116,7 +127,10 @@ impl Parameter for BoolParameter {
 
     fn set_normalized_modulation(&self, amount: ParameterValue) {
         self.normalized_modulation.store(amount, Ordering::Release);
-        self.changed();
+
+        if let Some(on_modulated_value_changed) = self.modulation_changed.as_ref() {
+            on_modulated_value_changed(self.info.id(), self.normalized_modulation());
+        }
     }
 
     fn normalized_to_string(&self, value: ParameterValue) -> String {

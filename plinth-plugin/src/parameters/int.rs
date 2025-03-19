@@ -4,17 +4,21 @@ use portable_atomic::{AtomicF64, Ordering};
 
 use crate::ParameterId;
 
-use super::{error::Error, formatter::ParameterFormatter, info::ParameterInfo, parameter::{Parameter, ParameterPlain}, range::ParameterRange, ParameterValue};
+use super::{error::Error, formatter::ParameterFormatter, info::ParameterInfo, parameter::{Parameter, ParameterPlain}, range::ParameterRange, ModulationChangedCallback, ParameterValue};
 
-pub type ValueChangedCallback = Arc<dyn Fn(i64) + Send + Sync>;
+pub type ValueChangedCallback = Arc<dyn Fn(ParameterId, i64) + Send + Sync>;
 
 pub struct IntParameter {
     info: ParameterInfo,
+
     value: AtomicI64,
     normalized_modulation: AtomicF64,
+
     range: Arc<dyn ParameterRange<i64>>,
     formatter: Arc<dyn ParameterFormatter<i64>>,
+
     value_changed: Option<ValueChangedCallback>,
+    modulation_changed: Option<ModulationChangedCallback>,
 }
 
 impl IntParameter {
@@ -30,6 +34,7 @@ impl IntParameter {
             range,
             formatter: Arc::new(IntFormatter::new("")),
             value_changed: None,
+            modulation_changed: None,
         }
     }
 
@@ -55,20 +60,22 @@ impl IntParameter {
         self
     }
 
+    pub fn on_modulation_changed(mut self, modulation_changed: ModulationChangedCallback) -> Self {
+        self.modulation_changed = Some(modulation_changed);
+        self
+    }
+
     pub fn set_value(&self, value: i64) {
         let value = self.range.clamp(value);
         self.value.store(value, Ordering::Release);
-        self.changed();
+
+        if let Some(on_value_changed) = self.value_changed.as_ref() {
+            on_value_changed(self.info.id(), self.plain());
+        }
     }
 
     pub fn default_value(&self) -> i64 {
         self.range.normalized_to_plain(self.info.default_normalized_value())
-    }
-
-    fn changed(&self) {
-        if let Some(on_value_changed) = self.value_changed.as_ref() {
-            on_value_changed(self.plain());
-        }
     }
 }
 
@@ -76,11 +83,15 @@ impl Clone for IntParameter {
     fn clone(&self) -> Self {
         Self {
             info: self.info.clone(),
+
             value: self.value.load(Ordering::Acquire).into(),
             normalized_modulation: self.normalized_modulation.load(Ordering::Acquire).into(),
+
             range: self.range.clone(),
             formatter: self.formatter.clone(),
+
             value_changed: self.value_changed.clone(),
+            modulation_changed: self.modulation_changed.clone(),
         }
     }
 }
@@ -112,7 +123,10 @@ impl Parameter for IntParameter {
 
     fn set_normalized_modulation(&self, amount: ParameterValue) {
         self.normalized_modulation.store(amount, Ordering::Release);
-        self.changed();
+
+        if let Some(on_modulated_value_changed) = self.modulation_changed.as_ref() {
+            on_modulated_value_changed(self.info.id(), self.normalized_modulation());
+        }
     }
 
     fn normalized_to_string(&self, value: ParameterValue) -> String {

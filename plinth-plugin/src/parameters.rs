@@ -15,7 +15,9 @@ pub use error::Error;
 pub type ParameterId = u32;
 pub type ParameterValue = f64;
 
-use std::collections::HashSet;
+pub type ModulationChangedCallback = Arc<dyn Fn(ParameterId, ParameterValue) + Send + Sync>;
+
+use std::{collections::HashSet, sync::Arc};
 
 use parameter::{Parameter, ParameterPlain};
 

@@ -1,12 +1,12 @@
-use std::{any::Any, fmt::Display, marker::PhantomData, sync::{atomic::AtomicUsize, Arc}};
+use std::{any::Any, fmt::Display, sync::{atomic::AtomicUsize, Arc}};
 
 use portable_atomic::{AtomicF64, Ordering};
 
 use crate::ParameterId;
 
-use super::{error::Error, info::ParameterInfo, parameter::{Parameter, ParameterPlain}, range::ParameterRange, ParameterValue};
+use super::{error::Error, info::ParameterInfo, parameter::{Parameter, ParameterPlain}, range::ParameterRange, ModulationChangedCallback, ParameterValue};
 
-pub type ValueChangedCallback<T> = Arc<dyn Fn(T) + Send + Sync>;
+pub type ValueChangedCallback<T> = Arc<dyn Fn(ParameterId, T) + Send + Sync>;
 
 pub trait Enum: Clone + Copy + Default + Send + Sync + 'static {
     const COUNT: usize;
@@ -19,12 +19,14 @@ pub trait Enum: Clone + Copy + Default + Send + Sync + 'static {
 
 pub struct EnumParameter<T: Enum> {
     info: ParameterInfo,
+
     value: AtomicUsize,
     normalized_modulation: AtomicF64,
-    range: IntRange,
-    value_changed: Option<ValueChangedCallback<T>>,
 
-    _phantom_enum: PhantomData<T>,
+    range: IntRange,
+
+    value_changed: Option<ValueChangedCallback<T>>,
+    modulation_changed: Option<ModulationChangedCallback>,
 }
 
 impl<T: Enum> EnumParameter<T> {
@@ -42,8 +44,7 @@ impl<T: Enum> EnumParameter<T> {
             normalized_modulation: 0.0.into(),
             range,
             value_changed: None,
-
-            _phantom_enum: PhantomData,
+            modulation_changed: None,
         }
     }
 
@@ -65,6 +66,11 @@ impl<T: Enum> EnumParameter<T> {
         self
     }
 
+    pub fn on_modulation_changed(mut self, modulation_changed: ModulationChangedCallback) -> Self {
+        self.modulation_changed = Some(modulation_changed);
+        self
+    }
+
     pub fn unmodulated_value(&self) -> T {
         T::from_usize(self.value.load(Ordering::Acquire)).unwrap()
     }
@@ -80,7 +86,7 @@ impl<T: Enum> EnumParameter<T> {
 
     fn changed(&self) {
         if let Some(on_value_changed) = self.value_changed.as_ref() {
-            on_value_changed(self.plain());
+            on_value_changed(self.info.id(), self.plain());
         }
     }
 }
@@ -89,12 +95,14 @@ impl<T: Enum> Clone for EnumParameter<T> {
     fn clone(&self) -> Self {
         Self {
             info: self.info.clone(),
+
             value: self.value.load(Ordering::Acquire).into(),
             normalized_modulation: self.normalized_modulation.load(Ordering::Acquire).into(),
-            range: self.range.clone(),
-            value_changed: self.value_changed.clone(),
 
-            _phantom_enum: PhantomData,
+            range: self.range.clone(),
+
+            value_changed: self.value_changed.clone(),
+            modulation_changed: self.modulation_changed.clone(),
         }
     }
 }
@@ -126,7 +134,10 @@ impl<T: Enum> Parameter for EnumParameter<T> {
 
     fn set_normalized_modulation(&self, amount: ParameterValue) {
         self.normalized_modulation.store(amount, Ordering::Release);
-        self.changed();
+
+        if let Some(on_modulated_value_changed) = self.modulation_changed.as_ref() {
+            on_modulated_value_changed(self.info.id(), self.normalized_modulation());
+        }
     }
 
     fn normalized_to_string(&self, value: ParameterValue) -> String {
