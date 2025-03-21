@@ -41,6 +41,7 @@ impl Iterator for EventIterator<'_> {
                 Some(Event::NoteOn {
                     channel: event.__field0.noteOn.channel,
                     key: event.__field0.noteOn.pitch,
+                    note: event.__field0.noteOn.noteId,
                     velocity: event.__field0.noteOn.velocity as _,
                 })
             },
@@ -49,6 +50,7 @@ impl Iterator for EventIterator<'_> {
                 Some(Event::NoteOff {
                     channel: event.__field0.noteOff.channel,
                     key: event.__field0.noteOff.pitch,
+                    note: event.__field0.noteOn.noteId,
                     velocity: event.__field0.noteOff.velocity as _,
                 })
             },

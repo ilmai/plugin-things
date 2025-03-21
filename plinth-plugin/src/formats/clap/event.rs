@@ -47,6 +47,7 @@ impl Iterator for EventIterator<'_> {
                     Event::NoteOn {
                         channel: event.channel,
                         key: event.key,
+                        note: event.note_id,
                         velocity: event.velocity,
                     }
                 }
@@ -57,6 +58,7 @@ impl Iterator for EventIterator<'_> {
                     Event::NoteOff {
                         channel: event.channel,
                         key: event.key,
+                        note: event.note_id,
                         velocity: event.velocity,
                     }
                 }

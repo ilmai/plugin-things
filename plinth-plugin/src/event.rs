@@ -12,12 +12,14 @@ pub enum Event {
     NoteOn {
         channel: i16,
         key: i16,
+        note: i32,
         velocity: f64,
     },
 
     NoteOff {
         channel: i16,
         key: i16,
+        note: i32,
         velocity: f64,
     },
 
