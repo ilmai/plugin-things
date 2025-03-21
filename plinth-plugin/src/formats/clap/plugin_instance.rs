@@ -13,7 +13,6 @@ use crate::parameters::{info::ParameterInfo, has_duplicates, Parameters};
 
 use super::descriptor::Descriptor;
 use super::extensions::{audio_ports::AudioPorts, gui::Gui, latency::Latency, note_ports::NotePorts, params::Params, render::Render, state::State, tail::Tail, timer_support::TimerSupport};
-use super::MAX_EVENTS;
 use super::parameters::ParameterEventMap;
 use super::plugin::ClapPlugin;
 
@@ -79,7 +78,7 @@ impl<P: ClapPlugin> PluginInstance<P> {
         let plugin = P::default();
         assert!(plugin.with_parameters(|parameters| !has_duplicates(parameters.ids())));
 
-        let (to_plugin_event_sender, to_plugin_event_receiver) = rtrb::RingBuffer::new(MAX_EVENTS);
+        let (to_plugin_event_sender, to_plugin_event_receiver) = rtrb::RingBuffer::new(P::EVENT_QUEUE_LEN);
 
         let mut parameter_info = BTreeMap::new();
 

@@ -16,6 +16,3 @@ pub use entry_point::EntryPoint;
 pub use factory::Factory;
 pub use features::Feature;
 pub use plugin::ClapPlugin;
-
-// TODO: Allow configuring this in the plugin
-const MAX_EVENTS: usize = 1024;
