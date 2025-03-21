@@ -23,6 +23,13 @@ pub enum Event {
         velocity: f64,
     },
 
+    PitchBend {
+        channel: i16,
+        key: i16,
+        note: i32,
+        semitones: f64,
+    },
+
     // Parameter events
     StartParameterChange {
         id: ParameterId,

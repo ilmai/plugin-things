@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use clap_sys::events::{clap_event_note, clap_event_param_mod, clap_event_param_value, clap_input_events, CLAP_CORE_EVENT_SPACE_ID, CLAP_EVENT_NOTE_OFF, CLAP_EVENT_NOTE_ON, CLAP_EVENT_PARAM_MOD, CLAP_EVENT_PARAM_VALUE};
+use clap_sys::events::{clap_event_note, clap_event_note_expression, clap_event_param_mod, clap_event_param_value, clap_input_events, CLAP_CORE_EVENT_SPACE_ID, CLAP_EVENT_NOTE_EXPRESSION, CLAP_EVENT_NOTE_OFF, CLAP_EVENT_NOTE_ON, CLAP_EVENT_PARAM_MOD, CLAP_EVENT_PARAM_VALUE, CLAP_NOTE_EXPRESSION_TUNING};
 
 use crate::{parameters::info::ParameterInfo, Event, ParameterId};
 
@@ -60,6 +60,20 @@ impl Iterator for EventIterator<'_> {
                         key: event.key,
                         note: event.note_id,
                         velocity: event.velocity,
+                    }
+                }
+
+                CLAP_EVENT_NOTE_EXPRESSION => {
+                    let event = unsafe { &*(header as *const clap_event_note_expression) };
+                    if event.expression_id != CLAP_NOTE_EXPRESSION_TUNING {
+                        continue;
+                    }
+
+                    Event::PitchBend {
+                        channel: event.channel,
+                        key: event.key,
+                        note: event.note_id,
+                        semitones: event.value,
                     }
                 }
 
