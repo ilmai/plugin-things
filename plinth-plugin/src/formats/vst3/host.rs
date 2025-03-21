@@ -11,7 +11,6 @@ pub struct Vst3Host<P: Plugin> {
     component_handler: Rc<RefCell<Option<ComPtr<IComponentHandler>>>>,
     plug_view: ComPtr<IPlugView>,
     view_context: Rc<RefCell<ViewContext>>,
-    name: Option<String>,
 }
 
 impl<P: Plugin> Vst3Host<P> {
@@ -20,23 +19,17 @@ impl<P: Plugin> Vst3Host<P> {
         handler: Rc<RefCell<Option<ComPtr<IComponentHandler>>>>,
         plug_view: ComPtr<IPlugView>,
         view_context: Rc<RefCell<ViewContext>>,
-        name: Option<String>,
     ) -> Self {
         Self {
             plugin,
             component_handler: handler,
             plug_view,
             view_context,
-            name,
         }
     }
 }
 
 impl<P: Plugin> Host for Vst3Host<P> {
-    fn name(&self) -> Option<&str> {
-        self.name.as_deref()
-    }
-
     fn can_resize(&self) -> bool {
         true
     }

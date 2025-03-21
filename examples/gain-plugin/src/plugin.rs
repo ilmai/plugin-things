@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::io::{Read, Result, Write};
 use std::rc::Rc;
 
-use plinth_plugin::{export_clap, export_vst3, Event, Host, Parameters, Plugin, ProcessorConfig};
+use plinth_plugin::{export_clap, export_vst3, Event, Host, HostInfo, Parameters, Plugin, ProcessorConfig};
 use plinth_plugin::clap::ClapPlugin;
 use plinth_plugin::vst3::Vst3Plugin;
 
@@ -22,6 +22,10 @@ impl Plugin for GainPlugin {
     type Processor = GainPluginProcessor;
     type Editor = GainPluginEditor;
     type Parameters = GainParameters;
+
+    fn new(_host_info: HostInfo) -> Self {
+        Self::default()
+    }
 
     fn with_parameters<T>(&self, mut f: impl FnMut(&Self::Parameters) -> T) -> T {
         f(&self.parameters)

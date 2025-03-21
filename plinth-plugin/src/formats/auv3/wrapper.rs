@@ -5,7 +5,7 @@ use plinth_core::{signals::ptr_signal::{PtrSignal, PtrSignalMut}, util::ptr::{an
 use portable_atomic::AtomicF64;
 use raw_window_handle::{AppKitWindowHandle, RawWindowHandle};
 
-use crate::{Editor, Event, ParameterId, Parameters, ProcessMode, ProcessState, Processor, ProcessorConfig, Transport};
+use crate::{host::HostInfo, Editor, Event, ParameterId, Parameters, ProcessMode, ProcessState, Processor, ProcessorConfig, Transport};
 use crate::auv3::{plugin::Auv3Plugin, Auv3Host, EventIterator, PLINTH_AUV3_MAX_STRING_LENGTH};
 use crate::parameters::{self, group::ParameterGroupRef, has_duplicates};
 use crate::string::copy_str_to_char8;
@@ -37,7 +37,8 @@ impl<P: Auv3Plugin> Auv3Wrapper<P> {
     pub fn new() -> Self {
         let (events_to_processor_sender, events_to_processor_receiver) = rtrb::RingBuffer::new(MAX_EVENTS);
 
-        let plugin = P::default();
+        let host_info = HostInfo { name: None };
+        let plugin = P::new(host_info);
 
         let (parameter_groups, cached_parameters) = plugin.with_parameters(|parameters| {
             let parameter_groups = parameters::group::from_parameters(parameters);

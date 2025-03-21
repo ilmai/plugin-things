@@ -40,11 +40,6 @@ impl Auv3Host {
 }
 
 impl Host for Auv3Host {
-    fn name(&self) -> Option<&str> {
-        // TODO
-        None        
-    }
-
     fn can_resize(&self) -> bool {
         false
     }

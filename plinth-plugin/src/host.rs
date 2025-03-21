@@ -1,8 +1,11 @@
 use crate::{parameters::ParameterValue, ParameterId};
 
-pub trait Host {
-    fn name(&self) -> Option<&str>;
+#[derive(Clone)]
+pub struct HostInfo {
+    pub name: Option<String>,
+}
 
+pub trait Host {
     fn can_resize(&self) -> bool;
 
     /// Return true if the resize was accepted

@@ -1,6 +1,6 @@
 pub use editor::{Editor, NoEditor};
 pub use event::Event;
-pub use host::Host;
+pub use host::{Host, HostInfo};
 pub use formats::{clap, vst3};
 pub use parameters::{Parameters, ParameterId, ParameterValue};
 pub use parameters::bool::{BoolParameter, BoolFormatter};

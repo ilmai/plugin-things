@@ -1,8 +1,8 @@
 use std::{io::{Read, Write}, rc::Rc};
 
-use crate::{processor::ProcessorConfig, Editor, Event, Host, Parameters, Processor};
+use crate::{host::HostInfo, processor::ProcessorConfig, Editor, Event, Host, Parameters, Processor};
 
-pub trait Plugin: Default {
+pub trait Plugin {
     const NAME: &'static str;
     const VENDOR: &'static str;
     const VERSION: &'static str;
@@ -16,6 +16,8 @@ pub trait Plugin: Default {
     type Processor: Processor;
     type Editor: Editor;
     type Parameters: Parameters;
+
+    fn new(host_info: HostInfo) -> Self;
 
     fn with_parameters<T>(&self, f: impl FnMut(&Self::Parameters) -> T) -> T;
     fn process_event(&mut self, event: &Event);

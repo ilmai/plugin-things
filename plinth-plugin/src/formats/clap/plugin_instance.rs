@@ -7,7 +7,7 @@ use plinth_core::signals::{ptr_signal::{PtrSignal, PtrSignalMut}, signal::Signal
 use portable_atomic::AtomicBool;
 use raw_window_handle::RawWindowHandle;
 
-use crate::{Event, ParameterId, ProcessMode, ProcessState, Processor, ProcessorConfig};
+use crate::{host::HostInfo, Event, ParameterId, ProcessMode, ProcessState, Processor, ProcessorConfig};
 use crate::clap::{event::EventIterator, transport::convert_transport};
 use crate::parameters::{info::ParameterInfo, has_duplicates, Parameters};
 
@@ -75,7 +75,17 @@ impl<P: ClapPlugin> PluginInstance<P> {
     const EXT_TIMER_SUPPORT: TimerSupport<P> = TimerSupport::new();
 
     pub fn new(descriptor: &Descriptor, host: *const clap_host) -> Self {
-        let plugin = P::default();
+        let host_name = unsafe { CStr::from_ptr((*host).name)
+            .to_str()
+            .ok()
+            .map(|str| str.to_string())
+        };
+
+        let host_info = HostInfo {
+            name: host_name,
+        };
+
+        let plugin = P::new(host_info);
         assert!(plugin.with_parameters(|parameters| !has_duplicates(parameters.ids())));
 
         let (to_plugin_event_sender, to_plugin_event_receiver) = rtrb::RingBuffer::new(P::EVENT_QUEUE_LEN);

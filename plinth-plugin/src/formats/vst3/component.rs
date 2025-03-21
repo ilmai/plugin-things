@@ -1,5 +1,5 @@
 use std::any::TypeId;
-use std::cell::{OnceCell, RefCell};
+use std::cell::RefCell;
 use std::ffi::CStr;
 use std::iter::zip;
 use std::ptr::null_mut;
@@ -14,6 +14,7 @@ use vst3::Steinberg::{int16, int32, kInvalidArgument, kNoInterface, kResultFalse
 use vst3::Steinberg::Vst::{kInfiniteTail, kNoParentUnitId, kNoProgramListId, kNoTail, BusDirection, BusDirections_, BusInfo, BusInfo_::BusFlags_, BusTypes_, CString, IAudioProcessor, IAudioProcessorTrait, IComponent, IComponentHandler, IComponentTrait, IEditController, IEditController2, IEditController2Trait, IEditControllerTrait, IHostApplication, IHostApplicationTrait, IProcessContextRequirements, IProcessContextRequirementsTrait, IProcessContextRequirements_, IUnitInfo, IUnitInfoTrait, IoMode, IoModes_, KnobMode, MediaType, MediaTypes_, ParamID, ParamValue, ParameterInfo_, ProcessData, ProcessSetup, ProgramListID, ProgramListInfo, RoutingInfo, SpeakerArr, SpeakerArrangement, String128, SymbolicSampleSizes_, TChar, UnitID, UnitInfo, ViewType::kEditor};
 use widestring::U16CStr;
 
+use crate::host::HostInfo;
 use crate::{Event, Parameters, ProcessMode, ProcessState, Processor};
 use crate::editor::NoEditor;
 use crate::parameters::{group::{self, ParameterGroupRef}, has_duplicates, info::ParameterInfo};
@@ -50,7 +51,6 @@ pub struct PluginComponent<P: Vst3Plugin> {
     processor_config: RefCell<ProcessorConfig>,
     processing: AtomicBool,
     tail_length: AtomicU32,
-    host_name: OnceCell<String>,
     component_handler: Rc<RefCell<Option<ComPtr<IComponentHandler>>>>,
 
     audio_thread_state: AudioThreadState<P>,
@@ -67,7 +67,6 @@ impl<P: Vst3Plugin + 'static> PluginComponent<P> {
             processor_config: Default::default(),
             processing: AtomicBool::new(false),
             tail_length: AtomicU32::new(0),
-            host_name: Default::default(),
             component_handler: Default::default(),
 
             audio_thread_state: Default::default(),
@@ -98,20 +97,25 @@ impl<P: Vst3Plugin> IPluginBaseTrait for PluginComponent<P> {
         }
 
         // Get plugin name if available
+        let mut host_name = None;
+
         if let Some(context) = unsafe { ComRef::from_raw(context) } {
             if let Some(host_application) = context.cast::<IHostApplication>() {
                 let mut name = [0; 128];
                 if unsafe { host_application.getName(&mut name) == kResultOk } {
                     if let Some(name) = char16_to_string(&name) {
-                        // VST3 validator will call initialize() multiple times so allow this to fail
-                        self.host_name.set(name).ok();
+                        host_name = Some(name);
                     }
                 }
             }
         }
 
         // Create plugin and find parameter info
-        let plugin = P::default();
+        let host_info = HostInfo {
+            name: host_name,
+        };
+
+        let plugin = P::new(host_info);
         assert!(plugin.with_parameters(|parameters| !has_duplicates(parameters.ids())));
 
         let mut parameter_info = self.parameter_info.borrow_mut();
@@ -645,7 +649,6 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
 
         let view = View::<P>::new(
             self.plugin.clone(),
-            self.host_name.get().cloned(),
             self.component_handler.clone(),
         );
 
