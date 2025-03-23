@@ -1,11 +1,12 @@
 use std::{cell::RefCell, ffi::OsStr, ptr::NonNull};
 
+use keyboard_types::Code;
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle, RawDisplayHandle, RawWindowHandle, XlibDisplayHandle, XlibWindowHandle};
 use sys_locale::get_locales;
 use x11rb::{connection::Connection, protocol::xproto::{ConfigureWindowAux, ConnectionExt, CreateWindowAux, EventMask, GrabMode, WindowClass}, xcb_ffi::XCBConnection, COPY_DEPTH_FROM_PARENT, COPY_FROM_PARENT};
 use xkbcommon::xkb;
 
-use crate::{dimensions::Size, error::Error, event::{EventCallback, EventResponse}, platform::{interface::OsWindowInterface, os_window_handle::OsWindowHandle}, window::WindowAttributes, Event, MouseButton, PhysicalPosition};
+use crate::{dimensions::Size, error::Error, event::{EventCallback, EventResponse}, keyboard::KeyboardModifiers, platform::{interface::OsWindowInterface, os_window_handle::OsWindowHandle}, window::WindowAttributes, Event, MouseButton, PhysicalPosition};
 
 use super::keyboard::x11_to_keyboard_types_code;
 
@@ -19,6 +20,8 @@ pub struct OsWindow {
 
     display_handle: XlibDisplayHandle,
     window_handle: XlibWindowHandle,
+
+    keyboard_modifiers: RefCell<KeyboardModifiers>,
 }
 
 impl OsWindow {
@@ -72,11 +75,14 @@ impl OsWindow {
                 let x11_keycode = xkb::Keycode::new(event.detail as u32);
                 let keycode = x11_to_keyboard_types_code(x11_keycode.raw());
 
+                self.update_modifiers(keycode, true);
+
                 let mut sent_event_with_text = false;
 
                 let mut xkb_state = self.xkb_state.borrow_mut();
                 let mut xkb_compose_state = self.xkb_compose_state.borrow_mut();
 
+                // See if we get any compose events
                 for keysym in xkb_state.key_get_syms(x11_keycode) {
                     xkb_compose_state.feed(*keysym);
 
@@ -94,6 +100,7 @@ impl OsWindow {
 
                 xkb_state.update_key(x11_keycode, xkb::KeyDirection::Down);
 
+                // Otherwise, just send the event as is
                 if !sent_event_with_text {
                     let text = xkb_state.key_get_utf8(x11_keycode);
 
@@ -106,15 +113,18 @@ impl OsWindow {
 
             x11rb::protocol::Event::KeyRelease(event) => {
                 let x11_keycode = xkb::Keycode::new(event.detail as u32);
-                let key_code = x11_to_keyboard_types_code(x11_keycode.raw());
+                let keycode = x11_to_keyboard_types_code(x11_keycode.raw());
 
+                self.update_modifiers(keycode, false);
+
+                // Send key up event
                 let mut xkb_state = self.xkb_state.borrow_mut();
 
                 let text = xkb_state.key_get_utf8(x11_keycode);
                 xkb_state.update_key(x11_keycode, xkb::KeyDirection::Up);
                 
                 self.send_event(Event::KeyUp {
-                    key_code,
+                    key_code: keycode,
                     text: Some(text),
                 });
             }
@@ -144,6 +154,25 @@ impl OsWindow {
             2 => Some(MouseButton::Middle),
             3 => Some(MouseButton::Right),
             _ => None,
+        }
+    }
+
+    fn update_modifiers(&self, keycode: Code, down: bool) {
+        let mut modifiers = self.keyboard_modifiers.borrow_mut();
+        let mut new_modifiers = *modifiers;
+
+        match keycode {
+            Code::AltLeft | Code::AltRight => { new_modifiers.set(KeyboardModifiers::Alt, down); }
+            Code::ControlLeft | Code::ControlRight => { new_modifiers.set(KeyboardModifiers::Control, down); }
+            Code::MetaLeft | Code::MetaRight => { new_modifiers.set(KeyboardModifiers::Meta, down); }
+            Code::ShiftLeft | Code::ShiftRight => { new_modifiers.set(KeyboardModifiers::Shift, down); }
+            _ => {}
+        }
+
+        if new_modifiers != *modifiers {
+            *modifiers = new_modifiers;
+
+            self.send_event(Event::KeyboardModifiers { modifiers: new_modifiers });
         }
     }
 }
@@ -239,6 +268,8 @@ impl OsWindowInterface for OsWindow {
 
             display_handle,
             window_handle,
+
+            keyboard_modifiers: KeyboardModifiers::empty().into(),
         };
 
         Ok(OsWindowHandle::new(window.into()))
