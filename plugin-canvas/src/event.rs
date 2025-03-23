@@ -1,4 +1,4 @@
-use crate::{dimensions::LogicalPosition, drag_drop::{DropData, DropOperation}};
+use crate::{dimensions::LogicalPosition, drag_drop::{DropData, DropOperation}, keyboard::KeyboardModifiers};
 
 #[derive(Clone, Copy, Debug)]
 pub enum MouseButton {
@@ -17,6 +17,10 @@ pub enum Event {
 
     KeyUp {
         text: String,
+    },
+
+    KeyboardModifiers {
+        modifiers: KeyboardModifiers,
     },
 
     MouseButtonDown {
@@ -56,7 +60,7 @@ pub enum Event {
     DragDropped {
         position: LogicalPosition,
         data: DropData,
-    }
+    },
 }
 
 pub enum EventResponse {

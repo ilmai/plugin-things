@@ -6,7 +6,7 @@ use objc2_app_kit::{NSDragOperation, NSDraggingInfo, NSEvent, NSEventModifierFla
 use objc2_foundation::{NSPoint, NSRect, NSURL};
 use uuid::Uuid;
 
-use crate::{Event, MouseButton, LogicalPosition, event::EventResponse, drag_drop::{DropData, DropOperation}};
+use crate::{drag_drop::{DropData, DropOperation}, event::EventResponse, keyboard::KeyboardModifiers, Event, LogicalPosition, MouseButton};
 
 use super::window::OsWindow;
 
@@ -17,7 +17,6 @@ pub struct OsWindowView {
 struct Context {
     os_window_ptr: AtomicPtr<OsWindow>,
     input_focus: AtomicU8,
-    modifier_flags: AtomicUsize,
 }
 
 unsafe impl Encode for Context {
@@ -137,6 +136,7 @@ impl OsWindowView {
 
         // Do some manual mapping to get Backspace and Delete working correctly
         // Is there a more "proper" solution for this?
+        // TODO
         match characters.as_str() {
             "\u{7f}" => "\u{8}".to_string(),
             "\u{f728}" => "\u{7f}".to_string(),
@@ -145,29 +145,21 @@ impl OsWindowView {
     }
 
     fn handle_modifier_event(&self, event: *const NSEvent) {
-        let (old_flags, event_flags) = self.with_context(|context| {
-            let old_flags = context.modifier_flags.load(Ordering::Relaxed);
-            let event_flags = unsafe { (*event).modifierFlags() };
-            context.modifier_flags.store(event_flags.bits(), Ordering::Relaxed);
+        let event_flags = unsafe { (*event).modifierFlags() };
+        let mut modifiers = KeyboardModifiers::empty();
 
-            (old_flags, event_flags)
-        });
-
-        for (modifier, text) in [
-            (NSEventModifierFlags::Command, "\u{0017}"),
-            (NSEventModifierFlags::Control, "\u{0011}"),
-            (NSEventModifierFlags::Option, "\u{0012}"),
-            (NSEventModifierFlags::Shift, "\u{0010}"),
+        for (flag, modifier) in [
+            (NSEventModifierFlags::Command, KeyboardModifiers::Meta),
+            (NSEventModifierFlags::Control, KeyboardModifiers::Control),
+            (NSEventModifierFlags::Option, KeyboardModifiers::Alt),
+            (NSEventModifierFlags::Shift, KeyboardModifiers::Shift),
         ] {
-            let was_down = old_flags & modifier.bits() > 0;
-            let is_down = !(event_flags & modifier).is_empty();
-
-            if !was_down && is_down {
-                self.send_event(Event::KeyDown { text: text.to_string() });
-            } else if was_down && !is_down {
-                self.send_event(Event::KeyUp { text: text.to_string() });
+            if !(event_flags & flag).is_empty() {
+                modifiers.set(modifier, true);
             }
         }
+
+        self.send_event(Event::KeyboardModifiers { modifiers });
     }
     
     fn handle_mouse_move_event(&self, event: *const NSEvent) {

@@ -6,6 +6,7 @@ use std::sync::atomic::{AtomicBool, Ordering, AtomicUsize};
 use cursor_icon::CursorIcon;
 use i_slint_core::{window::{WindowAdapter, WindowAdapterInternal}, renderer::Renderer, platform::{PlatformError, WindowEvent}};
 use i_slint_renderer_skia::SkiaRenderer;
+use plugin_canvas::keyboard::KeyboardModifiers;
 use plugin_canvas::{event::EventResponse, LogicalSize};
 use portable_atomic::AtomicF64;
 
@@ -29,6 +30,8 @@ pub struct PluginCanvasWindowAdapter {
     pending_draw: AtomicBool,
     buttons_down: AtomicUsize,
     pending_mouse_exit: AtomicBool,
+
+    modifiers: RefCell<KeyboardModifiers>,
 }
 
 impl PluginCanvasWindowAdapter {
@@ -65,6 +68,8 @@ impl PluginCanvasWindowAdapter {
                 pending_draw: AtomicBool::new(true),
                 buttons_down: Default::default(),
                 pending_mouse_exit: Default::default(),
+
+                modifiers: KeyboardModifiers::empty().into(),
             }
         });
 
@@ -125,6 +130,58 @@ impl PluginCanvasWindowAdapter {
             plugin_canvas::Event::KeyUp { text } => {
                 let text = text.into();
                 self.slint_window.dispatch_event(WindowEvent::KeyReleased { text });
+                EventResponse::Handled
+            },
+
+            plugin_canvas::Event::KeyboardModifiers { modifiers } => {
+                let mut my_modifiers = self.modifiers.borrow_mut();
+
+                for modifier in [
+                    KeyboardModifiers::Alt,
+                    KeyboardModifiers::Control,
+                    KeyboardModifiers::Meta,
+                    KeyboardModifiers::Shift
+                ] {
+                    // TODO: This is mildly janky, could we clean it up?
+                    macro_rules! modifier_to_char {
+                        ($($char:literal # $name:ident # $($_qt:ident)|* # $($_winit:ident $(($_pos:ident))?)|* # $($_xkb:ident)|*;)*) => {
+                            {
+                                if false { unimplemented!() }
+
+                                $(
+                                    else if modifier == KeyboardModifiers::Alt && stringify!($name) == "Alt" {
+                                        $char
+                                    } else if modifier == KeyboardModifiers::Control && stringify!($name) == "Control" {
+                                        $char
+                                    } else if modifier == KeyboardModifiers::Meta && stringify!($name) == "Meta" {
+                                        $char
+                                    } else if modifier == KeyboardModifiers::Shift && stringify!($name) == "Shift" {
+                                        $char
+                                    }
+                                )*
+
+                                else {
+                                    unimplemented!()
+                                }
+                            }
+                        }
+                    }
+
+                    let was_pressed = my_modifiers.contains(modifier);
+                    let pressed = modifiers.contains(modifier);
+
+                    let text = i_slint_common::for_each_special_keys!(modifier_to_char);
+
+                    if !was_pressed && pressed {
+                        self.slint_window.dispatch_event(WindowEvent::KeyPressed { text: text.into() });
+                    }
+                    if was_pressed && !pressed {
+                        self.slint_window.dispatch_event(WindowEvent::KeyReleased { text: text.into() });
+                    }
+                }
+
+                *my_modifiers = *modifiers;
+
                 EventResponse::Handled
             },
 
