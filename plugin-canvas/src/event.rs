@@ -12,11 +12,13 @@ pub enum Event {
     Draw,
 
     KeyDown {
-        text: String,
+        key_code: keyboard_types::Code,
+        text: Option<String>,
     },
 
     KeyUp {
-        text: String,
+        key_code: keyboard_types::Code,
+        text: Option<String>,
     },
 
     KeyboardModifiers {

@@ -8,7 +8,7 @@ use uuid::Uuid;
 
 use crate::{drag_drop::{DropData, DropOperation}, event::EventResponse, keyboard::KeyboardModifiers, Event, LogicalPosition, MouseButton};
 
-use super::window::OsWindow;
+use super::{keyboard::key_event_to_keyboard_type_code, window::OsWindow};
 
 pub struct OsWindowView {
     superclass: NSView,
@@ -124,23 +124,13 @@ impl OsWindowView {
         }
     }
 
-    fn key_event_text(&self, event: *const NSEvent) -> String {
+    fn key_event_text(&self, event: *const NSEvent) -> Option<String> {
         assert!(!event.is_null());
-
-        let characters = unsafe {
-            match (*event).characters() {
-                Some(characters) => characters.to_string(),
-                None => "".to_string(),
-            }
-        };
-
-        // Do some manual mapping to get Backspace and Delete working correctly
-        // Is there a more "proper" solution for this?
-        // TODO
-        match characters.as_str() {
-            "\u{7f}" => "\u{8}".to_string(),
-            "\u{f728}" => "\u{7f}".to_string(),
-            _ => characters
+        
+        unsafe {
+            (*event)
+                .characters()
+                .map(|characters| characters.to_string())
         }
     }
 
@@ -283,13 +273,12 @@ impl OsWindowView {
     }
 
     unsafe extern "C" fn key_down(&self, _cmd: Sel, event: *const NSEvent) {
-        let mut text = self.key_event_text(event);
-        if text == "\r" {
-            text = "\u{000a}".to_string();
-        }
+        let code = unsafe { (*event).keyCode() };
+        let text = self.key_event_text(event); 
 
         self.send_event(
             Event::KeyDown {
+                key_code: key_event_to_keyboard_type_code(code),
                 text,
             }
         );
@@ -300,9 +289,13 @@ impl OsWindowView {
     }
 
     unsafe extern "C" fn key_up(&self, _cmd: Sel, event: *const NSEvent) {
+        let code = unsafe { (*event).keyCode() };
+        let text = self.key_event_text(event); 
+
         self.send_event(
             Event::KeyUp {
-                text: self.key_event_text(event),
+                key_code: key_event_to_keyboard_type_code(code),
+                text,
             }
         );
 

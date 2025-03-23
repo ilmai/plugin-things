@@ -6,6 +6,7 @@ use std::sync::atomic::{AtomicBool, Ordering, AtomicUsize};
 use cursor_icon::CursorIcon;
 use i_slint_core::{window::{WindowAdapter, WindowAdapterInternal}, renderer::Renderer, platform::{PlatformError, WindowEvent}};
 use i_slint_renderer_skia::SkiaRenderer;
+use keyboard_types::Code;
 use plugin_canvas::keyboard::KeyboardModifiers;
 use plugin_canvas::{event::EventResponse, LogicalSize};
 use portable_atomic::AtomicF64;
@@ -121,15 +122,19 @@ impl PluginCanvasWindowAdapter {
                 EventResponse::Handled
             },
 
-            plugin_canvas::Event::KeyDown { text } => {
-                let text = text.into();
-                self.slint_window.dispatch_event(WindowEvent::KeyPressed { text });
+            plugin_canvas::Event::KeyDown { key_code, text } => {
+                if let Some(text) = Self::convert_key(*key_code, text) {
+                    self.slint_window.dispatch_event(WindowEvent::KeyPressed { text: text.into() });
+                }
+
                 EventResponse::Handled
             },
 
-            plugin_canvas::Event::KeyUp { text } => {
-                let text = text.into();
-                self.slint_window.dispatch_event(WindowEvent::KeyReleased { text });
+            plugin_canvas::Event::KeyUp { key_code, text } => {
+                if let Some(text) = Self::convert_key(*key_code, text) {
+                    self.slint_window.dispatch_event(WindowEvent::KeyReleased { text: text.into() });
+                }
+
                 EventResponse::Handled
             },
 
@@ -262,6 +267,17 @@ impl PluginCanvasWindowAdapter {
             plugin_canvas::MouseButton::Left => i_slint_core::platform::PointerEventButton::Left,
             plugin_canvas::MouseButton::Right => i_slint_core::platform::PointerEventButton::Right,
             plugin_canvas::MouseButton::Middle => i_slint_core::platform::PointerEventButton::Middle,
+        }
+    }
+
+    fn convert_key(key_code: Code, text: &Option<String>) -> Option<String> {
+        // Slint is using the deprecate keyCode standard, we'll have to convert some control keys
+        // to its text representation
+        match key_code {
+            Code::Backspace => Some("\u{0008}".into()),
+            Code::Delete => Some("\u{007F}".into()),
+            Code::Enter => Some("\u{000A}".into()),
+            _ => text.clone()
         }
     }
 

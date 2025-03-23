@@ -13,6 +13,7 @@ cursor-icon.workspace = true
 i-slint-common.workspace = true
 i-slint-core.workspace = true
 i-slint-renderer-skia.workspace = true
+keyboard-types.workspace = true
 log.workspace = true
 plugin-canvas.workspace = true
 portable-atomic.workspace = true
