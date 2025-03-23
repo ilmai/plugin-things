@@ -275,8 +275,12 @@ impl PluginCanvasWindowAdapter {
         // to its text representation
         match key_code {
             Code::Backspace => Some("\u{0008}".into()),
-            Code::Delete => Some("\u{007F}".into()),
             Code::Enter => Some("\u{000A}".into()),
+            Code::Delete => Some("\u{007F}".into()),
+            Code::ArrowUp => Some("\u{F700}".into()),
+            Code::ArrowDown => Some("\u{F701}".into()),
+            Code::ArrowLeft => Some("\u{F702}".into()),
+            Code::ArrowRight => Some("\u{F703}".into()),
             _ => text.clone()
         }
     }

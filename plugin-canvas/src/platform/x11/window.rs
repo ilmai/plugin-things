@@ -7,6 +7,8 @@ use xkbcommon::xkb;
 
 use crate::{dimensions::Size, error::Error, event::{EventCallback, EventResponse}, platform::{interface::OsWindowInterface, os_window_handle::OsWindowHandle}, window::WindowAttributes, Event, MouseButton, PhysicalPosition};
 
+use super::keyboard::x11_to_keyboard_types_code;
+
 pub struct OsWindow {
     window_attributes: WindowAttributes,
     event_callback: Box<EventCallback>,
@@ -67,52 +69,54 @@ impl OsWindow {
             }
 
             x11rb::protocol::Event::KeyPress(event) => {
-                let keycode = xkb::Keycode::new(event.detail as u32);
-                let mut text = String::new();
+                let x11_keycode = xkb::Keycode::new(event.detail as u32);
+                let keycode = x11_to_keyboard_types_code(x11_keycode.raw());
+
+                let mut sent_event_with_text = false;
 
                 let mut xkb_state = self.xkb_state.borrow_mut();
                 let mut xkb_compose_state = self.xkb_compose_state.borrow_mut();
 
-                if let Some(text) = match xkb_state.get_keymap().key_get_name(keycode) {
-                    Some("UP") => Some("\u{f700}"),
-                    Some("DOWN") => Some("\u{f701}"),
-                    Some("LEFT") => Some("\u{f702}"),
-                    Some("RGHT") => Some("\u{f703}"),
-                    _ => None,
-                } {
-                    let text = text.to_string();
-                    self.send_event(Event::KeyDown { text });
-                }
-
-                for keysym in xkb_state.key_get_syms(keycode) {
+                for keysym in xkb_state.key_get_syms(x11_keycode) {
                     xkb_compose_state.feed(*keysym);
+
                     if xkb_compose_state.status() == xkb::Status::Composed {
-                        // We're assuming here that a single key press can only generate one piece of text, is this true?
-                        text = xkb_compose_state.utf8().unwrap();
+                        if let Some(text) = xkb_compose_state.utf8() {
+                            self.send_event(Event::KeyDown {
+                                key_code: keycode,
+                                text: Some(text),
+                            });
+    
+                            sent_event_with_text = true;
+                        }
                     }
                 }
 
-                if text.is_empty() {
-                    text = xkb_state.key_get_utf8(keycode);
-                }
+                xkb_state.update_key(x11_keycode, xkb::KeyDirection::Down);
 
-                xkb_state.update_key(keycode, xkb::KeyDirection::Down);
+                if !sent_event_with_text {
+                    let text = xkb_state.key_get_utf8(x11_keycode);
 
-                if !text.is_empty() {
-                    self.send_event(Event::KeyDown { text });
+                    self.send_event(Event::KeyDown {
+                        key_code: keycode,
+                        text: Some(text),
+                    });
                 }
             }
 
             x11rb::protocol::Event::KeyRelease(event) => {
-                let keycode = xkb::Keycode::new(event.detail as u32);
+                let x11_keycode = xkb::Keycode::new(event.detail as u32);
+                let key_code = x11_to_keyboard_types_code(x11_keycode.raw());
+
                 let mut xkb_state = self.xkb_state.borrow_mut();
 
-                let text = xkb_state.key_get_utf8(keycode);
-                xkb_state.update_key(keycode, xkb::KeyDirection::Up);
+                let text = xkb_state.key_get_utf8(x11_keycode);
+                xkb_state.update_key(x11_keycode, xkb::KeyDirection::Up);
                 
-                if !text.is_empty() {
-                    self.send_event(Event::KeyUp { text });
-                }
+                self.send_event(Event::KeyUp {
+                    key_code,
+                    text: Some(text),
+                });
             }
 
             x11rb::protocol::Event::LeaveNotify(_) => {
