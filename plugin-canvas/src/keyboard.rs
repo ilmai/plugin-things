@@ -1,7 +1,7 @@
 use bitflags::bitflags;
 
 bitflags! {
-    #[derive(Clone, Copy, Debug, PartialEq)]
+    #[derive(Clone, Copy, Debug, Default, PartialEq)]
     pub struct KeyboardModifiers: u32 {
         const Alt       = 0b0001;
         const Control   = 0b0010;

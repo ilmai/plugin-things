@@ -1,4 +1,4 @@
-use std::{ffi::{c_void, CString}, ops::{Deref, DerefMut}, path::PathBuf, rc::Weak, str::FromStr, sync::atomic::{AtomicPtr, AtomicU8, AtomicUsize, Ordering}};
+use std::{cell::RefCell, ffi::{c_void, CString}, ops::{Deref, DerefMut}, path::PathBuf, rc::Weak, str::FromStr, sync::atomic::{AtomicPtr, AtomicU8, AtomicUsize, Ordering}};
 
 use objc2::{declare::ClassBuilder, msg_send, runtime::{AnyClass, Bool}, sel, ClassType, Encode, Encoding, Message, RefEncode};
 use objc2::runtime::{Sel, ProtocolObject};
@@ -17,6 +17,7 @@ pub struct OsWindowView {
 struct Context {
     os_window_ptr: AtomicPtr<OsWindow>,
     input_focus: AtomicU8,
+    keyboard_modifiers: RefCell<KeyboardModifiers>,
 }
 
 unsafe impl Encode for Context {
@@ -136,7 +137,7 @@ impl OsWindowView {
 
     fn handle_modifier_event(&self, event: *const NSEvent) {
         let event_flags = unsafe { (*event).modifierFlags() };
-        let mut modifiers = KeyboardModifiers::empty();
+        let mut new_modifiers = KeyboardModifiers::empty();
 
         for (flag, modifier) in [
             (NSEventModifierFlags::Command, KeyboardModifiers::Meta),
@@ -145,14 +146,23 @@ impl OsWindowView {
             (NSEventModifierFlags::Shift, KeyboardModifiers::Shift),
         ] {
             if !(event_flags & flag).is_empty() {
-                modifiers.set(modifier, true);
+                new_modifiers.set(modifier, true);
             }
         }
 
-        self.send_event(Event::KeyboardModifiers { modifiers });
+        self.with_context(|context| {
+            let mut modifiers = context.keyboard_modifiers.borrow_mut();
+            if new_modifiers != *modifiers {
+                *modifiers = new_modifiers;
+            }
+
+            self.send_event(Event::KeyboardModifiers { modifiers: new_modifiers });
+        });
     }
     
     fn handle_mouse_move_event(&self, event: *const NSEvent) {
+        self.handle_modifier_event(event);
+
         self.send_event(
             Event::MouseMoved {
                 position: self.mouse_event_position(event)
@@ -161,6 +171,8 @@ impl OsWindowView {
     }
 
     fn handle_mouse_button_down_event(&self, event: *const NSEvent) {
+        self.handle_modifier_event(event);
+
         if let Some(button) = self.mouse_event_button(event) {
             self.send_event(
                 Event::MouseButtonDown {
@@ -172,6 +184,8 @@ impl OsWindowView {
     }
 
     fn handle_mouse_button_up_event(&self, event: *const NSEvent) {
+        self.handle_modifier_event(event);
+
         if let Some(button) = self.mouse_event_button(event) {
             self.send_event(
                 Event::MouseButtonUp {

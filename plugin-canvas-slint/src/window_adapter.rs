@@ -70,7 +70,7 @@ impl PluginCanvasWindowAdapter {
                 buttons_down: Default::default(),
                 pending_mouse_exit: Default::default(),
 
-                modifiers: KeyboardModifiers::empty().into(),
+                modifiers: Default::default(),
             }
         });
 
