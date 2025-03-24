@@ -6,7 +6,7 @@ use windows_core::BOOL;
 
 use crate::error::Error;
 
-use super::{to_wstr, PLUGIN_HINSTANCE, WM_USER_KEY_DOWN, key_codes::virtual_key_to_char, WM_USER_KEY_UP};
+use super::{keyboard::virtual_key_to_keycode, to_wstr, PLUGIN_HINSTANCE, WM_USER_CHAR, WM_USER_KEY_DOWN, WM_USER_KEY_UP};
 
 pub struct MessageWindow {
     hwnd: usize,
@@ -112,22 +112,20 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
 
     match msg {
         WM_CHAR => {
-            unsafe { PostMessageW(Some(main_window_hwnd), WM_USER_KEY_DOWN, wparam, lparam).unwrap() };
+            unsafe { PostMessageW(Some(main_window_hwnd), WM_USER_CHAR, wparam, lparam).unwrap() };
             LRESULT(0)
         },
 
         WM_KEYDOWN => {
-            if let Some(character) = virtual_key_to_char(VIRTUAL_KEY(wparam.0 as u16)) {
-                unsafe { PostMessageW(Some(main_window_hwnd), WM_USER_KEY_DOWN, WPARAM(character), LPARAM(0)).unwrap() };
-            }
+            let keycode = virtual_key_to_keycode(VIRTUAL_KEY(wparam.0 as _));
+            unsafe { PostMessageW(Some(main_window_hwnd), WM_USER_KEY_DOWN, WPARAM(keycode as _), LPARAM(0)).unwrap() };
             
             LRESULT(0)
         }
 
         WM_KEYUP => {
-            if let Some(character) = virtual_key_to_char(VIRTUAL_KEY(wparam.0 as u16)) {
-                unsafe { PostMessageW(Some(main_window_hwnd), WM_USER_KEY_UP, WPARAM(character), LPARAM(0)).unwrap() };
-            }
+            let keycode = virtual_key_to_keycode(VIRTUAL_KEY(wparam.0 as _));
+            unsafe { PostMessageW(Some(main_window_hwnd), WM_USER_KEY_UP, WPARAM(keycode as _), LPARAM(0)).unwrap() };
             
             LRESULT(0)
         }

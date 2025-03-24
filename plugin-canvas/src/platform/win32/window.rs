@@ -1,17 +1,18 @@
-use std::{cell::RefCell, collections::HashMap, ffi::OsString, mem::{self, size_of}, num::NonZeroIsize, os::windows::prelude::OsStringExt, ptr::{null, null_mut}, rc::{Rc, Weak}, sync::{atomic::{AtomicBool, AtomicUsize, Ordering}, Arc}, time::Duration};
+use std::{cell::RefCell, ffi::OsString, mem::{self, size_of, transmute}, num::NonZeroIsize, os::windows::prelude::OsStringExt, ptr::{null, null_mut}, rc::{Rc, Weak}, sync::{atomic::{AtomicBool, AtomicUsize, Ordering}, Arc}, time::Duration};
 
 use cursor_icon::CursorIcon;
+use keyboard_types::Code;
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle, RawWindowHandle, Win32WindowHandle};
 use uuid::Uuid;
-use windows::core::PCWSTR;
+use windows::{core::PCWSTR, Win32::UI::Input::KeyboardAndMouse::{VK_LWIN, VK_RWIN}};
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, WPARAM};
 use windows::Win32::Graphics::{Dwm::{DwmFlush, DwmIsCompositionEnabled}, Dxgi::{CreateDXGIFactory, IDXGIFactory, IDXGIOutput}, Gdi::{ClientToScreen, MonitorFromWindow, ScreenToClient, HBRUSH, MONITOR_DEFAULTTOPRIMARY}};
 use windows::Win32::System::{Ole::{IDropTarget, OleInitialize, RegisterDragDrop, RevokeDragDrop}, Threading::GetCurrentThreadId};
 use windows::Win32::UI::{Controls::WM_MOUSELEAVE, Input::KeyboardAndMouse::{GetAsyncKeyState, SetCapture, TrackMouseEvent, TME_LEAVE, TRACKMOUSEEVENT, VK_CONTROL, VK_MENU, VK_SHIFT}, WindowsAndMessaging::{CallNextHookEx, CreateWindowExW, DefWindowProcW, DestroyWindow, GetWindowLongPtrW, LoadCursorW, MoveWindow, PostMessageW, RegisterClassW, SendMessageW, SetCursor, SetCursorPos, SetWindowLongPtrW, SetWindowsHookExW, ShowCursor, UnhookWindowsHookEx, UnregisterClassW, CS_OWNDC, GWLP_USERDATA, HHOOK, HICON, IDC_ARROW, MOUSEHOOKSTRUCTEX, WH_MOUSE, WINDOW_EX_STYLE, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEMOVE, WM_MOUSEWHEEL, WM_MOVE, WM_RBUTTONDOWN, WM_RBUTTONUP, WNDCLASSW, WS_CHILD, WS_VISIBLE}};
 
-use crate::{dimensions::Size, error::Error, event::{Event, EventCallback, EventResponse, MouseButton}, platform::{interface::OsWindowInterface, os_window_handle::OsWindowHandle}, window::WindowAttributes, LogicalPosition, LogicalSize, PhysicalPosition};
+use crate::{dimensions::Size, error::Error, event::{Event, EventCallback, EventResponse, MouseButton}, keyboard::KeyboardModifiers, platform::{interface::OsWindowInterface, os_window_handle::OsWindowHandle}, window::WindowAttributes, LogicalPosition, LogicalSize, PhysicalPosition};
 
-use super::{cursors::Cursors, drop_target::DropTarget, key_codes::MODIFIERS, message_window::MessageWindow, to_wstr, version::is_windows10_or_greater, PLUGIN_HINSTANCE, WM_USER_FRAME_TIMER, WM_USER_KEY_DOWN, WM_USER_KEY_UP};
+use super::{cursors::Cursors, drop_target::DropTarget, message_window::MessageWindow, to_wstr, version::is_windows10_or_greater, PLUGIN_HINSTANCE, WM_USER_CHAR, WM_USER_FRAME_TIMER, WM_USER_KEY_DOWN, WM_USER_KEY_UP};
 
 pub struct OsWindow {
     window_class: u16,
@@ -27,7 +28,7 @@ pub struct OsWindow {
     running: Arc<AtomicBool>,
     moved: Arc<AtomicBool>,
 
-    modifier_pressed: RefCell<HashMap<u16, bool>>,
+    keyboard_modifiers: RefCell<KeyboardModifiers>,
 }
 
 impl OsWindow {
@@ -62,6 +63,27 @@ impl OsWindow {
             x: (lparam.0 & 0xFFFF) as i16 as i32,
             y: ((lparam.0 >> 16) & 0xFFFF) as i16 as i32,
         }.to_logical(scale)
+    }
+
+    fn update_modifiers(&self) {
+        let mut new_modifiers = KeyboardModifiers::empty();
+
+        for (key, modifier) in [
+            (VK_MENU, KeyboardModifiers::Alt),
+            (VK_CONTROL, KeyboardModifiers::Control),
+            (VK_LWIN, KeyboardModifiers::Meta),
+            (VK_RWIN, KeyboardModifiers::Meta),
+            (VK_SHIFT, KeyboardModifiers::Shift),
+        ] {
+            let pressed = unsafe { GetAsyncKeyState(key.0 as _) } != 0;
+            new_modifiers.set(modifier, pressed);
+        }
+
+        let mut modifiers = self.keyboard_modifiers.borrow_mut();
+        if new_modifiers != *modifiers {
+            *modifiers = new_modifiers;
+            self.send_event(Event::KeyboardModifiers { modifiers: new_modifiers });
+        }
     }
 }
 
@@ -152,11 +174,6 @@ impl OsWindowInterface for OsWindow {
             move || message_window.run(running)
         });
 
-        let modifier_pressed = RefCell::new([VK_SHIFT, VK_CONTROL, VK_MENU]
-            .iter()
-            .map(|key| (key.0, false))
-            .collect());
-
         let window = Rc::new(Self {
             window_class,
             window_handle,
@@ -171,7 +188,7 @@ impl OsWindowInterface for OsWindow {
             running,
             moved,
 
-            modifier_pressed,
+            keyboard_modifiers: Default::default(),
         });
 
         let drop_target: Box<IDropTarget> = Box::new(DropTarget::new(Rc::downgrade(&window)).into());
@@ -308,31 +325,37 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
     let result = if let Some(window) = window_weak.upgrade() {
         match msg {
             WM_LBUTTONDOWN => {
+                window.update_modifiers();
                 window.button_down(MouseButton::Left, window.logical_mouse_position(lparam));
                 LRESULT(0)
             },
     
             WM_LBUTTONUP => {
+                window.update_modifiers();
                 window.button_up(MouseButton::Left, window.logical_mouse_position(lparam));
                 LRESULT(0)
             },
     
             WM_MBUTTONDOWN => {
+                window.update_modifiers();
                 window.button_down(MouseButton::Middle, window.logical_mouse_position(lparam));
                 LRESULT(0)
             },
     
             WM_MBUTTONUP => {
+                window.update_modifiers();
                 window.button_up(MouseButton::Middle, window.logical_mouse_position(lparam));
                 LRESULT(0)
             },
     
             WM_RBUTTONDOWN => {
+                window.update_modifiers();
                 window.button_down(MouseButton::Right, window.logical_mouse_position(lparam));
                 LRESULT(0)
             },
     
             WM_RBUTTONUP => {
+                window.update_modifiers();
                 window.button_up(MouseButton::Right, window.logical_mouse_position(lparam));
                 LRESULT(0)
             },
@@ -348,11 +371,14 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
             },
     
             WM_MOUSEMOVE => {
+                window.update_modifiers();
                 window.send_event(Event::MouseMoved { position: window.logical_mouse_position(lparam) });
                 LRESULT(0)
             },
     
             WM_MOUSEWHEEL => {
+                window.update_modifiers();
+
                 let wheel_delta: i16 = unsafe { mem::transmute((wparam.0 >> 16) as u16) };
                 let x: i16 = unsafe { mem::transmute(((lparam.0 as usize) & 0xFFFF) as u16) };
                 let y: i16 = unsafe { mem::transmute(((lparam.0 as usize) >> 16) as u16) };
@@ -370,41 +396,39 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                 LRESULT(0)
             },
     
-            WM_USER_KEY_DOWN => {
+            WM_USER_CHAR => {
                 let string = OsString::from_wide(&[wparam.0 as _]);
-                window.send_event(Event::KeyDown { text: string.to_string_lossy().to_string() });
+                
+                window.send_event(Event::KeyDown {
+                    key_code: Code::Unidentified,
+                    text: Some(string.to_string_lossy().to_string()),
+                });
+
+                LRESULT(0)
+            },
+    
+            WM_USER_KEY_DOWN => {
+                window.send_event(Event::KeyDown {
+                    key_code: unsafe { transmute::<u8, keyboard_types::Code>(wparam.0 as u8) },
+                    text: None,
+                });
+
                 LRESULT(0)
             },
     
             WM_USER_KEY_UP => {
-                let string = OsString::from_wide(&[wparam.0 as _]);
-                window.send_event(Event::KeyUp { text: string.to_string_lossy().to_string() });
+                window.send_event(Event::KeyUp {
+                    key_code: unsafe { transmute::<u8, keyboard_types::Code>(wparam.0 as u8) },
+                    text: None,
+                });
+
                 LRESULT(0)
             },
-    
-            WM_USER_FRAME_TIMER => {
-                // Check modifiers
-                for &key in MODIFIERS.iter() {
-                    let mut modifier_pressed = window.modifier_pressed.borrow_mut();
 
-                    let pressed = unsafe { GetAsyncKeyState(key.0 as _) } != 0;
-                    let was_pressed = modifier_pressed[&key.0];
-                    
-                    if pressed != was_pressed {
-                        modifier_pressed.insert(key.0, pressed);
-    
-                        let string = OsString::from_wide(&[key.0 as _]);
-                        let text = string.to_string_lossy().to_string();
-    
-                        if pressed {
-                            window.send_event(Event::KeyDown { text });
-                        } else {
-                            window.send_event(Event::KeyUp { text });
-                        }
-                    }
-                }
-    
+            WM_USER_FRAME_TIMER => {
+                window.update_modifiers();
                 window.send_event(Event::Draw);
+
                 LRESULT(0)
             },
     
