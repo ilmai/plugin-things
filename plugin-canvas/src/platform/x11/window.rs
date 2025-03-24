@@ -3,7 +3,7 @@ use std::{cell::RefCell, ffi::OsStr, ptr::NonNull};
 use keyboard_types::Code;
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle, RawDisplayHandle, RawWindowHandle, XlibDisplayHandle, XlibWindowHandle};
 use sys_locale::get_locales;
-use x11rb::{connection::Connection, protocol::xproto::{ConfigureWindowAux, ConnectionExt, CreateWindowAux, EventMask, GrabMode, WindowClass}, xcb_ffi::XCBConnection, COPY_DEPTH_FROM_PARENT, COPY_FROM_PARENT};
+use x11rb::{connection::Connection, protocol::xproto::{ConfigureWindowAux, ConnectionExt, CreateWindowAux, EventMask, GrabMode, KeyButMask, WindowClass}, xcb_ffi::XCBConnection, COPY_DEPTH_FROM_PARENT, COPY_FROM_PARENT};
 use xkbcommon::xkb;
 
 use crate::{dimensions::Size, error::Error, event::{EventCallback, EventResponse}, keyboard::KeyboardModifiers, platform::{interface::OsWindowInterface, os_window_handle::OsWindowHandle}, window::WindowAttributes, Event, MouseButton, PhysicalPosition};
@@ -32,6 +32,8 @@ impl OsWindow {
     fn handle_event(&self, event: x11rb::protocol::Event) -> Result<(), Error> {
         match event {
             x11rb::protocol::Event::ButtonPress(event) => {
+                self.update_modifiers_from_mask(event.state);
+
                 let position = PhysicalPosition {
                     x: event.event_x as i32,
                     y: event.event_y as i32,
@@ -58,6 +60,8 @@ impl OsWindow {
             }
 
             x11rb::protocol::Event::ButtonRelease(event) => {
+                self.update_modifiers_from_mask(event.state);
+
                 let position = PhysicalPosition {
                     x: event.event_x as i32,
                     y: event.event_y as i32,
@@ -75,7 +79,7 @@ impl OsWindow {
                 let x11_keycode = xkb::Keycode::new(event.detail as u32);
                 let keycode = x11_to_keyboard_types_code(x11_keycode.raw());
 
-                self.update_modifiers(keycode, true);
+                self.update_modifiers_from_keycode(keycode, true);
 
                 let mut sent_event_with_text = false;
 
@@ -115,7 +119,7 @@ impl OsWindow {
                 let x11_keycode = xkb::Keycode::new(event.detail as u32);
                 let keycode = x11_to_keyboard_types_code(x11_keycode.raw());
 
-                self.update_modifiers(keycode, false);
+                self.update_modifiers_from_keycode(keycode, false);
 
                 // Send key up event
                 let mut xkb_state = self.xkb_state.borrow_mut();
@@ -134,6 +138,8 @@ impl OsWindow {
             }
 
             x11rb::protocol::Event::MotionNotify(event) => {
+                self.update_modifiers_from_mask(event.state);
+
                 let position = PhysicalPosition {
                     x: event.event_x as i32,
                     y: event.event_y as i32,
@@ -157,7 +163,7 @@ impl OsWindow {
         }
     }
 
-    fn update_modifiers(&self, keycode: Code, down: bool) {
+    fn update_modifiers_from_keycode(&self, keycode: Code, down: bool) {
         let mut modifiers = self.keyboard_modifiers.borrow_mut();
         let mut new_modifiers = *modifiers;
 
@@ -168,6 +174,21 @@ impl OsWindow {
             Code::ShiftLeft | Code::ShiftRight => { new_modifiers.set(KeyboardModifiers::Shift, down); }
             _ => {}
         }
+
+        if new_modifiers != *modifiers {
+            *modifiers = new_modifiers;
+
+            self.send_event(Event::KeyboardModifiers { modifiers: new_modifiers });
+        }
+    }
+
+    fn update_modifiers_from_mask(&self, mask: KeyButMask) {
+        let mut modifiers = self.keyboard_modifiers.borrow_mut();
+        let mut new_modifiers = *modifiers;
+
+        new_modifiers.set(KeyboardModifiers::Alt, mask.contains(KeyButMask::MOD1));
+        new_modifiers.set(KeyboardModifiers::Control, mask.contains(KeyButMask::CONTROL));
+        new_modifiers.set(KeyboardModifiers::Shift, mask.contains(KeyButMask::SHIFT));
 
         if new_modifiers != *modifiers {
             *modifiers = new_modifiers;
