@@ -110,8 +110,12 @@ impl PluginCanvasWindowAdapter {
 
         match event {
             plugin_canvas::Event::Draw => {
-                // TODO: Error handling
-                self.plugin_canvas_window.poll_events().unwrap();
+                match self.plugin_canvas_window.poll_events() {
+                    Ok(_) => {},
+                    Err(e) => {
+                        log::error!("Error polling events: {e:?}");
+                    }
+                }
 
                 i_slint_core::platform::update_timers_and_animations();
                 
