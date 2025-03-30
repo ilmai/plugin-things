@@ -1,6 +1,8 @@
 use std::any::Any;
 
-use super::{error::Error, info::ParameterInfo, ParameterValue};
+use crate::error::Error;
+
+use super::{info::ParameterInfo, ParameterValue};
 
 pub trait Parameter : Any + Send + Sync {
     fn info(&self) -> &ParameterInfo;

@@ -1,7 +1,8 @@
 use std::collections::HashMap;
-use std::io::{Read, Result, Write};
+use std::io::{Read, Write};
 use std::rc::Rc;
 
+use plinth_plugin::error::Error;
 use plinth_plugin::{export_clap, export_vst3, Event, Host, HostInfo, Parameters, Plugin, ProcessorConfig};
 use plinth_plugin::clap::ClapPlugin;
 use plinth_plugin::vst3::Vst3Plugin;
@@ -43,18 +44,22 @@ impl Plugin for GainPlugin {
         GainPluginEditor::new(host, self.parameters.clone())
     }
 
-    fn save_state(&self, writer: &mut impl Write) -> Result<()> {        
+    fn save_state(&self, writer: &mut impl Write) -> Result<(), Error> {        
         let serialized_parameters: HashMap<_, _> = self.parameters.serialize().collect();
-        let parameters_json = serde_json::to_string(&serialized_parameters)?;
-        write!(writer, "{parameters_json}")
+        let parameters_json = serde_json::to_string(&serialized_parameters)
+            .map_err(|_| Error::SerializationError)?;
+        write!(writer, "{parameters_json}")?;
+
+        Ok(())
     }
 
-    fn load_state(&mut self, reader: &mut impl Read) -> Result<()> {
+    fn load_state(&mut self, reader: &mut impl Read) -> Result<(), Error> {
         let mut parameters_json = String::new();
         reader.read_to_string(&mut parameters_json)?;
 
-        let serialized_parameters: HashMap<_, _> = serde_json::from_str(&parameters_json)?;
-        self.parameters.deserialize(serialized_parameters);
+        let serialized_parameters: HashMap<_, _> = serde_json::from_str(&parameters_json)
+            .map_err(|_| Error::SerializationError)?;
+        self.parameters.deserialize(serialized_parameters)?;
 
         Ok(())
     }

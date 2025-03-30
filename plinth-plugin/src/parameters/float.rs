@@ -2,9 +2,10 @@ use std::{any::Any, fmt::Display, sync::Arc};
 
 use portable_atomic::{AtomicF64, Ordering};
 
+use crate::error::Error;
 use crate::{Parameter, ParameterId};
 
-use super::{error::Error, formatter::ParameterFormatter, info::ParameterInfo, parameter::ParameterPlain, range::ParameterRange, ModulationChangedCallback, ParameterValue};
+use super::{formatter::ParameterFormatter, info::ParameterInfo, parameter::ParameterPlain, range::ParameterRange, ModulationChangedCallback, ParameterValue};
 
 pub const DEFAULT_PRECISION: usize = 2;
 

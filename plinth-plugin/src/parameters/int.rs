@@ -2,9 +2,9 @@ use std::{any::Any, fmt::Display, sync::{atomic::AtomicI64, Arc}};
 
 use portable_atomic::{AtomicF64, Ordering};
 
-use crate::ParameterId;
+use crate::{error::Error, ParameterId};
 
-use super::{error::Error, formatter::ParameterFormatter, info::ParameterInfo, parameter::{Parameter, ParameterPlain}, range::ParameterRange, ModulationChangedCallback, ParameterValue};
+use super::{formatter::ParameterFormatter, info::ParameterInfo, parameter::{Parameter, ParameterPlain}, range::ParameterRange, ModulationChangedCallback, ParameterValue};
 
 pub type ValueChangedCallback = Arc<dyn Fn(ParameterId, i64) + Send + Sync>;
 

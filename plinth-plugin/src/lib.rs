@@ -25,6 +25,7 @@ pub use raw_window_handle;
 pub use xxhash_rust;
 
 mod editor;
+pub mod error;
 mod event;
 mod host;
 mod formats;

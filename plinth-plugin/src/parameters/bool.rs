@@ -2,9 +2,9 @@ use std::{any::Any, fmt::Display, sync::{atomic::AtomicBool, Arc}};
 
 use portable_atomic::{AtomicF64, Ordering};
 
-use crate::{Parameter, ParameterFormatter, ParameterId, ParameterValue};
+use crate::{error::Error, Parameter, ParameterFormatter, ParameterId, ParameterValue};
 
-use super::{error::Error, info::ParameterInfo, parameter::ParameterPlain, ModulationChangedCallback};
+use super::{info::ParameterInfo, parameter::ParameterPlain, ModulationChangedCallback};
 
 const DEFAULT_FALSE_STRING: &str = "False";
 const DEFAULT_TRUE_STRING: &str = "True";

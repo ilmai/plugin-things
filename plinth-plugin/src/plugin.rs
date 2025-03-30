@@ -1,6 +1,6 @@
 use std::{io::{Read, Write}, rc::Rc};
 
-use crate::{host::HostInfo, processor::ProcessorConfig, Editor, Event, Host, Parameters, Processor};
+use crate::{error::Error, host::HostInfo, processor::ProcessorConfig, Editor, Event, Host, Parameters, Processor};
 
 pub trait Plugin {
     const NAME: &'static str;
@@ -25,8 +25,8 @@ pub trait Plugin {
     fn create_processor(&mut self, config: ProcessorConfig) -> Self::Processor;
     fn create_editor(&mut self, host: Rc<dyn Host>) -> Self::Editor;
 
-    fn save_state(&self, writer: &mut impl Write) -> std::io::Result<()>;
-    fn load_state(&mut self, reader: &mut impl Read) -> std::io::Result<()>;
+    fn save_state(&self, writer: &mut impl Write) -> Result<(), Error>;
+    fn load_state(&mut self, reader: &mut impl Read) -> Result<(), Error>;
 
     fn latency(&self) -> u32 {
         0

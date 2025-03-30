@@ -1,6 +1,5 @@
 pub mod bool;
 pub mod enums;
-pub mod error;
 pub mod float;
 pub mod formatter;
 pub mod group;
@@ -11,7 +10,6 @@ pub mod map;
 pub mod parameter;
 pub mod range;
 
-pub use error::Error;
 pub type ParameterId = u32;
 pub type ParameterValue = f64;
 
@@ -21,6 +19,7 @@ use std::{collections::HashSet, sync::Arc};
 
 use parameter::{Parameter, ParameterPlain};
 
+use crate::error::Error;
 use crate::Event;
 
 pub fn has_duplicates(ids: &[ParameterId]) -> bool {
@@ -79,13 +78,20 @@ pub trait Parameters {
             })
     }
 
-    fn deserialize(&self, parameters: impl IntoIterator<Item = (ParameterId, ParameterValue)>) {
+    fn deserialize(&self, parameters: impl IntoIterator<Item = (ParameterId, ParameterValue)>) -> Result<(), Error> {
         self.reset();
 
         for (id, value) in parameters.into_iter() {
-            // TODO: Error handling
-            let parameter = self.get(id).unwrap();
-            parameter.deserialize_value(value).unwrap();
+            let parameter = match self.get(id) {
+                Some(id) => id,
+                None => {
+                    return Err(Error::ParameterIdError);
+                },
+            };
+
+            parameter.deserialize_value(value)?;
         }
+
+        Ok(())
     }
 }

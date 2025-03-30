@@ -2,9 +2,9 @@ use std::{any::Any, fmt::Display, sync::{atomic::AtomicUsize, Arc}};
 
 use portable_atomic::{AtomicF64, Ordering};
 
-use crate::ParameterId;
+use crate::{error::Error, ParameterId};
 
-use super::{error::Error, info::ParameterInfo, parameter::{Parameter, ParameterPlain}, range::ParameterRange, ModulationChangedCallback, ParameterValue};
+use super::{info::ParameterInfo, parameter::{Parameter, ParameterPlain}, range::ParameterRange, ModulationChangedCallback, ParameterValue};
 
 pub type ValueChangedCallback<T> = Arc<dyn Fn(ParameterId, T) + Send + Sync>;
 
@@ -155,7 +155,7 @@ impl<T: Enum> Parameter for EnumParameter<T> {
 
     fn deserialize_value(&self, value: ParameterValue) -> Result<(), Error> {
         if T::from_usize(value.round() as _).is_none() {
-            return Err(Error::RangeError);
+            return Err(Error::ParameterRangeError);
         }
 
         self.value.store(value.round() as usize, Ordering::Release);
