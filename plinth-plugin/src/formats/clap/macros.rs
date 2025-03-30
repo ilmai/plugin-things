@@ -30,7 +30,7 @@ macro_rules! export_clap {
                 },
         
                 None => {
-                    // TODO: Add warning about extra deinit call
+                    ::plinth_plugin::log::warn!("deinit() called more than once");
                     panic!();
                 },
             }
