@@ -35,7 +35,7 @@ impl Plugin for GainPlugin {
         self.parameters.process_event(event);
     }
 
-    fn create_processor(&mut self, _config: &ProcessorConfig) -> Self::Processor {
+    fn create_processor(&mut self, _config: ProcessorConfig) -> Self::Processor {
         GainPluginProcessor::new((*self.parameters).clone())
     }
 

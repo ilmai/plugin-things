@@ -111,7 +111,7 @@ impl<P: Auv3Plugin> Auv3Wrapper<P> {
         self.sample_rate.store(sample_rate, Ordering::Release);
 
         let mut plugin = self.plugin.lock().unwrap();
-        self.processor = Some(plugin.create_processor(&processor_config));
+        self.processor = Some(plugin.create_processor(processor_config));
     }
 
     pub fn deactivate(&mut self) {

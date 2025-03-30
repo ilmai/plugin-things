@@ -22,7 +22,7 @@ pub trait Plugin {
     fn with_parameters<T>(&self, f: impl FnMut(&Self::Parameters) -> T) -> T;
     fn process_event(&mut self, event: &Event);
 
-    fn create_processor(&mut self, config: &ProcessorConfig) -> Self::Processor;
+    fn create_processor(&mut self, config: ProcessorConfig) -> Self::Processor;
     fn create_editor(&mut self, host: Rc<dyn Host>) -> Self::Editor;
 
     fn save_state(&self, writer: &mut impl Write) -> std::io::Result<()>;

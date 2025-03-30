@@ -2,7 +2,7 @@ use plinth_core::signals::signal::{Signal, SignalMut};
 
 use crate::{event::Event, transport::Transport};
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct ProcessorConfig {
     pub sample_rate: f64,
     pub min_block_size: usize,
