@@ -148,10 +148,6 @@ impl Parameter for FloatParameter {
         self.set_value(value);
         Ok(())
     }
-    
-    fn as_any(&self) -> &dyn Any {
-        self as _
-    }
 }
 
 impl ParameterPlain for FloatParameter {

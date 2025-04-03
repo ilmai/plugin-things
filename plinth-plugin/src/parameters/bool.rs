@@ -150,10 +150,6 @@ impl Parameter for BoolParameter {
     fn deserialize_value(&self, value: ParameterValue) -> Result<(), Error> {
         self.set_normalized_value(value)
     }
-    
-    fn as_any(&self) -> &dyn Any {
-        self as _
-    }
 }
 
 impl ParameterPlain for BoolParameter {

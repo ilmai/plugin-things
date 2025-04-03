@@ -163,10 +163,6 @@ impl<T: Enum> Parameter for EnumParameter<T> {
 
         Ok(())
     }
-    
-    fn as_any(&self) -> &dyn Any {
-        self as _
-    }
 }
 
 impl<T: Enum> ParameterPlain for EnumParameter<T> {

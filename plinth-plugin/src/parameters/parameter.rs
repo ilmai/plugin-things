@@ -18,8 +18,6 @@ pub trait Parameter : Any + Send + Sync {
 
     fn serialize_value(&self) -> ParameterValue;
     fn deserialize_value(&self, value: ParameterValue) -> Result<(), Error> ;
-
-    fn as_any(&self) -> &dyn Any;
 }
 
 pub trait ParameterPlain : Parameter {

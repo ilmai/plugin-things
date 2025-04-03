@@ -15,6 +15,7 @@ pub type ParameterValue = f64;
 
 pub type ModulationChangedCallback = Arc<dyn Fn(ParameterId, ParameterValue) + Send + Sync>;
 
+use std::any::Any;
 use std::{collections::HashSet, sync::Arc};
 
 use parameter::{Parameter, ParameterPlain};
@@ -34,7 +35,7 @@ pub trait Parameters {
     fn typed<T: Parameter>(&self, id: impl Into<ParameterId>) -> Option<&T> {
         self.get(id)
             .and_then(|parameter| {
-                let any_parameter = parameter.as_any();
+                let any_parameter = parameter as &dyn Any;
                 any_parameter.downcast_ref::<T>()
             })
     }

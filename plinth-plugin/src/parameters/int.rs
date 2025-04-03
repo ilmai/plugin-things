@@ -147,10 +147,6 @@ impl Parameter for IntParameter {
         self.set_value(value as _);
         Ok(())
     }
-    
-    fn as_any(&self) -> &dyn Any {
-        self as _
-    }
 }
 
 impl ParameterPlain for IntParameter {
