@@ -356,7 +356,7 @@ impl WindowAdapterInternal for PluginCanvasWindowAdapter {
     fn input_method_request(&self, request: i_slint_core::window::InputMethodRequest) {
         let input_focus = match request {
             i_slint_core::window::InputMethodRequest::Enable { .. } => true,
-            i_slint_core::window::InputMethodRequest::Disable { .. } => false,
+            i_slint_core::window::InputMethodRequest::Disable => false,
             _ => { return; }
         };
 

@@ -1,4 +1,4 @@
-use std::{any::Any, fmt::Display, sync::{atomic::AtomicBool, Arc}};
+use std::{fmt::Display, sync::{atomic::AtomicBool, Arc}};
 
 use portable_atomic::{AtomicF64, Ordering};
 
