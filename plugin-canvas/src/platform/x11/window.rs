@@ -1,10 +1,10 @@
-use std::{cell::RefCell, ffi::OsStr, num::NonZeroU32, ptr::NonNull};
+use std::{cell::RefCell, ffi::OsStr, num::NonZeroU32, ptr::NonNull, sync::atomic::{AtomicBool, Ordering}};
 
 use cursor_icon::CursorIcon;
 use keyboard_types::Code;
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle, RawDisplayHandle, RawWindowHandle, XcbDisplayHandle, XcbWindowHandle};
 use sys_locale::get_locales;
-use x11rb::{connection::Connection, protocol::xproto::{change_window_attributes, ChangeWindowAttributesAux, ConfigureWindowAux, ConnectionExt, CreateWindowAux, EventMask, GrabMode, KeyButMask, WindowClass}, xcb_ffi::XCBConnection, COPY_DEPTH_FROM_PARENT, COPY_FROM_PARENT};
+use x11rb::{connection::Connection, protocol::{xfixes::{hide_cursor, show_cursor}, xproto::{change_window_attributes, ChangeWindowAttributesAux, ConfigureWindowAux, ConnectionExt, CreateWindowAux, EventMask, GrabMode, KeyButMask, WindowClass}}, xcb_ffi::XCBConnection, COPY_DEPTH_FROM_PARENT, COPY_FROM_PARENT};
 use xkbcommon::xkb;
 
 use crate::{dimensions::Size, error::Error, event::{EventCallback, EventResponse}, keyboard::KeyboardModifiers, platform::{interface::OsWindowInterface, os_window_handle::OsWindowHandle}, window::WindowAttributes, Event, MouseButton, PhysicalPosition};
@@ -24,6 +24,7 @@ pub struct OsWindow {
     window_handle: XcbWindowHandle,
 
     keyboard_modifiers: RefCell<KeyboardModifiers>,
+    showing_cursor: AtomicBool,
 }
 
 impl OsWindow {
@@ -293,6 +294,7 @@ impl OsWindowInterface for OsWindow {
             window_handle,
 
             keyboard_modifiers: KeyboardModifiers::empty().into(),
+            showing_cursor: true.into(),
         };
 
         Ok(OsWindowHandle::new(window.into()))
@@ -348,11 +350,12 @@ impl OsWindowInterface for OsWindow {
                 CursorIcon::AllScroll => self.cursors.all_scroll,
                 CursorIcon::ZoomIn => self.cursors.zoom_in,
                 CursorIcon::ZoomOut => self.cursors.zoom_out,
-                _ => todo!(),
+                _ => unimplemented!(),
             };
 
-            // TODO
-            // show_cursor(&self.connection, self.window_handle.window.into()).unwrap();
+            if !self.showing_cursor.swap(true, Ordering::AcqRel) {
+                show_cursor(&self.connection, self.window_handle.window.into()).unwrap();
+            }
 
             change_window_attributes(
                 &self.connection,
@@ -365,8 +368,10 @@ impl OsWindowInterface for OsWindow {
 
             self.connection.flush().unwrap();
         } else {
-            // TODO: This completely hides the cursor and doesn't show it again, look into it
-            // hide_cursor(&self.connection, self.window_handle.window.into()).unwrap();
+            if self.showing_cursor.swap(false, Ordering::AcqRel) {
+                hide_cursor(&self.connection, self.window_handle.window.into()).unwrap();
+            }
+
             self.connection.flush().unwrap();
         }
     }
