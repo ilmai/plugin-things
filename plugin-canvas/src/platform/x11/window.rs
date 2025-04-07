@@ -82,10 +82,6 @@ impl OsWindow {
                 }
             }
 
-            x11rb::protocol::Event::FocusOut(_) => {
-                self.set_input_focus(false);
-            }
-
             x11rb::protocol::Event::KeyPress(event) => {
                 let x11_keycode = xkb::Keycode::new(event.detail as u32);
                 let keycode = x11_to_keyboard_types_code(x11_keycode.raw());
@@ -272,7 +268,6 @@ impl OsWindowInterface for OsWindow {
                 .event_mask(
                     EventMask::BUTTON_PRESS | 
                     EventMask::BUTTON_RELEASE |
-                    EventMask::FOCUS_CHANGE |
                     EventMask::KEY_PRESS | 
                     EventMask::KEY_RELEASE | 
                     EventMask::LEAVE_WINDOW | 
