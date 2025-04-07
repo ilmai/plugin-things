@@ -4,7 +4,10 @@ use cursor_icon::CursorIcon;
 use keyboard_types::Code;
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle, RawDisplayHandle, RawWindowHandle, XcbDisplayHandle, XcbWindowHandle};
 use sys_locale::get_locales;
-use x11rb::{connection::Connection, protocol::{xfixes::{hide_cursor, show_cursor}, xproto::{change_window_attributes, ChangeWindowAttributesAux, ConfigureWindowAux, ConnectionExt, CreateWindowAux, EventMask, GrabMode, KeyButMask, WindowClass}}, xcb_ffi::XCBConnection, COPY_DEPTH_FROM_PARENT, COPY_FROM_PARENT};
+use x11rb::{COPY_DEPTH_FROM_PARENT, COPY_FROM_PARENT};
+use x11rb::connection::Connection;
+use x11rb::protocol::{xfixes::{hide_cursor, show_cursor}, xproto::{change_window_attributes, ChangeWindowAttributesAux, ConfigureWindowAux, ConnectionExt, CreateWindowAux, EventMask, KeyButMask, WindowClass}};
+use x11rb::xcb_ffi::XCBConnection;
 use xkbcommon::xkb;
 
 use crate::{dimensions::Size, error::Error, event::{EventCallback, EventResponse}, keyboard::KeyboardModifiers, platform::{interface::OsWindowInterface, os_window_handle::OsWindowHandle}, window::WindowAttributes, Event, MouseButton, PhysicalPosition};
@@ -24,6 +27,7 @@ pub struct OsWindow {
     window_handle: XcbWindowHandle,
 
     keyboard_modifiers: RefCell<KeyboardModifiers>,
+
     showing_cursor: AtomicBool,
 }
 
@@ -76,6 +80,10 @@ impl OsWindow {
                         position,
                     });    
                 }
+            }
+
+            x11rb::protocol::Event::FocusOut(_) => {
+                self.set_input_focus(false);
             }
 
             x11rb::protocol::Event::KeyPress(event) => {
@@ -263,7 +271,8 @@ impl OsWindowInterface for OsWindow {
             &CreateWindowAux::new()
                 .event_mask(
                     EventMask::BUTTON_PRESS | 
-                    EventMask::BUTTON_RELEASE | 
+                    EventMask::BUTTON_RELEASE |
+                    EventMask::FOCUS_CHANGE |
                     EventMask::KEY_PRESS | 
                     EventMask::KEY_RELEASE | 
                     EventMask::LEAVE_WINDOW | 
@@ -294,6 +303,7 @@ impl OsWindowInterface for OsWindow {
             window_handle,
 
             keyboard_modifiers: KeyboardModifiers::empty().into(),
+
             showing_cursor: true.into(),
         };
 
@@ -376,18 +386,7 @@ impl OsWindowInterface for OsWindow {
         }
     }
 
-    fn set_input_focus(&self, focus: bool) {
-        if focus {
-            self.connection.grab_keyboard(
-                false,
-                self.window_handle.window.into(),
-                x11rb::CURRENT_TIME,
-                GrabMode::ASYNC,
-                GrabMode::ASYNC,
-            ).unwrap();
-        } else {
-            self.connection.ungrab_keyboard(x11rb::CURRENT_TIME).unwrap();
-        }
+    fn set_input_focus(&self, _focus: bool) {
     }
 
     fn warp_mouse(&self, _position: crate::LogicalPosition) {
