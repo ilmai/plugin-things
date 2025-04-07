@@ -30,3 +30,7 @@ slint = { version = "1.10.0", default-features = false, features = ["accessibili
 i-slint-common = "1.10.0"
 i-slint-core = "1.10.0"
 i-slint-renderer-skia = { version = "1.10.0", features = ["x11"] }
+
+[patch.crates-io]
+# FIXME: Needed for loading cursors to work, remove once the fix has shipped
+x11rb = { git = "https://github.com/psychon/x11rb" }

@@ -1,25 +1,27 @@
-use std::{cell::RefCell, ffi::OsStr, ptr::NonNull};
+use std::{cell::RefCell, ffi::OsStr, num::NonZeroU32, ptr::NonNull};
 
+use cursor_icon::CursorIcon;
 use keyboard_types::Code;
-use raw_window_handle::{HasDisplayHandle, HasWindowHandle, RawDisplayHandle, RawWindowHandle, XlibDisplayHandle, XlibWindowHandle};
+use raw_window_handle::{HasDisplayHandle, HasWindowHandle, RawDisplayHandle, RawWindowHandle, XcbDisplayHandle, XcbWindowHandle};
 use sys_locale::get_locales;
-use x11rb::{connection::Connection, protocol::xproto::{ConfigureWindowAux, ConnectionExt, CreateWindowAux, EventMask, GrabMode, KeyButMask, WindowClass}, xcb_ffi::XCBConnection, COPY_DEPTH_FROM_PARENT, COPY_FROM_PARENT};
+use x11rb::{connection::Connection, protocol::xproto::{change_window_attributes, ChangeWindowAttributesAux, ConfigureWindowAux, ConnectionExt, CreateWindowAux, EventMask, GrabMode, KeyButMask, WindowClass}, xcb_ffi::XCBConnection, COPY_DEPTH_FROM_PARENT, COPY_FROM_PARENT};
 use xkbcommon::xkb;
 
 use crate::{dimensions::Size, error::Error, event::{EventCallback, EventResponse}, keyboard::KeyboardModifiers, platform::{interface::OsWindowInterface, os_window_handle::OsWindowHandle}, window::WindowAttributes, Event, MouseButton, PhysicalPosition};
 
-use super::keyboard::x11_to_keyboard_types_code;
+use super::{cursors::Cursors, keyboard::x11_to_keyboard_types_code};
 
 pub struct OsWindow {
     window_attributes: WindowAttributes,
     event_callback: Box<EventCallback>,
 
     connection: XCBConnection,
+    cursors: Cursors,
     xkb_state: RefCell<xkb::State>,
     xkb_compose_state: RefCell<xkb::compose::State>,
 
-    display_handle: XlibDisplayHandle,
-    window_handle: XlibWindowHandle,
+    display_handle: XcbDisplayHandle,
+    window_handle: XcbWindowHandle,
 
     keyboard_modifiers: RefCell<KeyboardModifiers>,
 }
@@ -196,6 +198,36 @@ impl OsWindow {
             self.send_event(Event::KeyboardModifiers { modifiers: new_modifiers });
         }
     }
+
+    fn init_xkb(connection: &XCBConnection) -> (xkb::State, xkb::compose::State) {
+        // Init extension
+        x11rb::protocol::xkb::use_extension(connection, 1, 0).unwrap();
+
+        // Init xkbcommon
+        let xkb_context = xkb::Context::new(0);
+        let keyboard_device = xkb::x11::get_core_keyboard_device_id(connection);
+        assert!(keyboard_device >= 0);
+        let keymap = xkb::x11::keymap_new_from_device(&xkb_context, connection, keyboard_device, 0);
+        let xkb_state = xkb::x11::state_new_from_device(&keymap, connection, keyboard_device);
+
+        // Go through possible locales until we find one with a keyboard compose table
+        // Fall back to the "C" locale
+        let mut locales: Vec<_> = get_locales().collect();
+        locales.push("C".into());
+
+        let mut xkb_compose_state = None;
+        
+        for locale in locales.iter() {
+            if let Ok(compose_table) = xkb::compose::Table::new_from_locale(&xkb_context, OsStr::new(&locale), 0) {
+                xkb_compose_state = Some(xkb::compose::State::new(&compose_table, 0));
+                break;
+            }
+        }
+
+        assert!(xkb_compose_state.is_some(), "Couldn't find keyboard compose table for any of the locales: {locales:?}");
+
+        (xkb_state, xkb_compose_state.unwrap())
+    }
 }
 
 impl OsWindowInterface for OsWindow {
@@ -211,22 +243,9 @@ impl OsWindowInterface for OsWindow {
             _ => { return Err(Error::PlatformError("Not an X11 window".into())); }
         };
 
-        // Create a connection through Xlib for OpenGL to work
-        let dpy = unsafe { x11::xlib::XOpenDisplay(std::ptr::null()) };
-        assert!(!dpy.is_null());
-
-        let xcb_connection = unsafe { x11::xlib_xcb::XGetXCBConnection(dpy) };
-        assert!(!xcb_connection.is_null());
-
-        let screen = unsafe { x11::xlib::XDefaultScreen(dpy) } as i32;
-        unsafe {
-            x11::xlib_xcb::XSetEventQueueOwner(dpy, x11::xlib_xcb::XEventQueueOwner::XCBOwnsEventQueue)
-        };
-        
-        let connection = unsafe { XCBConnection::from_raw_xcb_connection(xcb_connection as _, true)? };
-
-        // Then we can proceed with creating the window
         let size = Size::with_logical_size(window_attributes.size, window_attributes.scale);
+
+        let (connection, screen) = XCBConnection::connect(None)?;
 
         let window_id = connection.generate_id()?;
         connection.create_window(
@@ -254,38 +273,21 @@ impl OsWindowInterface for OsWindow {
         connection.map_window(window_id)?;
         connection.flush()?;
 
-        // Init xkbcommon
-        let xkb_context = xkb::Context::new(0);
-        let keyboard_device = xkb::x11::get_core_keyboard_device_id(&connection);
-        let keymap = xkb::x11::keymap_new_from_device(&xkb_context, &connection, keyboard_device, 0);
-        let xkb_state = xkb::x11::state_new_from_device(&keymap, &connection, keyboard_device);
+        let (xkb_state, xkb_compose_state) = Self::init_xkb(&connection);
 
-        // Go through possible locales until we find one with a keyboard compose table
-        // Fall back to the "C" locale
-        let mut locales: Vec<_> = get_locales().collect();
-        locales.push("C".into());
+        let display_handle = XcbDisplayHandle::new(Some(NonNull::new(connection.get_raw_xcb_connection()).unwrap()), screen as _);
+        let window_handle = XcbWindowHandle::new(NonZeroU32::new(window_id as _).unwrap());
 
-        let mut xkb_compose_state = None;
-        
-        for locale in locales.iter() {
-            if let Ok(compose_table) = xkb::compose::Table::new_from_locale(&xkb_context, OsStr::new(&locale), 0) {
-                xkb_compose_state = Some(xkb::compose::State::new(&compose_table, 0));
-                break;
-            }
-        }
-
-        assert!(xkb_compose_state.is_some(), "Couldn't find keyboard compose table for any of the locales: {locales:?}");
-
-        let display_handle = XlibDisplayHandle::new(Some(NonNull::new(dpy as _).unwrap()), screen);
-        let window_handle = XlibWindowHandle::new(window_id as _);
+        let cursors = Cursors::new(&connection, screen as _);
 
         let window = Self {
             window_attributes,
             event_callback,
 
             connection,
+            cursors,
             xkb_state: xkb_state.into(),
-            xkb_compose_state: xkb_compose_state.unwrap().into(),
+            xkb_compose_state: xkb_compose_state.into(),
 
             display_handle,
             window_handle,
@@ -302,22 +304,78 @@ impl OsWindowInterface for OsWindow {
 
     fn resized(&self, size: crate::LogicalSize) {
         self.connection.configure_window(
-            self.window_handle.window as _,
+            self.window_handle.window.into(),
             &ConfigureWindowAux::new()
                 .width(size.width as u32)
                 .height(size.height as u32),
         ).unwrap();
     }
 
-    fn set_cursor(&self, _cursor: Option<cursor_icon::CursorIcon>) {
-        // TODO
+    fn set_cursor(&self, cursor: Option<cursor_icon::CursorIcon>) {
+        if let Some(cursor) = cursor {
+            let cursor = match cursor {
+                CursorIcon::Default => self.cursors.arrow,
+                CursorIcon::ContextMenu => self.cursors.context_menu,
+                CursorIcon::Help => self.cursors.help,
+                CursorIcon::Pointer => self.cursors.pointer,
+                CursorIcon::Progress => self.cursors.progress,
+                CursorIcon::Wait => self.cursors.wait,
+                CursorIcon::Cell => self.cursors.cell,
+                CursorIcon::Crosshair => self.cursors.crosshair,
+                CursorIcon::Text => self.cursors.text,
+                CursorIcon::VerticalText => self.cursors.vertical_text,
+                CursorIcon::Alias => self.cursors.alias,
+                CursorIcon::Copy => self.cursors.copy,
+                CursorIcon::Move => self.cursors.r#move,
+                CursorIcon::NoDrop => self.cursors.no_drop,
+                CursorIcon::NotAllowed => self.cursors.not_allowed,
+                CursorIcon::Grab => self.cursors.grab,
+                CursorIcon::Grabbing => self.cursors.grabbing,
+                CursorIcon::EResize => self.cursors.e_resize,
+                CursorIcon::NResize => self.cursors.n_resize,
+                CursorIcon::NeResize => self.cursors.ne_resize,
+                CursorIcon::NwResize => self.cursors.nw_resize,
+                CursorIcon::SResize => self.cursors.s_resize,
+                CursorIcon::SeResize => self.cursors.se_resize,
+                CursorIcon::SwResize => self.cursors.sw_resize,
+                CursorIcon::WResize => self.cursors.w_resize,
+                CursorIcon::EwResize => self.cursors.ew_resize,
+                CursorIcon::NsResize => self.cursors.ns_resize,
+                CursorIcon::NeswResize => self.cursors.nesw_resize,
+                CursorIcon::NwseResize => self.cursors.nwse_resize,
+                CursorIcon::ColResize => self.cursors.col_resize,
+                CursorIcon::RowResize => self.cursors.row_resize,
+                CursorIcon::AllScroll => self.cursors.all_scroll,
+                CursorIcon::ZoomIn => self.cursors.zoom_in,
+                CursorIcon::ZoomOut => self.cursors.zoom_out,
+                _ => todo!(),
+            };
+
+            // TODO
+            // show_cursor(&self.connection, self.window_handle.window.into()).unwrap();
+
+            change_window_attributes(
+                &self.connection,
+                self.window_handle.window.into(),
+                &ChangeWindowAttributesAux {
+                    cursor: Some(cursor),
+                    ..Default::default()
+                }
+            ).unwrap();
+
+            self.connection.flush().unwrap();
+        } else {
+            // TODO: This completely hides the cursor and doesn't show it again, look into it
+            // hide_cursor(&self.connection, self.window_handle.window.into()).unwrap();
+            self.connection.flush().unwrap();
+        }
     }
 
     fn set_input_focus(&self, focus: bool) {
         if focus {
             self.connection.grab_keyboard(
                 false,
-                self.window_handle.window as u32,
+                self.window_handle.window.into(),
                 x11rb::CURRENT_TIME,
                 GrabMode::ASYNC,
                 GrabMode::ASYNC,
@@ -342,14 +400,14 @@ impl OsWindowInterface for OsWindow {
 
 impl HasDisplayHandle for OsWindow {
     fn display_handle(&self) -> Result<raw_window_handle::DisplayHandle<'_>, raw_window_handle::HandleError> {
-        let raw_display_handle = RawDisplayHandle::Xlib(self.display_handle);
+        let raw_display_handle = RawDisplayHandle::Xcb(self.display_handle);
         Ok(unsafe { raw_window_handle::DisplayHandle::borrow_raw(raw_display_handle) })
     }
 }
 
 impl HasWindowHandle for OsWindow {
     fn window_handle(&self) -> Result<raw_window_handle::WindowHandle<'_>, raw_window_handle::HandleError> {
-        let raw_window_handle = RawWindowHandle::Xlib(self.window_handle);
+        let raw_window_handle = RawWindowHandle::Xcb(self.window_handle);
         Ok(unsafe { raw_window_handle::WindowHandle::borrow_raw(raw_window_handle) })
     }
 }
