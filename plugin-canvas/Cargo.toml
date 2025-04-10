@@ -30,10 +30,10 @@ objc2-foundation = { version = "0.3", features = ["NSOperation", "NSRunLoop"] }
 objc2-quartz-core = { version = "0.3", features = ["CADisplayLink"] }
 
 [target.'cfg(target_os="windows")'.dependencies]
-windows-core = "0.60"
+windows-core = "0.61"
 
 [target.'cfg(target_os="windows")'.dependencies.windows]
-version = "0.60"
+version = "0.61"
 features = [
     "Win32_Foundation",
     "Win32_Graphics_Dwm",
