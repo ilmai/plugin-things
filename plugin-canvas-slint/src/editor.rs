@@ -35,13 +35,16 @@ impl SlintEditor {
                     }
 
                     let editor_weak = unsafe { Weak::from_raw(editor_weak_ptr) };                    
-                    if let Some(editor_handle) = editor_weak.upgrade() {
-                        editor_handle.on_event(&event);
-                    }
+                    let response = if let Some(editor_handle) = editor_weak.upgrade() {
+                        editor_handle.on_event(&event)
+                    } else {
+                        EventResponse::Ignored
+                    };
 
                     // Leak the weak reference to avoid dropping it
                     let _ = editor_weak.into_raw();
-                    EventResponse::Ignored
+
+                    response
                 })
             },
         ).unwrap();

@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum DropOperation {
     None,
     Copy,

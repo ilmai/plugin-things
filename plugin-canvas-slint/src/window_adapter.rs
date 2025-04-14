@@ -104,11 +104,13 @@ impl PluginCanvasWindowAdapter {
     }
 
     pub fn on_event(&self, event: &plugin_canvas::Event) -> EventResponse {
-        if let Some(component) = self.view.borrow().as_ref() {
-            component.on_event(event);
-        }
+        let component_response = if let Some(component) = self.view.borrow().as_ref() {
+            component.on_event(event)
+        } else {
+            EventResponse::Ignored
+        };
 
-        match event {
+        let built_in_response = match event {
             plugin_canvas::Event::Draw => {
                 match self.plugin_canvas_window.poll_events() {
                     Ok(_) => {},
@@ -263,6 +265,12 @@ impl PluginCanvasWindowAdapter {
             plugin_canvas::Event::DragDropped { .. } => {
                 EventResponse::Ignored
             },
+        };
+
+        if component_response != EventResponse::Ignored {
+            component_response
+        } else {
+            built_in_response
         }
     }
 

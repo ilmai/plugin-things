@@ -65,6 +65,7 @@ pub enum Event {
     },
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum EventResponse {
     Handled,
     Ignored,
