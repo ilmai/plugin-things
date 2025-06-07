@@ -9,13 +9,16 @@ use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use atomic_refcell::AtomicRefCell;
 use plinth_core::signals::ptr_signal::{PtrSignal, PtrSignalMut};
 use plinth_core::signals::signal::SignalMut;
+use vst3::Steinberg::Vst::ControllerNumbers_::kPitchBend;
+use vst3::Steinberg::Vst::{CtrlNumber, IMidiMapping, IMidiMappingTrait};
 use vst3::{ComPtr, ComRef};
-use vst3::Steinberg::{int16, int32, kInvalidArgument, kNoInterface, kResultFalse, kResultOk, tresult, uint32, FIDString, FUnknown, IBStream, IPlugView, IPluginBaseTrait, TBool, TUID};
+use vst3::Steinberg::{int16, int32, kInvalidArgument, kNoInterface, kResultFalse, kResultOk, kResultTrue, tresult, uint32, FIDString, FUnknown, IBStream, IPlugView, IPluginBaseTrait, TBool, TUID};
 use vst3::Steinberg::Vst::{kInfiniteTail, kNoParentUnitId, kNoProgramListId, kNoTail, BusDirection, BusDirections_, BusInfo, BusInfo_::BusFlags_, BusTypes_, CString, IAudioProcessor, IAudioProcessorTrait, IComponent, IComponentHandler, IComponentTrait, IEditController, IEditController2, IEditController2Trait, IEditControllerTrait, IHostApplication, IHostApplicationTrait, IProcessContextRequirements, IProcessContextRequirementsTrait, IProcessContextRequirements_, IUnitInfo, IUnitInfoTrait, IoMode, IoModes_, KnobMode, MediaType, MediaTypes_, ParamID, ParamValue, ParameterInfo_, ProcessData, ProcessSetup, ProgramListID, ProgramListInfo, RoutingInfo, SpeakerArr, SpeakerArrangement, String128, SymbolicSampleSizes_, TChar, UnitID, UnitInfo, ViewType::kEditor};
 use widestring::U16CStr;
 
 use crate::host::HostInfo;
-use crate::{Event, Parameters, ProcessMode, ProcessState, Processor};
+use crate::vst3::parameters::parameter_change_to_event;
+use crate::{ParameterId, Parameters, ProcessMode, ProcessState, Processor};
 use crate::editor::NoEditor;
 use crate::parameters::{group::{self, ParameterGroupRef}, has_duplicates, info::ParameterInfo};
 use crate::processor::ProcessorConfig;
@@ -47,6 +50,7 @@ pub struct PluginComponent<P: Vst3Plugin> {
 
     parameter_info: RefCell<Vec<ParameterInfo>>,
     parameter_groups: RefCell<Vec<ParameterGroupRef>>,
+    pitch_bend_parameter_ids: RefCell<[ParameterId; 16]>,
 
     processor_config: RefCell<ProcessorConfig>,
     processing: AtomicBool,
@@ -63,6 +67,7 @@ impl<P: Vst3Plugin + 'static> PluginComponent<P> {
             
             parameter_info: Default::default(),
             parameter_groups: Default::default(),
+            pitch_bend_parameter_ids: Default::default(),
 
             processor_config: Default::default(),
             processing: AtomicBool::new(false),
@@ -85,7 +90,7 @@ impl<P: Vst3Plugin + 'static> PluginComponent<P> {
 }
 
 impl<P: Vst3Plugin> vst3::Class for PluginComponent<P> {
-    type Interfaces = (IAudioProcessor, IComponent, IComponent, IEditController, IEditController2, IProcessContextRequirements, IUnitInfo);
+    type Interfaces = (IAudioProcessor, IComponent, IComponent, IEditController, IEditController2, IMidiMapping, IProcessContextRequirements, IUnitInfo);
 }
 
 impl<P: Vst3Plugin> IPluginBaseTrait for PluginComponent<P> {
@@ -118,7 +123,7 @@ impl<P: Vst3Plugin> IPluginBaseTrait for PluginComponent<P> {
         let plugin = P::new(host_info);
         assert!(plugin.with_parameters(|parameters| !has_duplicates(parameters.ids())));
 
-        let mut parameter_info = self.parameter_info.borrow_mut();
+        let mut parameter_infos = self.parameter_info.borrow_mut();
 
         // Create units based on parameter groups
         // Also verify parameters
@@ -133,10 +138,28 @@ impl<P: Vst3Plugin> IPluginBaseTrait for PluginComponent<P> {
 
             for &id in parameters.ids() {
                 let info = parameters.get(id).unwrap().info();
-                parameter_info.push(info.clone());
+                parameter_infos.push(info.clone());
             }
 
             group::from_parameters(parameters)
+        });
+
+        // Create parameters for MIDI pitch bend messages
+        plugin.with_parameters(|parameters| {
+            let mut parameter_id = 1;
+            let ids = parameters.ids();
+
+            for (channel, pitch_bend_parameter_id) in self.pitch_bend_parameter_ids.borrow_mut().iter_mut().enumerate() {
+                while ids.contains(&parameter_id) {
+                    parameter_id += 1;
+                }
+
+                let info = ParameterInfo::new(parameter_id, format!("MIDI Channel {} Pitch Bend", channel + 1));
+                parameter_infos.push(info);
+
+                *pitch_bend_parameter_id = parameter_id;
+                parameter_id += 1;
+            }
         });
 
         *self.plugin.borrow_mut() = Some(plugin);
@@ -245,7 +268,7 @@ impl<P: Vst3Plugin> IAudioProcessorTrait for PluginComponent<P> {
     unsafe fn process(&self, data: *mut ProcessData) -> tresult {
         let data = unsafe { &mut *data };
 
-        let parameter_change_iterator = ParameterChangeIterator::new(data.inputParameterChanges);
+        let parameter_change_iterator = ParameterChangeIterator::new(data.inputParameterChanges, *self.pitch_bend_parameter_ids.borrow());
         let event_iterator = EventIterator::new(data.inputEvents);
         let all_events = event_iterator.chain(parameter_change_iterator);
 
@@ -484,10 +507,7 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
 
     unsafe fn getParameterCount(&self) -> int32 {
         log::trace!("IEditController::getParameterCount");
-        let plugin = self.plugin.borrow();
-        plugin.as_ref()
-            .map(|plugin| plugin.with_parameters(|parameters| parameters.ids().len() as _))
-            .unwrap_or_default()
+        self.parameter_info.borrow().len() as _
     }
 
     unsafe fn getParameterInfo(&self, param_index: int32, info: *mut vst3::Steinberg::Vst::ParameterInfo) -> tresult {
@@ -601,17 +621,14 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
         })
     }
 
-    unsafe fn setParamNormalized(&self, id: ParamID, normalized: ParamValue) -> tresult {
+    unsafe fn setParamNormalized(&self, id: ParamID, value: ParamValue) -> tresult {
         let mut plugin = self.plugin.borrow_mut();
         let Some(plugin) = plugin.as_mut() else {
             return kResultFalse;
         };
 
-        plugin.process_event(&Event::ParameterValue {
-            sample_offset: 0,
-            id,
-            value: normalized,
-        });
+        let event = parameter_change_to_event(id, value, 0, &self.pitch_bend_parameter_ids.borrow());
+        plugin.process_event(&event);
 
         kResultOk
     }
@@ -670,6 +687,30 @@ impl<P: Vst3Plugin> IEditController2Trait for PluginComponent<P> {
     unsafe fn openAboutBox(&self, _only_check: TBool) -> tresult {
         log::trace!("IEditController2::openAboutBox");
         kResultFalse
+    }
+}
+
+impl<P: Vst3Plugin> IMidiMappingTrait for PluginComponent<P> {
+    unsafe fn getMidiControllerAssignment(
+        &self,
+        bus_index: int32,
+        channel: int16,
+        midi_controller_number: CtrlNumber,
+        id: *mut ParamID) -> tresult
+    {
+        if bus_index != 0 {
+            return kResultFalse;
+        }
+        if midi_controller_number != kPitchBend as i16 {
+            return kResultFalse;
+        }
+        if !(0..16).contains(&channel) {
+            return kInvalidArgument;
+        }
+
+        unsafe { *id = self.pitch_bend_parameter_ids.borrow()[channel as usize] as _ };
+
+        kResultTrue
     }
 }
 

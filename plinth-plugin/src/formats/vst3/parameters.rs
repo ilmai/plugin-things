@@ -1,20 +1,41 @@
 use std::cmp;
 
-use vst3::{ComRef, Steinberg::{kResultOk, Vst::{IParamValueQueueTrait, IParameterChanges, IParameterChangesTrait}}};
+use vst3::{ComRef, Steinberg::{kResultOk, Vst::{IParamValueQueueTrait, IParameterChanges, IParameterChangesTrait, ParamID, ParamValue}}};
 
-use crate::event::Event;
+use crate::{event::Event, ParameterId};
+
+pub(super) fn parameter_change_to_event(id: ParamID, value: ParamValue, offset: usize, pitch_bend_parameter_ids: &[ParameterId; 16]) -> Event {
+    if let Some(channel) = pitch_bend_parameter_ids.iter().position(|&pitch_bend_id| pitch_bend_id == id) {
+        let semitones = (value - 0.5) * 4.0;
+
+        Event::PitchBend {
+            channel: channel as _,
+            key: -1, // TODO
+            note: -1, // TODO
+            semitones,
+        }
+    } else {
+        Event::ParameterValue {
+            sample_offset: offset,
+            id,
+            value,
+        }
+    }
+}
 
 pub struct ParameterChangeIterator<'a> {
     parameter_changes: Option<ComRef<'a, IParameterChanges>>,
+    pitch_bend_parameter_ids: [ParameterId; 16],
     offset: usize,
     index: usize,
     finished: bool,
 }
 
 impl ParameterChangeIterator<'_> {
-    pub fn new(parameter_changes: *mut IParameterChanges) -> Self {
+    pub fn new(parameter_changes: *mut IParameterChanges, pitch_bend_parameter_ids: [ParameterId; 16]) -> Self {
         Self {
             parameter_changes: unsafe { ComRef::from_raw(parameter_changes) },
+            pitch_bend_parameter_ids,
             offset: 0,
             index: 0,
             finished: false,
@@ -94,11 +115,7 @@ impl Iterator for ParameterChangeIterator<'_> {
             self.index += 1;
         }
 
-        let event = Event::ParameterValue {
-            sample_offset: offset,
-            id,
-            value,
-        };
+        let event = parameter_change_to_event(id, value, offset, &self.pitch_bend_parameter_ids);
 
         Some(event)
     }

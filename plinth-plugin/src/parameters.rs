@@ -29,7 +29,9 @@ pub fn has_duplicates(ids: &[ParameterId]) -> bool {
 }
 
 pub trait Parameters {
+    /// The list of parameter IDs is cached and shouldn't change at runtime
     fn ids(&self) -> &[ParameterId];
+
     fn get(&self, id: impl Into<ParameterId>) -> Option<&dyn Parameter>;
 
     fn typed<T: Parameter>(&self, id: impl Into<ParameterId>) -> Option<&T> {

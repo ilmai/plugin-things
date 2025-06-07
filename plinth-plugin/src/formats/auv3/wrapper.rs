@@ -156,11 +156,9 @@ impl<P: Auv3Plugin> Auv3Wrapper<P> {
         };
         let cached_parameters = self.cached_parameters.lock().unwrap();
 
-        let value = cached_parameters.get(*index)
+        cached_parameters.get(*index)
             .map(|parameter| parameter.value)
-            .unwrap_or_default();
-
-        value
+            .unwrap_or_default()
     }
 
     pub fn set_parameter_value(&mut self, address: u64, value: f32) {
