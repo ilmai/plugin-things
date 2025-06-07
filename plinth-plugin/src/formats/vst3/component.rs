@@ -154,7 +154,9 @@ impl<P: Vst3Plugin> IPluginBaseTrait for PluginComponent<P> {
                     parameter_id += 1;
                 }
 
-                let info = ParameterInfo::new(parameter_id, format!("MIDI Channel {} Pitch Bend", channel + 1));
+                let info = ParameterInfo::new(parameter_id, format!("MIDI Channel {} Pitch Bend", channel + 1))
+                    .hidden();
+
                 parameter_infos.push(info);
 
                 *pitch_bend_parameter_id = parameter_id;
@@ -533,8 +535,10 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
 
         // On some platforms, this cast is needed
         #[allow(clippy::unnecessary_cast)]
-        {
+        if parameter_info.visible() {
             vst3_info.flags = ParameterInfo_::ParameterFlags_::kCanAutomate as i32;
+        } else {
+            vst3_info.flags = ParameterInfo_::ParameterFlags_::kIsHidden as i32;
         }
 
         // On some platforms, this cast is needed

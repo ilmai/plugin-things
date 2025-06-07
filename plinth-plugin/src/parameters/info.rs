@@ -10,6 +10,7 @@ pub struct ParameterInfo {
     default_normalized_value: ParameterValue,
     steps: usize,
     is_bypass: bool,
+    visible: bool,
 }
 
 impl ParameterInfo {
@@ -21,6 +22,7 @@ impl ParameterInfo {
             default_normalized_value: Default::default(),
             steps: 0,
             is_bypass: false,
+            visible: true,
         }
     }
 
@@ -41,6 +43,11 @@ impl ParameterInfo {
 
     pub fn as_bypass(mut self) -> Self {
         self.is_bypass = true;
+        self
+    }
+
+    pub fn hidden(mut self) -> Self {
+        self.visible = false;
         self
     }
 
@@ -66,5 +73,9 @@ impl ParameterInfo {
     
     pub fn is_bypass(&self) -> bool {
         self.is_bypass
+    }
+
+    pub fn visible(&self) -> bool {
+        self.visible
     }
 }
