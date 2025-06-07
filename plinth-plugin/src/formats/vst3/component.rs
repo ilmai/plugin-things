@@ -327,7 +327,7 @@ impl<P: Vst3Plugin> IAudioProcessorTrait for PluginComponent<P> {
 
         let tail_length = match process_state {
             ProcessState::Error => {
-                println!("Processing error!");
+                log::error!("Processing error!");
                 return kResultFalse;
             },
 

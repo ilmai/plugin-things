@@ -36,7 +36,7 @@ impl<P: ClapPlugin> State<P> {
             match instance.plugin.as_ref().unwrap().save_state(&mut stream) {
                 Ok(_) => true,
                 Err(e) => {
-                    println!("Error saving state: {:?}", e);
+                    log::error!("Error saving state: {:?}", e);
                     false
                 },
             }
@@ -52,7 +52,7 @@ impl<P: ClapPlugin> State<P> {
             match instance.plugin.as_mut().unwrap().load_state(&mut stream) {
                 Ok(_) => true,
                 Err(e) => {
-                    println!("Error loading state: {e:?}");
+                    log::error!("Error loading state: {e:?}");
                     false
                 }
             }
