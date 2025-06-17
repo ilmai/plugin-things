@@ -24,7 +24,7 @@ widestring = "1.1"
 xxhash-rust = { version = "0.8", features = ["xxh3", "xxh32"] }
 
 [build-dependencies]
-bindgen = "0.71"
+bindgen = "0.72"
 
 [dev-dependencies]
 approx = "0.5"
