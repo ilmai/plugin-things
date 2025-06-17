@@ -1,5 +1,6 @@
 use std::cell::OnceCell;
 use std::rc::{Rc, Weak};
+use std::sync::Arc;
 
 use raw_window_handle::RawWindowHandle;
 use plugin_canvas::{event::EventResponse, window::WindowAttributes, Event};
@@ -17,7 +18,7 @@ impl SlintEditor {
     ) -> Rc<EditorHandle>
     where
         C: PluginView + 'static,
-        B: Fn(Rc<plugin_canvas::Window>) -> C + 'static,
+        B: Fn(Arc<plugin_canvas::Window>) -> C + 'static,
     {
         let editor_handle = Rc::new(EditorHandle::new());
 
@@ -52,7 +53,9 @@ impl SlintEditor {
         // It's ok if this fails as it just means it has already been set
         slint::platform::set_platform(Box::new(PluginCanvasPlatform)).ok();
 
-        let window = Rc::new(window);
+        // This is Arc only to appease slint
+        #[expect(clippy::arc_with_non_send_sync)]
+        let window = Arc::new(window);
         WINDOW_TO_SLINT.set(Some(window.clone()));
 
         let view = view_builder(window);

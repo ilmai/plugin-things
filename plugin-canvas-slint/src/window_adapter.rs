@@ -2,10 +2,11 @@ use std::cell::RefCell;
 use std::fmt::Debug;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering, AtomicUsize};
+use std::sync::Arc;
 
 use cursor_icon::CursorIcon;
 use i_slint_core::{window::{WindowAdapter, WindowAdapterInternal}, renderer::Renderer, platform::{PlatformError, WindowEvent}};
-use i_slint_renderer_skia::SkiaRenderer;
+use i_slint_renderer_skia::{SkiaRenderer, SkiaSharedContext};
 use keyboard_types::Code;
 use plugin_canvas::keyboard::KeyboardModifiers;
 use plugin_canvas::{event::EventResponse, LogicalSize};
@@ -14,12 +15,12 @@ use portable_atomic::AtomicF64;
 use crate::view::PluginView;
 
 thread_local! {
-    pub static WINDOW_TO_SLINT: RefCell<Option<Rc<plugin_canvas::Window>>> = Default::default();
+    pub static WINDOW_TO_SLINT: RefCell<Option<Arc<plugin_canvas::Window>>> = Default::default();
     pub static WINDOW_ADAPTER_FROM_SLINT: RefCell<Option<Rc<PluginCanvasWindowAdapter>>> = Default::default();
 }
 
 pub struct PluginCanvasWindowAdapter {
-    plugin_canvas_window: Rc<plugin_canvas::Window>,
+    plugin_canvas_window: Arc<plugin_canvas::Window>,
     slint_window: slint::Window,
     renderer: SkiaRenderer,
 
@@ -51,7 +52,8 @@ impl PluginCanvasWindowAdapter {
             height: plugin_canvas_size.height as u32,
         };
 
-        let renderer = SkiaRenderer::new(plugin_canvas_window.clone(), plugin_canvas_window.clone(), slint_size)?;
+        let skia_context = SkiaSharedContext::default();
+        let renderer = SkiaRenderer::new(&skia_context, plugin_canvas_window.clone(), plugin_canvas_window.clone(), slint_size)?;
 
         let self_rc = Rc::new_cyclic(|self_weak| {
             let slint_window = slint::Window::new(self_weak.clone() as _);
