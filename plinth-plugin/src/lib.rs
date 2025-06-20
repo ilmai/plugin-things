@@ -1,4 +1,5 @@
 pub use editor::{Editor, NoEditor};
+pub use error::Error;
 pub use event::Event;
 pub use host::{Host, HostInfo};
 pub use formats::{clap, vst3};
