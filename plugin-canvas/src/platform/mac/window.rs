@@ -2,7 +2,7 @@ use std::{cell::RefCell, ptr::{null_mut, NonNull}, rc::Rc, sync::atomic::{Atomic
 
 use cursor_icon::CursorIcon;
 use objc2::{msg_send, rc::{Allocated, Retained}, sel, AllocAnyThread};
-use objc2_app_kit::{NSCursor, NSPasteboardTypeFileURL, NSScreen, NSTrackingArea, NSTrackingAreaOptions, NSView};
+use objc2_app_kit::{NSCursor, NSCursorFrameResizeDirections, NSCursorFrameResizePosition, NSHorizontalDirections, NSPasteboardTypeFileURL, NSScreen, NSTrackingArea, NSTrackingAreaOptions, NSVerticalDirections, NSView};
 use objc2_core_foundation::{CGPoint, CGSize};
 use objc2_core_graphics::CGWarpMouseCursorPosition;
 use objc2_foundation::{MainThreadMarker, NSArray, NSDefaultRunLoopMode, NSPoint, NSRect, NSRunLoop, NSSize};
@@ -148,20 +148,20 @@ impl OsWindowInterface for OsWindow {
                     CursorIcon::NotAllowed => NSCursor::operationNotAllowedCursor(),
                     CursorIcon::Grab => NSCursor::openHandCursor(),
                     CursorIcon::Grabbing => NSCursor::closedHandCursor(),
-                    CursorIcon::EResize => NSCursor::arrowCursor(), // TODO,
-                    CursorIcon::NResize => NSCursor::arrowCursor(), // TODO,
-                    CursorIcon::NeResize => NSCursor::arrowCursor(), // TODO,
-                    CursorIcon::NwResize => NSCursor::arrowCursor(), // TODO
-                    CursorIcon::SResize => NSCursor::arrowCursor(), // TODO,
-                    CursorIcon::SeResize => NSCursor::arrowCursor(), // TODO
-                    CursorIcon::SwResize => NSCursor::arrowCursor(), // TODO
-                    CursorIcon::WResize => NSCursor::arrowCursor(), // TODO,
-                    CursorIcon::EwResize => NSCursor::arrowCursor(), // TODO,
-                    CursorIcon::NsResize => NSCursor::arrowCursor(), // TODO,
-                    CursorIcon::NeswResize => NSCursor::arrowCursor(), // TODO
-                    CursorIcon::NwseResize => NSCursor::arrowCursor(), // TODO
-                    CursorIcon::ColResize => NSCursor::arrowCursor(), // TODO,
-                    CursorIcon::RowResize => NSCursor::arrowCursor(), // TODO,
+                    CursorIcon::EResize => NSCursor::columnResizeCursorInDirections(NSHorizontalDirections::Right),
+                    CursorIcon::NResize => NSCursor::rowResizeCursorInDirections(NSVerticalDirections::Up),
+                    CursorIcon::NeResize => NSCursor::frameResizeCursorFromPosition_inDirections(NSCursorFrameResizePosition::TopRight, NSCursorFrameResizeDirections::Outward),
+                    CursorIcon::NwResize => NSCursor::frameResizeCursorFromPosition_inDirections(NSCursorFrameResizePosition::TopLeft, NSCursorFrameResizeDirections::Outward),
+                    CursorIcon::SResize => NSCursor::rowResizeCursorInDirections(NSVerticalDirections::Down),
+                    CursorIcon::SeResize => NSCursor::frameResizeCursorFromPosition_inDirections(NSCursorFrameResizePosition::BottomRight, NSCursorFrameResizeDirections::Outward),
+                    CursorIcon::SwResize => NSCursor::frameResizeCursorFromPosition_inDirections(NSCursorFrameResizePosition::BottomLeft, NSCursorFrameResizeDirections::Outward),
+                    CursorIcon::WResize => NSCursor::columnResizeCursorInDirections(NSHorizontalDirections::Left),
+                    CursorIcon::EwResize => NSCursor::columnResizeCursor(),
+                    CursorIcon::NsResize => NSCursor::rowResizeCursor(),
+                    CursorIcon::NeswResize => NSCursor::frameResizeCursorFromPosition_inDirections(NSCursorFrameResizePosition::TopRight, NSCursorFrameResizeDirections::All),
+                    CursorIcon::NwseResize => NSCursor::frameResizeCursorFromPosition_inDirections(NSCursorFrameResizePosition::TopLeft, NSCursorFrameResizeDirections::All),
+                    CursorIcon::ColResize => NSCursor::columnResizeCursor(),
+                    CursorIcon::RowResize => NSCursor::rowResizeCursor(),
                     CursorIcon::AllScroll => NSCursor::openHandCursor(),
                     CursorIcon::ZoomIn => NSCursor::arrowCursor(), // TODO
                     CursorIcon::ZoomOut => NSCursor::arrowCursor(), // TODO
