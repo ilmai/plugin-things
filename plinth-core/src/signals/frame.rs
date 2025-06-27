@@ -6,6 +6,13 @@ pub trait Frame<'frame> {
     fn channels(&self) -> usize;
     fn channel(&self, index: usize) -> &f32;
     fn iter(&'frame self) -> Self::Iterator;
+
+    fn max_amplitude(&'frame self) -> f32 {
+        self.iter()
+            .map(|sample| sample.abs())
+            .max_by(|a, b| a.partial_cmp(&b).unwrap())
+            .unwrap()
+    }
 }
 
 pub trait FrameMut<'frame> : Frame<'frame> {
