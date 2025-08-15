@@ -164,11 +164,15 @@ impl PluginCanvasWindowAdapter {
                                 $(
                                     else if modifier == KeyboardModifiers::Alt && stringify!($name) == "Alt" {
                                         $char
-                                    } else if modifier == KeyboardModifiers::Control && stringify!($name) == "Control" {
-                                        $char
-                                    } else if modifier == KeyboardModifiers::Meta && stringify!($name) == "Meta" {
-                                        $char
                                     } else if modifier == KeyboardModifiers::Shift && stringify!($name) == "Shift" {
+                                        $char
+                                    } else if cfg!(target_os="macos") && modifier == KeyboardModifiers::Meta && stringify!($name) == "Control" {
+                                        $char
+                                    } else if cfg!(target_os="macos") && modifier == KeyboardModifiers::Control && stringify!($name) == "Meta" {
+                                            $char
+                                    } else if !cfg!(target_os="macos") && modifier == KeyboardModifiers::Control && stringify!($name) == "Control" {
+                                            $char
+                                    } else if !cfg!(target_os="macos") && modifier == KeyboardModifiers::Meta && stringify!($name) == "Meta" {
                                         $char
                                     }
                                 )*
