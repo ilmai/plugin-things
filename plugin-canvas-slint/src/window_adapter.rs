@@ -52,8 +52,14 @@ impl PluginCanvasWindowAdapter {
             height: plugin_canvas_size.height as u32,
         };
 
-        let skia_context = SkiaSharedContext::default();
-        let renderer = SkiaRenderer::new(&skia_context, plugin_canvas_window.clone(), plugin_canvas_window.clone(), slint_size)?;
+        let skia_context = SkiaSharedContext::default();        
+
+        #[cfg(target_os="windows")]
+        let renderer = SkiaRenderer::default_direct3d(&skia_context);
+        #[cfg(not(target_os="windows"))]
+        let renderer = SkiaRenderer::default(&skia_context);
+
+        renderer.set_window_handle(plugin_canvas_window.clone(), plugin_canvas_window.clone(), slint_size, None)?;
 
         let self_rc = Rc::new_cyclic(|self_weak| {
             let slint_window = slint::Window::new(self_weak.clone() as _);
