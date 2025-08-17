@@ -1,4 +1,4 @@
-use std::{cell::RefCell, ffi::OsString, mem::{self, size_of, transmute}, num::NonZeroIsize, os::windows::prelude::OsStringExt, ptr::{null, null_mut}, rc::{Rc, Weak}, sync::{atomic::{AtomicBool, AtomicUsize, Ordering}, Arc}, time::Duration};
+use std::{cell::RefCell, ffi::OsString, mem::{size_of, transmute}, num::NonZeroIsize, os::windows::prelude::OsStringExt, ptr::{null, null_mut}, rc::{Rc, Weak}, sync::{atomic::{AtomicBool, AtomicUsize, Ordering}, Arc}, time::Duration};
 
 use cursor_icon::CursorIcon;
 use keyboard_types::Code;
@@ -379,9 +379,9 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
             WM_MOUSEWHEEL => {
                 window.update_modifiers();
 
-                let wheel_delta: i16 = unsafe { mem::transmute((wparam.0 >> 16) as u16) };
-                let x: i16 = unsafe { mem::transmute(((lparam.0 as usize) & 0xFFFF) as u16) };
-                let y: i16 = unsafe { mem::transmute(((lparam.0 as usize) >> 16) as u16) };
+                let wheel_delta: i16 = u16::cast_signed((wparam.0 >> 16) as u16);
+                let x: i16 = u16::cast_signed(((lparam.0 as usize) & 0xFFFF) as u16);
+                let y: i16 = u16::cast_signed(((lparam.0 as usize) >> 16) as u16);
     
                 let mut position = POINT { x: x as i32, y: y as i32 };
                 let result = unsafe { ScreenToClient(hwnd, &mut position) };
@@ -457,12 +457,12 @@ unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -
     match wparam.0 as u32 {
         WM_MOUSEWHEEL => {
             let position = &mouse_hook_struct.Base.pt;
-            let x: u16 = unsafe { mem::transmute(position.x as i16) };
-            let y: u16 = unsafe { mem::transmute(position.y as i16) };
+            let x: u16 = i16::cast_unsigned(position.x as i16);
+            let y: u16 = i16::cast_unsigned(position.y as i16);
 
             // TODO: Convert modifiers            
             let wparam = WPARAM(mouse_hook_struct.mouseData as usize & 0xFFFF0000);            
-            let lparam = LPARAM(unsafe { mem::transmute::<usize, isize>(x as usize + ((y as usize) << 16)) });
+            let lparam = LPARAM(usize::cast_signed(x as usize + ((y as usize) << 16)));
             unsafe { PostMessageW(Some(hwnd), WM_MOUSEWHEEL, wparam, lparam).unwrap() };
         },
         _ => {},

@@ -80,10 +80,8 @@ impl<P: Plugin> Host for Vst3Host<P> {
     }
     
     fn mark_state_dirty(&self) {        
-        if let Some(handler) = self.component_handler.borrow_mut().as_mut() {
-            if let Some(handler2) = handler.cast::<IComponentHandler2>() {
-                unsafe { handler2.setDirty(1) };
-            }
+        if let Some(handler) = self.component_handler.borrow_mut().as_mut() && let Some(handler2) = handler.cast::<IComponentHandler2>() {
+            unsafe { handler2.setDirty(1) };
         }
     }
 }

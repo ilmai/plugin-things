@@ -10,7 +10,7 @@ pub trait Frame<'frame> {
     fn max_amplitude(&'frame self) -> f32 {
         self.iter()
             .map(|sample| sample.abs())
-            .max_by(|a, b| a.partial_cmp(&b).unwrap())
+            .max_by(|a, b| a.partial_cmp(b).unwrap())
             .unwrap()
     }
 }

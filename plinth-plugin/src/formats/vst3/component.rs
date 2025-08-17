@@ -104,14 +104,11 @@ impl<P: Vst3Plugin> IPluginBaseTrait for PluginComponent<P> {
         // Get plugin name if available
         let mut host_name = None;
 
-        if let Some(context) = unsafe { ComRef::from_raw(context) } {
-            if let Some(host_application) = context.cast::<IHostApplication>() {
-                let mut name = [0; 128];
-                if unsafe { host_application.getName(&mut name) == kResultOk } {
-                    if let Some(name) = char16_to_string(&name) {
-                        host_name = Some(name);
-                    }
-                }
+        if let Some(context) = unsafe { ComRef::from_raw(context) } && let Some(host_application) = context.cast::<IHostApplication>() {
+            let mut name = [0; 128];
+            
+            if unsafe { host_application.getName(&mut name) == kResultOk } && let Some(name) = char16_to_string(&name) {
+                host_name = Some(name);
             }
         }
 
@@ -257,10 +254,8 @@ impl<P: Vst3Plugin> IAudioProcessorTrait for PluginComponent<P> {
         self.processing.store(processing, Ordering::Release);
 
         let mut processor = self.audio_thread_state.processor.borrow_mut();
-        if let Some(processor) = processor.as_mut() {
-            if !processing {
-                processor.reset();
-            }
+        if let Some(processor) = processor.as_mut() && !processing {
+            processor.reset();
         }
 
         kResultOk
