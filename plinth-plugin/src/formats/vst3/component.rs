@@ -326,7 +326,7 @@ impl<P: Vst3Plugin> IAudioProcessorTrait for PluginComponent<P> {
                 return kResultFalse;
             },
 
-            ProcessState::Normal => kNoTail,
+            ProcessState::Normal | ProcessState::Tail(0) => kNoTail,
             ProcessState::Tail(tail) => tail as _,
             ProcessState::KeepAlive => kInfiniteTail,
         };
