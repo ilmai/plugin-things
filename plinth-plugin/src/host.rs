@@ -1,8 +1,11 @@
-use crate::{parameters::ParameterValue, ParameterId};
+use crate::ParameterId;
+use crate::formats::PluginFormat;
+use crate::parameters::ParameterValue;
 
 #[derive(Clone)]
 pub struct HostInfo {
     pub name: Option<String>,
+    pub format: PluginFormat,
 }
 
 pub trait Host {

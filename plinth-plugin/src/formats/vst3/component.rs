@@ -16,6 +16,7 @@ use vst3::Steinberg::{int16, int32, kInvalidArgument, kNoInterface, kResultFalse
 use vst3::Steinberg::Vst::{kInfiniteTail, kNoParentUnitId, kNoProgramListId, kNoTail, BusDirection, BusDirections_, BusInfo, BusInfo_::BusFlags_, BusTypes_, CString, IAudioProcessor, IAudioProcessorTrait, IComponent, IComponentHandler, IComponentTrait, IEditController, IEditController2, IEditController2Trait, IEditControllerTrait, IHostApplication, IHostApplicationTrait, IProcessContextRequirements, IProcessContextRequirementsTrait, IProcessContextRequirements_, IUnitInfo, IUnitInfoTrait, IoMode, IoModes_, KnobMode, MediaType, MediaTypes_, ParamID, ParamValue, ParameterInfo_, ProcessData, ProcessSetup, ProgramListID, ProgramListInfo, RoutingInfo, SpeakerArr, SpeakerArrangement, String128, SymbolicSampleSizes_, TChar, UnitID, UnitInfo, ViewType::kEditor};
 use widestring::U16CStr;
 
+use crate::formats::PluginFormat;
 use crate::host::HostInfo;
 use crate::vst3::parameters::parameter_change_to_event;
 use crate::{ParameterId, Parameters, ProcessMode, ProcessState, Processor};
@@ -115,6 +116,7 @@ impl<P: Vst3Plugin> IPluginBaseTrait for PluginComponent<P> {
         // Create plugin and find parameter info
         let host_info = HostInfo {
             name: host_name,
+            format: PluginFormat::Vst3,
         };
 
         let plugin = P::new(host_info);

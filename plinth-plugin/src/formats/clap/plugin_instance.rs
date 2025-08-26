@@ -7,7 +7,7 @@ use plinth_core::signals::{ptr_signal::{PtrSignal, PtrSignalMut}, signal::Signal
 use portable_atomic::AtomicBool;
 use raw_window_handle::RawWindowHandle;
 
-use crate::{host::HostInfo, Event, ParameterId, ProcessMode, ProcessState, Processor, ProcessorConfig};
+use crate::{formats::PluginFormat, host::HostInfo, Event, ParameterId, ProcessMode, ProcessState, Processor, ProcessorConfig};
 use crate::clap::{event::EventIterator, transport::convert_transport};
 use crate::parameters::{info::ParameterInfo, has_duplicates, Parameters};
 
@@ -83,6 +83,7 @@ impl<P: ClapPlugin> PluginInstance<P> {
 
         let host_info = HostInfo {
             name: host_name,
+            format: PluginFormat::Clap,
         };
 
         let plugin = P::new(host_info);
