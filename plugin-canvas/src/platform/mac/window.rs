@@ -108,7 +108,7 @@ impl OsWindowInterface for OsWindow {
 
         view.set_os_window_ptr(Rc::downgrade(&window).into_raw() as _);
 
-        Ok(OsWindowHandle::new(window))
+        Ok(OsWindowHandle::new(window, main_thread_marker))
     }
 
     fn os_scale(&self) -> f64 {
