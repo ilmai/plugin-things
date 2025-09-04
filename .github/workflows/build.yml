@@ -19,9 +19,14 @@ jobs:
     runs-on: ${{ matrix.os }}
     
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         submodules: true
+
+    - name: Clone vst3sdk
+      uses: actions/checkout@v5
+      with:
+        repository: steinbergmedia/vst3sdk
 
     - name: Init vst3sdk submodules
       run: |
