@@ -8,6 +8,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  VST3_SDK_DIR: ${{ github.workspace }}/vst3sdk
 
 jobs:
   build:
@@ -21,7 +22,12 @@ jobs:
     - uses: actions/checkout@v4
       with:
         submodules: true
-    
+
+    - name: Init vst3sdk submodules
+      run: |
+        cd vst3sdk
+        git submodule update --init base cmake pluginterfaces public.sdk
+
     - name: Build
       run: cargo build --verbose
     - name: Run tests
