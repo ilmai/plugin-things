@@ -3,6 +3,7 @@ pub mod drag_drop;
 pub mod error;
 pub mod event;
 pub mod keyboard;
+pub mod thread_bound;
 pub mod window;
 
 pub use dimensions::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize};

@@ -3,7 +3,7 @@ use std::ffi::OsString;
 use std::ops::Deref;
 use std::os::windows::prelude::OsStringExt;
 use std::ptr::null_mut;
-use std::rc::Weak;
+use std::sync::Weak;
 
 use windows::Win32::Foundation::{POINTL, POINT};
 use windows::Win32::Graphics::Gdi::MapWindowPoints;
@@ -16,18 +16,19 @@ use windows::Win32::UI::WindowsAndMessaging::HWND_DESKTOP;
 
 use crate::event::EventResponse;
 use crate::platform::interface::OsWindowInterface;
+use crate::thread_bound::ThreadBound;
 use crate::{LogicalPosition, PhysicalPosition};
 use crate::drag_drop::{DropData, DropOperation};
 use super::window::OsWindow;
 
 #[implement(IDropTarget)]
 pub(super) struct DropTarget {
-    window: Weak<OsWindow>,
+    window: Weak<ThreadBound<OsWindow>>,
     drop_data: RefCell<DropData>,
 }
 
 impl DropTarget {
-    pub fn new(window: Weak<OsWindow>) -> Self {
+    pub fn new(window: Weak<ThreadBound<OsWindow>>) -> Self {
         Self {
             window,
             drop_data: Default::default(),

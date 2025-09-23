@@ -1,15 +1,18 @@
-use std::{ops::Deref, rc::Rc};
+use std::sync::Arc;
+use std::ops::Deref;
 
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle};
+
+use crate::thread_bound::ThreadBound;
 
 use super::window::OsWindow;
 
 pub(crate) struct OsWindowHandle {
-    os_window: Rc<OsWindow>,
+    os_window: Arc<ThreadBound<OsWindow>>,
 }
 
 impl OsWindowHandle {
-    pub(super) fn new(os_window: Rc<OsWindow>) -> Self {
+    pub(super) fn new(os_window: Arc<ThreadBound<OsWindow>>) -> Self {
         Self {
             os_window,
         }
