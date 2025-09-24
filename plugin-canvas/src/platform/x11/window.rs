@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::{cell::RefCell, ffi::OsStr, num::NonZeroU32, ptr::NonNull, sync::atomic::{AtomicBool, Ordering}};
 
 use cursor_icon::CursorIcon;
@@ -97,15 +98,13 @@ impl OsWindow {
                 for keysym in xkb_state.key_get_syms(x11_keycode) {
                     xkb_compose_state.feed(*keysym);
 
-                    if xkb_compose_state.status() == xkb::Status::Composed {
-                        if let Some(text) = xkb_compose_state.utf8() {
-                            self.send_event(Event::KeyDown {
-                                key_code: keycode,
-                                text: Some(text),
-                            });
-    
-                            sent_event_with_text = true;
-                        }
+                    if xkb_compose_state.status() == xkb::Status::Composed && let Some(text) = xkb_compose_state.utf8() {
+                        self.send_event(Event::KeyDown {
+                            key_code: keycode,
+                            text: Some(text),
+                        });
+
+                        sent_event_with_text = true;
                     }
                 }
 
@@ -302,7 +301,7 @@ impl OsWindowInterface for OsWindow {
             showing_cursor: true.into(),
         };
 
-        Ok(OsWindowHandle::new(window.into()))
+        Ok(OsWindowHandle::new(Arc::new(window.into())))
     }
 
     fn os_scale(&self) -> f64 {

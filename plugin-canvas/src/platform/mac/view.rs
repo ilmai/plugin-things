@@ -1,4 +1,4 @@
-use std::{cell::RefCell, ffi::{c_void, CString}, ops::{Deref, DerefMut}, path::PathBuf, rc::Weak, str::FromStr, sync::atomic::{AtomicPtr, AtomicU8, AtomicUsize, Ordering}};
+use std::{cell::RefCell, ffi::{c_void, CString}, ops::{Deref, DerefMut}, path::PathBuf, str::FromStr, sync::{atomic::{AtomicPtr, AtomicU8, AtomicUsize, Ordering}, Weak}};
 
 use objc2::{declare::ClassBuilder, msg_send, runtime::{AnyClass, Bool}, sel, ClassType, Encode, Encoding, Message, RefEncode};
 use objc2::runtime::{Sel, ProtocolObject};
@@ -6,7 +6,7 @@ use objc2_app_kit::{NSDragOperation, NSDraggingInfo, NSEvent, NSEventModifierFla
 use objc2_foundation::{NSPoint, NSRect, NSURL};
 use uuid::Uuid;
 
-use crate::{drag_drop::{DropData, DropOperation}, event::EventResponse, keyboard::KeyboardModifiers, Event, LogicalPosition, MouseButton};
+use crate::{drag_drop::{DropData, DropOperation}, event::EventResponse, keyboard::KeyboardModifiers, thread_bound::ThreadBound, Event, LogicalPosition, MouseButton};
 
 use super::{keyboard::key_event_to_keyboard_type_code, window::OsWindow};
 
@@ -15,7 +15,7 @@ pub struct OsWindowView {
 }
 
 struct Context {
-    os_window_ptr: AtomicPtr<OsWindow>,
+    os_window_ptr: AtomicPtr<ThreadBound<OsWindow>>,
     input_focus: AtomicU8,
     keyboard_modifiers: RefCell<KeyboardModifiers>,
 }
@@ -81,7 +81,7 @@ impl OsWindowView {
         builder.register()
     }
 
-    pub(crate) fn set_os_window_ptr(&self, ptr: *mut OsWindow) {
+    pub(crate) fn set_os_window_ptr(&self, ptr: *mut ThreadBound<OsWindow>) {
         self.with_context(|context| context.os_window_ptr.store(ptr, Ordering::Release));
     }
 

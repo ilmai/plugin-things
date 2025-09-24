@@ -1,4 +1,5 @@
-use std::{cell::RefCell, ffi::OsString, mem::{size_of, transmute}, num::NonZeroIsize, os::windows::prelude::OsStringExt, ptr::{null, null_mut}, rc::{Rc, Weak}, sync::{atomic::{AtomicBool, AtomicUsize, Ordering}, Arc}, time::Duration};
+use std::sync::Weak;
+use std::{cell::RefCell, ffi::OsString, mem::{size_of, transmute}, num::NonZeroIsize, os::windows::prelude::OsStringExt, ptr::{null, null_mut}, sync::{atomic::{AtomicBool, AtomicUsize, Ordering}, Arc}, time::Duration};
 
 use cursor_icon::CursorIcon;
 use keyboard_types::Code;
@@ -10,6 +11,7 @@ use windows::Win32::Graphics::{Dwm::{DwmFlush, DwmIsCompositionEnabled}, Dxgi::{
 use windows::Win32::System::{Ole::{IDropTarget, OleInitialize, RegisterDragDrop, RevokeDragDrop}, Threading::GetCurrentThreadId};
 use windows::Win32::UI::{Controls::WM_MOUSELEAVE, Input::KeyboardAndMouse::{GetAsyncKeyState, SetCapture, TrackMouseEvent, TME_LEAVE, TRACKMOUSEEVENT, VK_CONTROL, VK_MENU, VK_SHIFT}, WindowsAndMessaging::{CallNextHookEx, CreateWindowExW, DefWindowProcW, DestroyWindow, GetWindowLongPtrW, LoadCursorW, MoveWindow, PostMessageW, RegisterClassW, SendMessageW, SetCursor, SetCursorPos, SetWindowLongPtrW, SetWindowsHookExW, ShowCursor, UnhookWindowsHookEx, UnregisterClassW, CS_OWNDC, GWLP_USERDATA, HHOOK, HICON, IDC_ARROW, MOUSEHOOKSTRUCTEX, WH_MOUSE, WINDOW_EX_STYLE, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEMOVE, WM_MOUSEWHEEL, WM_MOVE, WM_RBUTTONDOWN, WM_RBUTTONUP, WNDCLASSW, WS_CHILD, WS_VISIBLE}};
 
+use crate::thread_bound::ThreadBound;
 use crate::{dimensions::Size, error::Error, event::{Event, EventCallback, EventResponse, MouseButton}, keyboard::KeyboardModifiers, platform::{interface::OsWindowInterface, os_window_handle::OsWindowHandle}, window::WindowAttributes, LogicalPosition, LogicalSize, PhysicalPosition};
 
 use super::{cursors::Cursors, drop_target::DropTarget, message_window::MessageWindow, to_wstr, version::is_windows10_or_greater, PLUGIN_HINSTANCE, WM_USER_CHAR, WM_USER_FRAME_TIMER, WM_USER_KEY_DOWN, WM_USER_KEY_UP};
@@ -174,7 +176,7 @@ impl OsWindowInterface for OsWindow {
             move || message_window.run(running)
         });
 
-        let window = Rc::new(Self {
+        let window = Self {
             window_class,
             window_handle,
             hook_handle,
@@ -189,9 +191,11 @@ impl OsWindowInterface for OsWindow {
             moved,
 
             keyboard_modifiers: Default::default(),
-        });
+        };
 
-        let drop_target: Box<IDropTarget> = Box::new(DropTarget::new(Rc::downgrade(&window)).into());
+        let window = Arc::new(ThreadBound::new(window));
+
+        let drop_target: Box<IDropTarget> = Box::new(DropTarget::new(Arc::downgrade(&window)).into());
 
         unsafe {
             OleInitialize(None)?;
@@ -200,7 +204,7 @@ impl OsWindowInterface for OsWindow {
 
         *window.drop_target.borrow_mut() = Some(drop_target);
 
-        unsafe { SetWindowLongPtrW(hwnd, GWLP_USERDATA, Rc::downgrade(&window).into_raw() as _) };
+        unsafe { SetWindowLongPtrW(hwnd, GWLP_USERDATA, Arc::downgrade(&window).into_raw() as _) };
 
         Ok(OsWindowHandle::new(window))
     }
@@ -316,7 +320,7 @@ impl HasDisplayHandle for OsWindow {
 }
 
 unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
-    let window_ptr = unsafe { GetWindowLongPtrW(hwnd, GWLP_USERDATA) } as *mut OsWindow;
+    let window_ptr = unsafe { GetWindowLongPtrW(hwnd, GWLP_USERDATA) } as *mut ThreadBound<OsWindow>;
     if window_ptr.is_null() {
         return unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) };
     }

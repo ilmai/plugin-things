@@ -1,4 +1,4 @@
-use std::{cell::RefCell, ptr::{null_mut, NonNull}, rc::Rc, sync::atomic::{AtomicBool, Ordering}};
+use std::{cell::RefCell, ptr::{null_mut, NonNull}, sync::{atomic::{AtomicBool, Ordering}, Arc}};
 
 use cursor_icon::CursorIcon;
 use objc2::{msg_send, rc::{Allocated, Retained}, sel, AllocAnyThread};
@@ -9,7 +9,7 @@ use objc2_foundation::{MainThreadMarker, NSArray, NSDefaultRunLoopMode, NSPoint,
 use objc2_quartz_core::CADisplayLink;
 use raw_window_handle::{AppKitWindowHandle, HasDisplayHandle, HasWindowHandle, RawWindowHandle};
 
-use crate::{platform::os_window_handle::OsWindowHandle, Event, LogicalPosition};
+use crate::{platform::os_window_handle::OsWindowHandle, thread_bound::ThreadBound, Event, LogicalPosition};
 use crate::error::Error;
 use crate::event::{EventCallback, EventResponse};
 use crate::platform::interface::OsWindowInterface;
@@ -88,7 +88,7 @@ impl OsWindowInterface for OsWindow {
 
         let main_thread_marker = MainThreadMarker::new().unwrap();
 
-        let window = Rc::new(Self {
+        let window = Self {
             window_handle,
             display_link: Default::default(),
             event_callback,
@@ -96,7 +96,9 @@ impl OsWindowInterface for OsWindow {
             cursor_hidden: Default::default(),
 
             main_thread_marker,
-        });
+        };
+
+        let window = Arc::new(ThreadBound::new(window));
 
         let display_link = unsafe { view.displayLinkWithTarget_selector(&view, sel!(drawRect:)) };
 
@@ -106,7 +108,7 @@ impl OsWindowInterface for OsWindow {
 
         *window.display_link.borrow_mut() = Some(display_link);
 
-        view.set_os_window_ptr(Rc::downgrade(&window).into_raw() as _);
+        view.set_os_window_ptr(Arc::downgrade(&window).into_raw() as _);
 
         Ok(OsWindowHandle::new(window))
     }
