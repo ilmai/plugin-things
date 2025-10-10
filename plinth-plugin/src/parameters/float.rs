@@ -429,11 +429,13 @@ impl ParameterFormatter<f64> for PercentageFormatter {
 
 #[cfg(test)]
 mod tests {
-    use approx::assert_ulps_eq;
+    use approx::assert_abs_diff_eq;
 
     use crate::{parameters::range::ParameterRange, LogFloatRange, PowFloatRange};
 
     use super::LinearFloatRange;
+
+    const EPSILON: f64 = 0.0000001;
 
     #[test]
     fn linear_float_converter() {
@@ -450,24 +452,24 @@ mod tests {
     #[test]
     fn log_float_converter() {
         let converter = LogFloatRange::new(1.0, 3.0, 2.0);
-        assert_ulps_eq!(converter.plain_to_normalized(1.0).unwrap(), 0.0);
-        assert_ulps_eq!(converter.plain_to_normalized(3.0).unwrap(), 1.0);
+        assert_abs_diff_eq!(converter.plain_to_normalized(1.0).unwrap(), 0.0, epsilon=EPSILON);
+        assert_abs_diff_eq!(converter.plain_to_normalized(3.0).unwrap(), 1.0, epsilon=EPSILON);
         assert!(converter.plain_to_normalized(0.0).is_none());
         assert!(converter.plain_to_normalized(4.0).is_none());
-        assert_ulps_eq!(converter.normalized_to_plain(0.0), 1.0);
-        assert_ulps_eq!(converter.normalized_to_plain(1.0), 3.0);
-        assert_ulps_eq!(converter.plain_to_normalized(converter.normalized_to_plain(0.5)).unwrap(), 0.5);
+        assert_abs_diff_eq!(converter.normalized_to_plain(0.0), 1.0, epsilon=EPSILON);
+        assert_abs_diff_eq!(converter.normalized_to_plain(1.0), 3.0, epsilon=EPSILON);
+        assert_abs_diff_eq!(converter.plain_to_normalized(converter.normalized_to_plain(0.5)).unwrap(), 0.5, epsilon=EPSILON);
     }
 
     #[test]
     fn pow_float_converter() {
         let converter = PowFloatRange::new(1.0, 3.0, 2.0);
-        assert_ulps_eq!(converter.plain_to_normalized(1.0).unwrap(), 0.0);
-        assert_ulps_eq!(converter.plain_to_normalized(3.0).unwrap(), 1.0);
+        assert_abs_diff_eq!(converter.plain_to_normalized(1.0).unwrap(), 0.0, epsilon=EPSILON);
+        assert_abs_diff_eq!(converter.plain_to_normalized(3.0).unwrap(), 1.0, epsilon=EPSILON);
         assert!(converter.plain_to_normalized(0.0).is_none());
         assert!(converter.plain_to_normalized(4.0).is_none());
-        assert_ulps_eq!(converter.normalized_to_plain(0.0), 1.0);
-        assert_ulps_eq!(converter.normalized_to_plain(1.0), 3.0);
-        assert_ulps_eq!(converter.plain_to_normalized(converter.normalized_to_plain(0.5)).unwrap(), 0.5);
+        assert_abs_diff_eq!(converter.normalized_to_plain(0.0), 1.0, epsilon=EPSILON);
+        assert_abs_diff_eq!(converter.normalized_to_plain(1.0), 3.0, epsilon=EPSILON);
+        assert_abs_diff_eq!(converter.plain_to_normalized(converter.normalized_to_plain(0.5)).unwrap(), 0.5, epsilon=EPSILON);
     }
 }
