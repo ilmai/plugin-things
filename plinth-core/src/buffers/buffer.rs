@@ -86,7 +86,7 @@ impl PartialEq<Buffer> for Buffer {
 
 #[cfg(test)]
 mod tests {
-    use crate::signals::{signal::{Signal, SignalMut}, signal_base::SignalBase};
+    use crate::signals::{frame::{Frame, FrameMut}, signal::{Signal, SignalMut}, signal_base::SignalBase};
 
     use super::Buffer;
 
@@ -171,5 +171,57 @@ mod tests {
         assert_eq!(buffer.channel(0), [1.0, 2.0, 0.0, 0.0]);
         assert_eq!(buffer.channel(1), [3.0, 4.0, 0.0, 0.0]);
         assert_eq!(buffer.channel(2), [5.0, 6.0, 0.0, 0.0]);
+    }
+
+    #[test]
+    fn iter_frames() {
+        let mut buffer = Buffer::new(1, 4);
+        buffer.channel_mut(0).copy_from_slice(&[1.0, 2.0, 3.0, 4.0]);
+
+        let mut iterator = buffer.iter_frames();
+        assert_eq!(*iterator.next().unwrap().channel(0), 1.0);
+        assert_eq!(*iterator.next().unwrap().channel(0), 2.0);
+        assert_eq!(*iterator.next().unwrap().channel(0), 3.0);
+        assert_eq!(*iterator.next().unwrap().channel(0), 4.0);
+        assert!(iterator.next().is_none());
+    }
+
+    #[test]
+    fn iter_frames_rev() {
+        let mut buffer = Buffer::new(1, 4);
+        buffer.channel_mut(0).copy_from_slice(&[1.0, 2.0, 3.0, 4.0]);
+
+        let mut iterator = buffer.iter_frames().rev();
+        assert_eq!(*iterator.next().unwrap().channel(0), 4.0);
+        assert_eq!(*iterator.next().unwrap().channel(0), 3.0);
+        assert_eq!(*iterator.next().unwrap().channel(0), 2.0);
+        assert_eq!(*iterator.next().unwrap().channel(0), 1.0);
+        assert!(iterator.next().is_none());
+    }
+
+    #[test]
+    fn iter_frames_mut() {
+        let mut buffer = Buffer::new(1, 4);
+        let mut iterator = buffer.iter_frames_mut();
+        *iterator.next().unwrap().channel_mut(0) = 1.0;
+        *iterator.next().unwrap().channel_mut(0) = 2.0;
+        *iterator.next().unwrap().channel_mut(0) = 3.0;
+        *iterator.next().unwrap().channel_mut(0) = 4.0;
+        assert!(iterator.next().is_none());
+
+        assert_eq!(buffer.channel(0), [1.0, 2.0, 3.0, 4.0]);
+    }
+
+    #[test]
+    fn iter_frames_mut_rev() {
+        let mut buffer = Buffer::new(1, 4);
+        let mut iterator = buffer.iter_frames_mut().rev();
+        *iterator.next().unwrap().channel_mut(0) = 1.0;
+        *iterator.next().unwrap().channel_mut(0) = 2.0;
+        *iterator.next().unwrap().channel_mut(0) = 3.0;
+        *iterator.next().unwrap().channel_mut(0) = 4.0;
+        assert!(iterator.next().is_none());
+
+        assert_eq!(buffer.channel(0), [4.0, 3.0, 2.0, 1.0]);
     }
 }
