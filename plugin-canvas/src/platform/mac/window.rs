@@ -126,58 +126,56 @@ impl OsWindowInterface for OsWindow {
             height: size.height as _,
         };
 
-        unsafe { self.view().setFrameSize(cg_size) };
+        self.view().setFrameSize(cg_size);
     }
 
     fn set_cursor(&self, cursor: Option<CursorIcon>) {
-        unsafe {
-            if let Some(cursor) = cursor {
-                let cursor = match cursor {
-                    CursorIcon::Default => NSCursor::arrowCursor(),
-                    CursorIcon::ContextMenu => NSCursor::contextualMenuCursor(),
-                    CursorIcon::Help => NSCursor::arrowCursor(), // TODO
-                    CursorIcon::Pointer => NSCursor::pointingHandCursor(),
-                    CursorIcon::Progress => NSCursor::arrowCursor(), // TODO,
-                    CursorIcon::Wait => NSCursor::arrowCursor(), // TODO
-                    CursorIcon::Cell => NSCursor::crosshairCursor(),
-                    CursorIcon::Crosshair => NSCursor::crosshairCursor(),
-                    CursorIcon::Text => NSCursor::IBeamCursor(),
-                    CursorIcon::VerticalText => NSCursor::IBeamCursorForVerticalLayout(),
-                    CursorIcon::Alias => NSCursor::dragLinkCursor(),
-                    CursorIcon::Copy => NSCursor::dragCopyCursor(),
-                    CursorIcon::Move => NSCursor::openHandCursor(),
-                    CursorIcon::NoDrop => NSCursor::operationNotAllowedCursor(),
-                    CursorIcon::NotAllowed => NSCursor::operationNotAllowedCursor(),
-                    CursorIcon::Grab => NSCursor::openHandCursor(),
-                    CursorIcon::Grabbing => NSCursor::closedHandCursor(),
-                    CursorIcon::EResize => NSCursor::columnResizeCursorInDirections(NSHorizontalDirections::Right),
-                    CursorIcon::NResize => NSCursor::rowResizeCursorInDirections(NSVerticalDirections::Up),
-                    CursorIcon::NeResize => NSCursor::frameResizeCursorFromPosition_inDirections(NSCursorFrameResizePosition::TopRight, NSCursorFrameResizeDirections::Outward),
-                    CursorIcon::NwResize => NSCursor::frameResizeCursorFromPosition_inDirections(NSCursorFrameResizePosition::TopLeft, NSCursorFrameResizeDirections::Outward),
-                    CursorIcon::SResize => NSCursor::rowResizeCursorInDirections(NSVerticalDirections::Down),
-                    CursorIcon::SeResize => NSCursor::frameResizeCursorFromPosition_inDirections(NSCursorFrameResizePosition::BottomRight, NSCursorFrameResizeDirections::Outward),
-                    CursorIcon::SwResize => NSCursor::frameResizeCursorFromPosition_inDirections(NSCursorFrameResizePosition::BottomLeft, NSCursorFrameResizeDirections::Outward),
-                    CursorIcon::WResize => NSCursor::columnResizeCursorInDirections(NSHorizontalDirections::Left),
-                    CursorIcon::EwResize => NSCursor::columnResizeCursor(),
-                    CursorIcon::NsResize => NSCursor::rowResizeCursor(),
-                    CursorIcon::NeswResize => NSCursor::frameResizeCursorFromPosition_inDirections(NSCursorFrameResizePosition::TopRight, NSCursorFrameResizeDirections::All),
-                    CursorIcon::NwseResize => NSCursor::frameResizeCursorFromPosition_inDirections(NSCursorFrameResizePosition::TopLeft, NSCursorFrameResizeDirections::All),
-                    CursorIcon::ColResize => NSCursor::columnResizeCursor(),
-                    CursorIcon::RowResize => NSCursor::rowResizeCursor(),
-                    CursorIcon::AllScroll => NSCursor::openHandCursor(),
-                    CursorIcon::ZoomIn => NSCursor::arrowCursor(), // TODO
-                    CursorIcon::ZoomOut => NSCursor::arrowCursor(), // TODO
-                    _ => todo!(),
-                };
-        
-                cursor.set();
+        if let Some(cursor) = cursor {
+            let cursor = match cursor {
+                CursorIcon::Default => NSCursor::arrowCursor(),
+                CursorIcon::ContextMenu => NSCursor::contextualMenuCursor(),
+                CursorIcon::Help => NSCursor::arrowCursor(), // TODO
+                CursorIcon::Pointer => NSCursor::pointingHandCursor(),
+                CursorIcon::Progress => NSCursor::arrowCursor(), // TODO,
+                CursorIcon::Wait => NSCursor::arrowCursor(), // TODO
+                CursorIcon::Cell => NSCursor::crosshairCursor(),
+                CursorIcon::Crosshair => NSCursor::crosshairCursor(),
+                CursorIcon::Text => NSCursor::IBeamCursor(),
+                CursorIcon::VerticalText => NSCursor::IBeamCursorForVerticalLayout(),
+                CursorIcon::Alias => NSCursor::dragLinkCursor(),
+                CursorIcon::Copy => NSCursor::dragCopyCursor(),
+                CursorIcon::Move => NSCursor::openHandCursor(),
+                CursorIcon::NoDrop => NSCursor::operationNotAllowedCursor(),
+                CursorIcon::NotAllowed => NSCursor::operationNotAllowedCursor(),
+                CursorIcon::Grab => NSCursor::openHandCursor(),
+                CursorIcon::Grabbing => NSCursor::closedHandCursor(),
+                CursorIcon::EResize => NSCursor::columnResizeCursorInDirections(NSHorizontalDirections::Right),
+                CursorIcon::NResize => NSCursor::rowResizeCursorInDirections(NSVerticalDirections::Up),
+                CursorIcon::NeResize => NSCursor::frameResizeCursorFromPosition_inDirections(NSCursorFrameResizePosition::TopRight, NSCursorFrameResizeDirections::Outward),
+                CursorIcon::NwResize => NSCursor::frameResizeCursorFromPosition_inDirections(NSCursorFrameResizePosition::TopLeft, NSCursorFrameResizeDirections::Outward),
+                CursorIcon::SResize => NSCursor::rowResizeCursorInDirections(NSVerticalDirections::Down),
+                CursorIcon::SeResize => NSCursor::frameResizeCursorFromPosition_inDirections(NSCursorFrameResizePosition::BottomRight, NSCursorFrameResizeDirections::Outward),
+                CursorIcon::SwResize => NSCursor::frameResizeCursorFromPosition_inDirections(NSCursorFrameResizePosition::BottomLeft, NSCursorFrameResizeDirections::Outward),
+                CursorIcon::WResize => NSCursor::columnResizeCursorInDirections(NSHorizontalDirections::Left),
+                CursorIcon::EwResize => NSCursor::columnResizeCursor(),
+                CursorIcon::NsResize => NSCursor::rowResizeCursor(),
+                CursorIcon::NeswResize => NSCursor::frameResizeCursorFromPosition_inDirections(NSCursorFrameResizePosition::TopRight, NSCursorFrameResizeDirections::All),
+                CursorIcon::NwseResize => NSCursor::frameResizeCursorFromPosition_inDirections(NSCursorFrameResizePosition::TopLeft, NSCursorFrameResizeDirections::All),
+                CursorIcon::ColResize => NSCursor::columnResizeCursor(),
+                CursorIcon::RowResize => NSCursor::rowResizeCursor(),
+                CursorIcon::AllScroll => NSCursor::openHandCursor(),
+                CursorIcon::ZoomIn => NSCursor::arrowCursor(), // TODO
+                CursorIcon::ZoomOut => NSCursor::arrowCursor(), // TODO
+                _ => todo!(),
+            };
+    
+            cursor.set();
 
-                if self.cursor_hidden.swap(false, Ordering::Relaxed) {
-                    NSCursor::unhide();
-                }
-            } else if !self.cursor_hidden.swap(true, Ordering::Relaxed) {
-                NSCursor::hide();
+            if self.cursor_hidden.swap(false, Ordering::Relaxed) {
+                NSCursor::unhide();
             }
+        } else if !self.cursor_hidden.swap(true, Ordering::Relaxed) {
+            NSCursor::hide();
         }
     }
 
@@ -186,11 +184,11 @@ impl OsWindowInterface for OsWindow {
     }
 
     fn warp_mouse(&self, position: LogicalPosition) {
-        let window_position = unsafe { self.view().convertPoint_toView(CGPoint::new(position.x, position.y), None) };
-        let screen_position = unsafe { self.view().window().unwrap().convertPointToScreen(window_position) };
+        let window_position = self.view().convertPoint_toView(CGPoint::new(position.x, position.y), None);
+        let screen_position = self.view().window().unwrap().convertPointToScreen(window_position);
         let screen_height = NSScreen::mainScreen(self.main_thread_marker).unwrap().frame().size.height;
         let cg_point = CGPoint::new(screen_position.x, screen_height - screen_position.y);
-        unsafe { CGWarpMouseCursorPosition(cg_point) };
+        CGWarpMouseCursorPosition(cg_point);
     }
     
     fn poll_events(&self) -> Result<(), Error> {

@@ -224,7 +224,7 @@ impl OsWindowView {
     }
 
     fn drag_event_position(&self, sender: &ProtocolObject<dyn NSDraggingInfo>) -> LogicalPosition {
-        let point = unsafe { sender.draggingLocation() };
+        let point = sender.draggingLocation();
         self.window_point_to_position(point)
     }
 
