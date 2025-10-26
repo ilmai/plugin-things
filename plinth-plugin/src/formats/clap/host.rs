@@ -74,6 +74,12 @@ impl Host for ClapHost {
         }
     }
     
+    fn reload_parameters(&self) {
+        if !self.host_ext_params.is_null() {
+            unsafe { ((*self.host_ext_params).request_flush.unwrap())(self.raw) };
+        }        
+    }
+
     fn mark_state_dirty(&self) {
         if !self.host_ext_state.is_null() {
             unsafe { ((*self.host_ext_state).mark_dirty.unwrap())(self.raw) };

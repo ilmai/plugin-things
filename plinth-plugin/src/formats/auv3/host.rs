@@ -73,6 +73,10 @@ impl Host for Auv3Host {
         self.sending_parameter_change_from_editor.store(false, Ordering::Release);
     }
     
+    fn reload_parameters(&self) {
+        // TODO        
+    }
+
     fn mark_state_dirty(&self) {
         // TODO
     }

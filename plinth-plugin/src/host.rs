@@ -18,5 +18,8 @@ pub trait Host {
     fn change_parameter_value(&self, id: ParameterId, normalized: ParameterValue);
     fn end_parameter_change(&self, id: ParameterId);
 
+    /// Call when all/most parameters have changed, for example when loading a preset
+    fn reload_parameters(&self);
+
     fn mark_state_dirty(&self);
 }

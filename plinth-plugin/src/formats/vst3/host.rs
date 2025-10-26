@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use vst3::{ComPtr, Steinberg::{kResultOk, IPlugFrameTrait, IPlugView, ViewRect, Vst::{IComponentHandler, IComponentHandler2, IComponentHandler2Trait, IComponentHandlerTrait}}};
+use vst3::{ComPtr, Steinberg::{kResultOk, IPlugFrameTrait, IPlugView, ViewRect, Vst::{IComponentHandler, IComponentHandler2, IComponentHandler2Trait, IComponentHandlerTrait, RestartFlags_::kParamValuesChanged}}};
 
 use crate::{host::Host, parameters::ParameterValue, ParameterId, Parameters, Plugin};
 
@@ -79,6 +79,12 @@ impl<P: Plugin> Host for Vst3Host<P> {
         }
     }
     
+    fn reload_parameters(&self) {
+        if let Some(handler) = self.component_handler.borrow_mut().as_mut() {
+            unsafe { handler.restartComponent(kParamValuesChanged as _) };
+        }        
+    }
+
     fn mark_state_dirty(&self) {        
         if let Some(handler) = self.component_handler.borrow_mut().as_mut() && let Some(handler2) = handler.cast::<IComponentHandler2>() {
             unsafe { handler2.setDirty(1) };
