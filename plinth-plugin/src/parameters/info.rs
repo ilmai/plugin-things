@@ -10,6 +10,7 @@ pub struct ParameterInfo {
     default_normalized_value: ParameterValue,
     steps: usize,
     is_bypass: bool,
+    is_output: bool,
     visible: bool,
 }
 
@@ -22,6 +23,7 @@ impl ParameterInfo {
             default_normalized_value: Default::default(),
             steps: 0,
             is_bypass: false,
+            is_output: true,
             visible: true,
         }
     }
@@ -43,6 +45,14 @@ impl ParameterInfo {
 
     pub fn as_bypass(mut self) -> Self {
         self.is_bypass = true;
+        self
+    }
+
+    /// By default, parameters are assumed to affect plugin output
+    /// Calling this function will mark the parameter as not affecting the output,
+    /// which might improve performance
+    pub fn not_output(mut self) -> Self {
+        self.is_output = false;
         self
     }
 
@@ -73,6 +83,10 @@ impl ParameterInfo {
     
     pub fn is_bypass(&self) -> bool {
         self.is_bypass
+    }
+
+    pub fn is_output(&self) -> bool {
+        self.is_output
     }
 
     pub fn visible(&self) -> bool {
