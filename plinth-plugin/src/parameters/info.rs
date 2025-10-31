@@ -49,10 +49,9 @@ impl ParameterInfo {
     }
 
     /// By default, parameters are assumed to affect plugin output
-    /// Calling this function will mark the parameter as not affecting the output,
-    /// which might improve performance
-    pub fn not_output(mut self) -> Self {
-        self.is_output = false;
+    /// Disabling that might improve performance
+    pub fn as_output(mut self, output: bool) -> Self {
+        self.is_output = output;
         self
     }
 

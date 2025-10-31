@@ -65,6 +65,11 @@ impl IntParameter {
         self
     }
 
+    pub fn as_output(mut self, output: bool) -> Self {
+        self.info = self.info.as_output(output);
+        self
+    }
+
     pub fn set_value(&self, value: i64) {
         let value = self.range.clamp(value);
         self.value.store(value, Ordering::Release);

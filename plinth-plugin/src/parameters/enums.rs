@@ -71,6 +71,11 @@ impl<T: Enum> EnumParameter<T> {
         self
     }
 
+    pub fn as_output(mut self, output: bool) -> Self {
+        self.info = self.info.as_output(output);
+        self
+    }
+
     pub fn unmodulated_value(&self) -> T {
         T::from_usize(self.value.load(Ordering::Acquire)).unwrap()
     }
