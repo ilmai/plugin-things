@@ -4,7 +4,7 @@ use vst3::Steinberg::{char16, char8};
 use widestring::U16CStr;
 
 pub fn char16_to_string(source: &[char16]) -> Option<String> {
-    let Ok(cstr) = U16CStr::from_slice_truncate(unsafe { std::mem::transmute::<&[i16], &[u16]>(source) }) else {
+    let Ok(cstr) = U16CStr::from_slice_truncate(source) else {
         return None;
     };
 

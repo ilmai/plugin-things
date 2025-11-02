@@ -801,9 +801,9 @@ checksum = "3d7b894f5411737b7867f4827955924d7c254fc9f4d91a6aad6b097804b1018b"
 
 [[package]]
 name = "com-scrape"
-version = "0.1.3"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "97ea8fb7ccfb6d77b4aeef53bd54c8e4882d37048922fb7f6fadbc9376771935"
+checksum = "5cd4a2b0452447ce166d01ff6f7f73454acdc89fa195a82f3c3dfca5f074ff42"
 dependencies = [
  "clang-sys",
 ]
@@ -4591,9 +4591,9 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "vst3"
-version = "0.1.2"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f8763936350f719c37da0d6ccd5ab7ac1de05203995104452347fd3998401e7"
+checksum = "9cde7186f5d0d86facd20d4248ddaaf620e221c9523eb86fe4fb2e935b09cd2f"
 dependencies = [
  "com-scrape-types",
  "vst3-bindgen",
@@ -4601,9 +4601,9 @@ dependencies = [
 
 [[package]]
 name = "vst3-bindgen"
-version = "0.2.2"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "37c2c1284b0b2d0a1ddcd5ea7b1f74ea766a9a52e376f5402f02f217a629eee6"
+checksum = "e11db21d4f35c24f570466200c05596a801f0dcf054b11b973c3a4fd646ede4e"
 dependencies = [
  "com-scrape",
 ]
