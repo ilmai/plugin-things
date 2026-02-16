@@ -19,7 +19,7 @@ portable-atomic.workspace = true
 raw-window-handle = "0.6"
 rtrb = "0.3"
 thiserror = "2.0"
-vst3 = "0.2"
+vst3 = "0.3"
 widestring = "1.1"
 xxhash-rust = { version = "0.8", features = ["xxh3", "xxh32"] }
 
