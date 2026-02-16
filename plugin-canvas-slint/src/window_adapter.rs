@@ -414,6 +414,7 @@ impl WindowAdapterInternal for PluginCanvasWindowAdapter {
             i_slint_core::items::MouseCursor::NsResize => Some(CursorIcon::NsResize),
             i_slint_core::items::MouseCursor::NeswResize => Some(CursorIcon::NeswResize),
             i_slint_core::items::MouseCursor::NwseResize => Some(CursorIcon::NwseResize),
+            _ => None,
         };
 
         self.plugin_canvas_window.set_cursor(cursor);
