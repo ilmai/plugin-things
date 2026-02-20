@@ -9,6 +9,9 @@ pub trait Editor {
     fn open(&mut self, parent: RawWindowHandle);
     fn close(&mut self);
 
+    /// Get applied window scale
+    fn scale(&self) -> f64 { 1.0 }
+
     /// Returns current window size
     fn window_size(&self) -> (f64, f64) {
         Self::DEFAULT_SIZE

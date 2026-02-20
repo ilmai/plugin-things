@@ -44,7 +44,7 @@ impl PluginCanvasWindowAdapter {
         let window_attributes = plugin_canvas_window.attributes();
 
         let scale = window_attributes.scale();
-        let combined_scale = scale * plugin_canvas_window.os_scale();
+        let combined_scale = scale * plugin_canvas_window.scale();
         let plugin_canvas_size = window_attributes.size() * combined_scale;
 
         let slint_size = slint::PhysicalSize {
@@ -95,14 +95,8 @@ impl PluginCanvasWindowAdapter {
         *self.view.borrow_mut() = Some(view);
     }
 
-    pub fn set_scale(&self, scale: f64) {
-        self.scale.store(scale, Ordering::Release);
-
-        let combined_scale = scale * self.plugin_canvas_window.os_scale();
-        
-        self.slint_window.dispatch_event(
-            WindowEvent::ScaleFactorChanged { scale_factor: combined_scale as f32 }
-        );
+    pub fn scale(&self) -> f64 {
+        self.scale.load(Ordering::Relaxed) * self.plugin_canvas_window.scale()
     }
 
     pub fn close(&self) {
@@ -342,7 +336,7 @@ impl WindowAdapter for PluginCanvasWindowAdapter {
 
     fn set_size(&self, size: slint::WindowSize) {
         let scale = self.scale.load(Ordering::Acquire);
-        let os_scale = self.plugin_canvas_window.os_scale();
+        let os_scale = self.plugin_canvas_window.scale();
 
         let physical_size = size.to_physical(os_scale as _);
         let logical_size = size.to_logical(os_scale as _);

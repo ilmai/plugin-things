@@ -62,12 +62,16 @@ impl Window {
         })
     }
 
-    pub fn attributes(&self) -> &WindowAttributes {
-        &self.attributes
+    pub fn sceen_scale() -> f64 {
+        OsWindow::sceen_scale()
+    }
+    
+    pub fn scale(&self) -> f64 {
+        self.os_window_handle.scale()
     }
 
-    pub fn os_scale(&self) -> f64 {
-        self.os_window_handle.os_scale()
+    pub fn attributes(&self) -> &WindowAttributes {
+        &self.attributes
     }
 
     pub fn resized(&self, size: LogicalSize) {

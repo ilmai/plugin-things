@@ -5,6 +5,7 @@ use cursor_icon::CursorIcon;
 use keyboard_types::Code;
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle, RawWindowHandle, Win32WindowHandle};
 use uuid::Uuid;
+use windows::Win32::Graphics::Gdi::{GetDC, GetDeviceCaps, LOGPIXELSX, LOGPIXELSY, ReleaseDC};
 use windows::{core::PCWSTR, Win32::UI::Input::KeyboardAndMouse::{VK_LWIN, VK_RWIN}};
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, WPARAM};
 use windows::Win32::Graphics::{Dwm::{DwmFlush, DwmIsCompositionEnabled}, Dxgi::{CreateDXGIFactory, IDXGIFactory, IDXGIOutput}, Gdi::{ClientToScreen, MonitorFromWindow, ScreenToClient, HBRUSH, MONITOR_DEFAULTTOPRIMARY}};
@@ -33,6 +34,20 @@ pub struct OsWindow {
     keyboard_modifiers: RefCell<KeyboardModifiers>,
 }
 
+fn window_scale(hwnd: Option<HWND>) -> f64 {
+    // Could use `GetDpiForWindow` here, but that's available for Windows 10 only
+    unsafe {
+        let hdc = GetDC(hwnd);
+        if !hdc.is_invalid() {
+            let dpi = GetDeviceCaps(Some(hdc), LOGPIXELSX).min(GetDeviceCaps(Some(hdc), LOGPIXELSY));
+            ReleaseDC(hwnd, hdc);
+            dpi.max(96) as f64 / 96.0
+        } else {
+            1.0
+        }
+    }
+}
+
 impl OsWindow {
     pub(super) fn send_event(&self, event: Event) -> EventResponse {
         (self.event_callback)(event)
@@ -59,7 +74,7 @@ impl OsWindow {
     }
 
     fn logical_mouse_position(&self, lparam: LPARAM) -> LogicalPosition {
-        let scale = self.os_scale();
+        let scale = self.scale();
 
         PhysicalPosition {
             x: (lparam.0 & 0xFFFF) as i16 as i32,
@@ -100,7 +115,8 @@ impl OsWindowInterface for OsWindow {
         };
 
         let class_name = to_wstr("plugin-canvas-".to_string() + &Uuid::new_v4().simple().to_string());
-        let size = Size::with_logical_size(window_attributes.size, window_attributes.scale);
+        let os_scale = window_scale(Some(HWND(parent_window_handle.hwnd.get() as _)));
+        let size = Size::with_logical_size(window_attributes.size, window_attributes.scale * os_scale);
 
         let cursor = unsafe { LoadCursorW(None, IDC_ARROW).unwrap() };
 
@@ -209,8 +225,12 @@ impl OsWindowInterface for OsWindow {
         Ok(OsWindowHandle::new(window))
     }
 
-    fn os_scale(&self) -> f64 {
-        1.0
+    fn sceen_scale() -> f64 {
+        window_scale(None)
+    }
+
+    fn scale(&self) -> f64 {
+        window_scale(Some(self.hwnd()))
     }
 
     fn resized(&self, size: LogicalSize) {
@@ -271,7 +291,7 @@ impl OsWindowInterface for OsWindow {
     }
 
     fn warp_mouse(&self, position: LogicalPosition) {
-        let scale = self.os_scale();
+        let scale = self.scale();
         let physical_position = position.to_physical(scale);
 
         let mut point = POINT {

@@ -113,7 +113,20 @@ impl OsWindowInterface for OsWindow {
         Ok(OsWindowHandle::new(window))
     }
 
-    fn os_scale(&self) -> f64 {
+    fn sceen_scale() -> f64 {
+        if let Some(main_thread_marker) = MainThreadMarker::new() {
+            if let Some(screen) = NSScreen::mainScreen(main_thread_marker) {
+                return screen.backingScaleFactor()
+            }
+        }
+        else {
+            #[cfg(debug_assertions)]
+            panic!("Calling screen_scale from an unexpected thread");
+        }
+        1.0
+    }
+
+    fn scale(&self) -> f64 {
         self.view()
             .window()
             .map(|window| window.backingScaleFactor())

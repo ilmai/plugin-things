@@ -96,7 +96,7 @@ impl DropTarget {
             return LogicalPosition::default();
         };
 
-        let scale = window.os_scale();
+        let scale = window.scale();
 
         // It looks like MapWindowPoints isn't DPI aware (and neither is ScreenToClient),
         // so we need to pre-scale the point here?

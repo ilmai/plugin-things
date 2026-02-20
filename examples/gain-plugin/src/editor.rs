@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use plinth_plugin::{raw_window_handle::RawWindowHandle, Editor, Host};
-use plugin_canvas_slint::{editor::{EditorHandle, SlintEditor}, plugin_canvas::window::WindowAttributes};
+use plugin_canvas_slint::{editor::{EditorHandle, SlintEditor}, plugin_canvas::{Window, window::WindowAttributes}};
 
 use crate::{parameters::GainParameters, view::GainPluginView};
 
@@ -48,6 +48,18 @@ impl Editor for GainPluginEditor {
         self.editor_handle = None;
     }
 
+    fn scale(&self) -> f64 {
+        if let Some(editor_handle) = self.editor_handle.as_ref() {
+            editor_handle.scale()
+        } else {
+            Window::sceen_scale()
+        }
+    }
+
+    fn set_scale(&mut self, _scale: f64) {
+        // ignore
+    }
+    
     fn on_frame(&mut self) {
         if let Some(editor_handle) = self.editor_handle.as_ref() {
             editor_handle.on_frame();
