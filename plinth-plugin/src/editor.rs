@@ -9,12 +9,20 @@ pub trait Editor {
     fn open(&mut self, parent: RawWindowHandle);
     fn close(&mut self);
 
-    /// Get applied window scale
+    /// Get applied window scale. This should be the total applied scale: os window scale * custom window scales, if any
     fn scale(&self) -> f64 { 1.0 }
 
     /// Returns current window size
     fn window_size(&self) -> (f64, f64) {
-        Self::DEFAULT_SIZE
+        if cfg!(target_os = "windows") {
+            // on windows, window sizes are physical sizes 
+            let (width, height) = Self::DEFAULT_SIZE;
+            let scale = self.scale();
+            (width * scale, height * scale)
+        }
+        else {
+            Self::DEFAULT_SIZE
+        }
     }
     
     fn can_resize(&self) -> bool {
