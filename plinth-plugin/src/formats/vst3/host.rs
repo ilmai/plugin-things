@@ -58,15 +58,19 @@ impl<P: Plugin> Host for Vst3Host<P> {
     }
 
     fn change_parameter_value(&self, id: ParameterId, normalized: ParameterValue) {
-        let plugin = self.plugin.borrow();
-        let Some(plugin) = plugin.as_ref() else {
-            return;
-        };
+        {
+            let plugin = self.plugin.borrow();
+            let Some(plugin) = plugin.as_ref() else {
+                return;
+            };
 
-        plugin.with_parameters(|parameters| {
-            let parameter = parameters.get(id).unwrap();
-            parameter.set_normalized_value(normalized).unwrap();
-        });
+            plugin.with_parameters(|parameters| {
+                let parameter = parameters.get(id).unwrap();
+                parameter.set_normalized_value(normalized).unwrap();
+            });
+            
+            // release plugin.borrow before calling performEdit
+        } 
 
         if let Some(handler) = self.component_handler.borrow_mut().as_mut() {
             unsafe { handler.performEdit(id, normalized) };
