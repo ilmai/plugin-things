@@ -175,9 +175,9 @@ impl PluginCanvasWindowAdapter {
                                     } else if cfg!(target_os="macos") && modifier == KeyboardModifiers::Meta && stringify!($name) == "Control" {
                                         $char
                                     } else if cfg!(target_os="macos") && modifier == KeyboardModifiers::Control && stringify!($name) == "Meta" {
-                                            $char
+                                        $char
                                     } else if !cfg!(target_os="macos") && modifier == KeyboardModifiers::Control && stringify!($name) == "Control" {
-                                            $char
+                                        $char
                                     } else if !cfg!(target_os="macos") && modifier == KeyboardModifiers::Meta && stringify!($name) == "Meta" {
                                         $char
                                     }
