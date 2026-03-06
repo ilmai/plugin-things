@@ -3,7 +3,7 @@ use std::{cell::RefCell, ffi::{c_void, CString}, ops::{Deref, DerefMut}, path::P
 use objc2::{declare::ClassBuilder, msg_send, runtime::{AnyClass, Bool}, sel, ClassType, Encode, Encoding, Message, RefEncode};
 use objc2::runtime::{Sel, ProtocolObject};
 use objc2_app_kit::{NSDragOperation, NSDraggingInfo, NSEvent, NSEventModifierFlags, NSPasteboardTypeFileURL, NSView};
-use objc2_foundation::{NSPoint, NSRect, NSURL};
+use objc2_foundation::{NSPoint, NSRect, NSTimer, NSURL};
 use objc2_quartz_core::CADisplayLink;
 use uuid::Uuid;
 
@@ -49,6 +49,7 @@ impl OsWindowView {
 
         unsafe {
             builder.add_method(sel!(onDisplayLinkNotify:), Self::on_display_link_notify as unsafe extern "C" fn(_, _, _));
+            builder.add_method(sel!(onTimer:), Self::on_timer as unsafe extern "C" fn(_, _, _));
 
             // NSView
             builder.add_method(sel!(initWithFrame:), Self::init_with_frame as unsafe extern "C" fn(_, _, _) -> _);
@@ -273,6 +274,10 @@ impl OsWindowView {
     }
 
     unsafe extern "C" fn on_display_link_notify(&self, _cmd: Sel, _display_link: *mut CADisplayLink) {
+        self.send_event(Event::Draw);
+    }
+
+    unsafe extern "C" fn on_timer(&self, _cmd: Sel, _timer: *mut NSTimer) {
         self.send_event(Event::Draw);
     }
 

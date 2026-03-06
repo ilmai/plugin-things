@@ -5,7 +5,7 @@ use objc2::{msg_send, rc::{Allocated, Retained}, sel, AllocAnyThread};
 use objc2_app_kit::{NSCursor, NSCursorFrameResizeDirections, NSCursorFrameResizePosition, NSHorizontalDirections, NSPasteboardTypeFileURL, NSScreen, NSTrackingArea, NSTrackingAreaOptions, NSVerticalDirections, NSView};
 use objc2_core_foundation::{CGPoint, CGSize};
 use objc2_core_graphics::CGWarpMouseCursorPosition;
-use objc2_foundation::{MainThreadMarker, NSArray, NSDefaultRunLoopMode, NSPoint, NSRect, NSRunLoop, NSSize};
+use objc2_foundation::{MainThreadMarker, NSArray, NSDefaultRunLoopMode, NSPoint, NSRect, NSRunLoop, NSSize, NSTimer};
 use objc2_quartz_core::CADisplayLink;
 use raw_window_handle::{AppKitWindowHandle, HasDisplayHandle, HasWindowHandle, RawWindowHandle};
 
@@ -20,6 +20,7 @@ use super::view::OsWindowView;
 pub(crate) struct OsWindow {
     window_handle: AppKitWindowHandle,
     display_link: RefCell<Option<Retained<CADisplayLink>>>,
+    timer: RefCell<Option<Retained<NSTimer>>>,
     event_callback: Box<EventCallback>,
 
     cursor_hidden: AtomicBool,
@@ -91,6 +92,7 @@ impl OsWindowInterface for OsWindow {
         let window = Self {
             window_handle,
             display_link: Default::default(),
+            timer: Default::default(),
             event_callback,
 
             cursor_hidden: Default::default(),
@@ -100,13 +102,27 @@ impl OsWindowInterface for OsWindow {
 
         let window = Arc::new(ThreadBound::new(window));
 
-        let display_link = unsafe { view.displayLinkWithTarget_selector(&view, sel!(onDisplayLinkNotify:)) };
+        #[cfg(any(target_arch="x86", target_arch="x86_64"))]
+        {
+            let timer = unsafe {
+                let timer = NSTimer::timerWithTimeInterval_target_selector_userInfo_repeats(0.01, &view, sel!(onTimer:), None, true);
+                NSRunLoop::mainRunLoop().addTimer_forMode(timer.as_ref(), NSDefaultRunLoopMode);
+                timer
+            };
+            
+            *window.timer.borrow_mut() = Some(timer);
+        }
 
-        unsafe {
-            display_link.addToRunLoop_forMode(&NSRunLoop::mainRunLoop(), NSDefaultRunLoopMode)
-        };
+        #[cfg(not(any(target_arch="x86", target_arch="x86_64")))]
+        {
+            let display_link = unsafe {
+                let display_link = view.displayLinkWithTarget_selector(&view, sel!(onDisplayLinkNotify:));
+                display_link.addToRunLoop_forMode(&NSRunLoop::mainRunLoop(), NSDefaultRunLoopMode);
+                display_link
+            };
 
-        *window.display_link.borrow_mut() = Some(display_link);
+            *window.display_link.borrow_mut() = Some(display_link);            
+        }
 
         view.set_os_window_ptr(Arc::downgrade(&window).into_raw() as _);
 
@@ -198,10 +214,14 @@ impl OsWindowInterface for OsWindow {
 
 impl Drop for OsWindow {
     fn drop(&mut self) {
-        if let Some(display_link) = self.display_link.borrow().as_ref() {
+        if let Some(display_link) = self.display_link.borrow_mut().take() {
             unsafe {
                 display_link.removeFromRunLoop_forMode(&NSRunLoop::mainRunLoop(), NSDefaultRunLoopMode)
             };
+        }
+
+        if let Some(timer) = self.timer.borrow_mut().take() {
+            timer.invalidate();
         }
 
         self.view().set_os_window_ptr(null_mut());
