@@ -4,6 +4,7 @@ use objc2::{declare::ClassBuilder, msg_send, runtime::{AnyClass, Bool}, sel, Cla
 use objc2::runtime::{Sel, ProtocolObject};
 use objc2_app_kit::{NSDragOperation, NSDraggingInfo, NSEvent, NSEventModifierFlags, NSPasteboardTypeFileURL, NSView};
 use objc2_foundation::{NSPoint, NSRect, NSURL};
+use objc2_quartz_core::CADisplayLink;
 use uuid::Uuid;
 
 use crate::{drag_drop::{DropData, DropOperation}, event::EventResponse, keyboard::KeyboardModifiers, thread_bound::ThreadBound, Event, LogicalPosition, MouseButton};
@@ -47,6 +48,8 @@ impl OsWindowView {
         builder.add_ivar::<Context>(c"_context");
 
         unsafe {
+            builder.add_method(sel!(onDisplayLinkNotify:), Self::on_display_link_notify as unsafe extern "C" fn(_, _, _));
+
             // NSView
             builder.add_method(sel!(initWithFrame:), Self::init_with_frame as unsafe extern "C" fn(_, _, _) -> _);
             builder.add_method(sel!(acceptsFirstMouse:), Self::accepts_first_mouse as unsafe extern "C" fn(_, _, _) -> _);
@@ -267,6 +270,10 @@ impl OsWindowView {
         } else {
             NSDragOperation::None
         }
+    }
+
+    unsafe extern "C" fn on_display_link_notify(&self, _cmd: Sel, _display_link: *mut CADisplayLink) {
+        self.send_event(Event::Draw);
     }
 
     // NSView

@@ -100,7 +100,7 @@ impl OsWindowInterface for OsWindow {
 
         let window = Arc::new(ThreadBound::new(window));
 
-        let display_link = unsafe { view.displayLinkWithTarget_selector(&view, sel!(drawRect:)) };
+        let display_link = unsafe { view.displayLinkWithTarget_selector(&view, sel!(onDisplayLinkNotify:)) };
 
         unsafe {
             display_link.addToRunLoop_forMode(&NSRunLoop::mainRunLoop(), NSDefaultRunLoopMode)
