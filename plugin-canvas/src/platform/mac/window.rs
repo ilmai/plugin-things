@@ -5,7 +5,7 @@ use objc2::{msg_send, rc::{Allocated, Retained}, sel, AllocAnyThread};
 use objc2_app_kit::{NSCursor, NSCursorFrameResizeDirections, NSCursorFrameResizePosition, NSHorizontalDirections, NSPasteboardTypeFileURL, NSScreen, NSTrackingArea, NSTrackingAreaOptions, NSVerticalDirections, NSView};
 use objc2_core_foundation::{CGPoint, CGSize};
 use objc2_core_graphics::CGWarpMouseCursorPosition;
-use objc2_foundation::{MainThreadMarker, NSArray, NSDefaultRunLoopMode, NSPoint, NSRect, NSRunLoop, NSSize, NSTimer};
+use objc2_foundation::{MainThreadMarker, NSArray, NSDefaultRunLoopMode, NSOperatingSystemVersion, NSPoint, NSProcessInfo, NSRect, NSRunLoop, NSSize, NSTimer};
 use objc2_quartz_core::CADisplayLink;
 use raw_window_handle::{AppKitWindowHandle, HasDisplayHandle, HasWindowHandle, RawWindowHandle};
 
@@ -102,26 +102,23 @@ impl OsWindowInterface for OsWindow {
 
         let window = Arc::new(ThreadBound::new(window));
 
-        #[cfg(any(target_arch="x86", target_arch="x86_64"))]
-        {
-            let timer = unsafe {
-                let timer = NSTimer::timerWithTimeInterval_target_selector_userInfo_repeats(0.01, &view, sel!(onTimer:), None, true);
-                NSRunLoop::mainRunLoop().addTimer_forMode(timer.as_ref(), NSDefaultRunLoopMode);
-                timer
-            };
-            
-            *window.timer.borrow_mut() = Some(timer);
-        }
-
-        #[cfg(not(any(target_arch="x86", target_arch="x86_64")))]
-        {
+        let process_info = NSProcessInfo::processInfo();
+        if process_info.isOperatingSystemAtLeastVersion(NSOperatingSystemVersion { majorVersion: 14, minorVersion: 0, patchVersion: 0 }) {
             let display_link = unsafe {
                 let display_link = view.displayLinkWithTarget_selector(&view, sel!(onDisplayLinkNotify:));
                 display_link.addToRunLoop_forMode(&NSRunLoop::mainRunLoop(), NSDefaultRunLoopMode);
                 display_link
             };
 
-            *window.display_link.borrow_mut() = Some(display_link);            
+            *window.display_link.borrow_mut() = Some(display_link);
+        } else {
+            let timer = unsafe {
+                let timer = NSTimer::timerWithTimeInterval_target_selector_userInfo_repeats(0.016, &view, sel!(onTimer:), None, true);
+                NSRunLoop::mainRunLoop().addTimer_forMode(timer.as_ref(), NSDefaultRunLoopMode);
+                timer
+            };
+            
+            *window.timer.borrow_mut() = Some(timer);
         }
 
         view.set_os_window_ptr(Arc::downgrade(&window).into_raw() as _);
