@@ -4,13 +4,13 @@ use std::{cell::RefCell, ffi::OsStr, num::NonZeroU32, ptr::NonNull, sync::atomic
 use cursor_icon::CursorIcon;
 use keyboard_types::Code;
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle, RawDisplayHandle, RawWindowHandle, XcbDisplayHandle, XcbWindowHandle};
-use sys_locale::get_locales;
 use x11rb::{COPY_DEPTH_FROM_PARENT, COPY_FROM_PARENT};
 use x11rb::connection::Connection;
 use x11rb::protocol::{xfixes::{hide_cursor, show_cursor}, xproto::{change_window_attributes, ChangeWindowAttributesAux, ConfigureWindowAux, ConnectionExt, CreateWindowAux, EventMask, KeyButMask, WindowClass}};
 use x11rb::xcb_ffi::XCBConnection;
 use xkbcommon::xkb;
 
+use crate::platform::locale::get_locales;
 use crate::{dimensions::Size, error::Error, event::{EventCallback, EventResponse}, keyboard::KeyboardModifiers, platform::{interface::OsWindowInterface, os_window_handle::OsWindowHandle}, window::WindowAttributes, Event, MouseButton, PhysicalPosition};
 
 use super::{cursors::Cursors, keyboard::x11_to_keyboard_types_code};
