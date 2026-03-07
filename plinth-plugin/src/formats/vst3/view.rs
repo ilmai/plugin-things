@@ -101,10 +101,8 @@ impl<P: Vst3Plugin + 'static> IPlugViewTrait for View<P> {
             let mut context = self.context.borrow_mut();
             let frame = context.frame.as_mut().unwrap();
 
-            if let Some(run_loop) = frame.cast::<vst3::Steinberg::Linux::IRunLoop>() {
-                if let Some(timer_handler) = context.timer_handler.take() {
-                    unsafe { run_loop.unregisterTimer(timer_handler.as_ptr()) };
-                }
+            if let Some(run_loop) = frame.cast::<vst3::Steinberg::Linux::IRunLoop>() && let Some(timer_handler) = context.timer_handler.take() {
+                unsafe { run_loop.unregisterTimer(timer_handler.as_ptr()) };
             }
         }
 

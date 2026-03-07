@@ -113,10 +113,8 @@ impl<P: ClapPlugin> Gui<P> {
 
         PluginInstance::with_plugin_instance(plugin, |instance: &mut PluginInstance<P>| {
             #[cfg(target_os="linux")]
-            if let Some(timer_id) = instance.timer_id {
-                if !instance.host_ext_timer_support.is_null() {
-                    unsafe { ((*instance.host_ext_timer_support).unregister_timer.unwrap())(instance.host, timer_id) };
-                }
+            if let Some(timer_id) = instance.timer_id && !instance.host_ext_timer_support.is_null() {
+                unsafe { ((*instance.host_ext_timer_support).unregister_timer.unwrap())(instance.host, timer_id) };
             }
 
             instance.editor = None;
