@@ -70,6 +70,11 @@ impl IntParameter {
         self
     }
 
+    pub fn hidden(mut self) -> Self {
+        self.info = self.info.hidden();
+        self
+    }
+
     pub fn set_value(&self, value: i64) {
         let value = self.range.clamp(value);
         self.value.store(value, Ordering::Release);

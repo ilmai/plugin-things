@@ -76,6 +76,11 @@ impl<T: Enum> EnumParameter<T> {
         self
     }
 
+    pub fn hidden(mut self) -> Self {
+        self.info = self.info.hidden();
+        self
+    }
+
     pub fn unmodulated_value(&self) -> T {
         T::from_usize(self.value.load(Ordering::Acquire)).unwrap()
     }
