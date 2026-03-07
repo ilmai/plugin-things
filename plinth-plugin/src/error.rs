@@ -1,6 +1,8 @@
+use crate::ParameterId;
+
 #[derive(Debug)]
 pub enum Error {
-    ParameterIdError,
+    ParameterIdError(ParameterId),
     ParameterRangeError,
     SerializationError,
     IoError(std::io::Error),

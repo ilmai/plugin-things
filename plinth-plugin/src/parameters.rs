@@ -88,7 +88,7 @@ pub trait Parameters {
             let parameter = match self.get(id) {
                 Some(id) => id,
                 None => {
-                    return Err(Error::ParameterIdError);
+                    return Err(Error::ParameterIdError(id));
                 },
             };
 
