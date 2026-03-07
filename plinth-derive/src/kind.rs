@@ -29,7 +29,6 @@ struct Variant {
     fields: Vec<Ident>,
 }
 
-
 fn parse_variants(input: &DeriveInput) -> Vec<Variant> {
     let syn::Data::Enum(ref body) = input.data else {
         panic!("Macro can only be used on enums");
@@ -52,14 +51,14 @@ fn parse_variants(input: &DeriveInput) -> Vec<Variant> {
 }
 
 fn generate_match_cases(enum_id: Ident, variants: &[Variant]) -> Vec<TokenStream> {
-    variants.iter().enumerate().map(|(index, variant)| {
+    variants.iter().map(|variant| {
         let variant_id = &variant.id;
         let fields = &variant.fields;
 
         if fields.is_empty() {
             quote! {
                 #enum_id::#variant_id => {
-                    ::plinth_plugin::xxhash_rust::xxh32::xxh32(&#index.to_le_bytes(), 0) & #ID_MASK
+                    ::plinth_plugin::xxhash_rust::xxh32::xxh32(stringify!(#variant_id).as_bytes(), 0) & #ID_MASK
                 }
             }
         } else {
@@ -73,7 +72,7 @@ fn generate_match_cases(enum_id: Ident, variants: &[Variant]) -> Vec<TokenStream
 
             quote! {
                 #enum_id::#variant_id { #(#fields),* } => {
-                    let hash = ::plinth_plugin::xxhash_rust::xxh32::xxh32(&#index.to_le_bytes(), 0);
+                    let hash = ::plinth_plugin::xxhash_rust::xxh32::xxh32(stringify!(#variant_id).as_bytes(), 0);
                     #(#field_hashes)*
                     hash & #ID_MASK
                 }
