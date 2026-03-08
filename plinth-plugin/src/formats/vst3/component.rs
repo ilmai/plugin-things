@@ -530,18 +530,13 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
         vst3_info.defaultNormalizedValue = parameter_info.default_normalized_value();
         vst3_info.unitId = self.parameter_group_id(parameter_info);
 
-        // On some platforms, this cast is needed
-        #[allow(clippy::unnecessary_cast)]
-        if parameter_info.visible() {
-            vst3_info.flags = ParameterInfo_::ParameterFlags_::kCanAutomate as i32;
-        } else {
-            vst3_info.flags = ParameterInfo_::ParameterFlags_::kIsHidden as i32;
-        }
-
-        // On some platforms, this cast is needed
         #[allow(clippy::unnecessary_cast)]
         if parameter_info.is_bypass() {
             vst3_info.flags |= ParameterInfo_::ParameterFlags_::kIsBypass as i32;
+        } else if !parameter_info.visible() {
+            vst3_info.flags = ParameterInfo_::ParameterFlags_::kIsHidden as i32;
+        } else {
+            vst3_info.flags = ParameterInfo_::ParameterFlags_::kCanAutomate as i32;
         }
 
         kResultOk
