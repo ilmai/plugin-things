@@ -8,8 +8,10 @@ pub fn generate_enum(input: DeriveInput) -> TokenStream {
     
     let variant_count = variants.len();
     let fmt_cases = generate_fmt_cases(&variants);
+    let from_hash_cases = generate_from_hash_cases(&variants);
     let from_usize_cases = generate_from_usize_cases(&variants);
     let from_string_cases = generate_from_string_cases(&variants);
+    let hash_cases = generate_hash_cases(&variants);
     let to_usize_cases = generate_to_usize_cases(&variants);
     let to_string_cases = generate_to_string_cases(&variants);
 
@@ -26,7 +28,14 @@ pub fn generate_enum(input: DeriveInput) -> TokenStream {
 
         impl ::plinth_plugin::Enum for #enum_id {
             const COUNT: usize = #variant_count;
-    
+
+            fn from_hash(hash: u32) -> Option<Self> {
+                match hash {
+                    #(#from_hash_cases)*
+                    _ => None
+                }
+            }
+
             fn from_usize(value: usize) -> Option<Self> {
                 match value {
                     #(#from_usize_cases)*
@@ -38,6 +47,12 @@ pub fn generate_enum(input: DeriveInput) -> TokenStream {
                 match string {
                     #(#from_string_cases)*
                     _ => None
+                }
+            }
+
+            fn hash(&self) -> u32 {
+                match self {
+                    #(#hash_cases)*
                 }
             }
 
@@ -114,6 +129,17 @@ fn generate_fmt_cases(variants: &[Variant]) -> Vec<TokenStream> {
     }).collect()
 }
 
+fn generate_from_hash_cases(variants: &[Variant]) -> Vec<TokenStream> {
+    variants.iter().map(|variant| {
+        let id = &variant.id;
+        let hash = ::plinth_plugin::xxhash_rust::xxh32::xxh32(id.to_string().as_bytes(), 0);
+
+        quote! {
+            #hash => Some(Self::#id),
+        }
+    }).collect()
+}
+
 fn generate_from_usize_cases(variants: &[Variant]) -> Vec<TokenStream> {
     variants.iter().enumerate().map(|(index, variant)| {
         let id = &variant.id;
@@ -132,6 +158,17 @@ fn generate_from_string_cases(variants: &[Variant]) -> Vec<TokenStream> {
 
         quote! {
             #name => Some(Self::#id),
+        }
+    }).collect()
+}
+
+fn generate_hash_cases(variants: &[Variant]) -> Vec<TokenStream> {
+    variants.iter().map(|variant| {
+        let id = &variant.id;
+        let hash = ::plinth_plugin::xxhash_rust::xxh32::xxh32(id.to_string().as_bytes(), 0);
+
+        quote! {
+            Self::#id => #hash,
         }
     }).collect()
 }

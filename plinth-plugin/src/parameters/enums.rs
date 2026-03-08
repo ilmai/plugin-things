@@ -11,8 +11,11 @@ pub type ValueChangedCallback<T> = Arc<dyn Fn(ParameterId, T) + Send + Sync>;
 pub trait Enum: Clone + Copy + Default + Send + Sync + 'static {
     const COUNT: usize;
     
+    fn from_hash(hash: u32) -> Option<Self>;
     fn from_usize(value: usize) -> Option<Self>;
     fn from_string(string: &str) -> Option<Self>;    
+
+    fn hash(&self) -> u32;
     fn to_usize(&self) -> usize;
     fn to_string(&self) -> String;
 }
@@ -160,15 +163,15 @@ impl<T: Enum> Parameter for EnumParameter<T> {
     }
 
     fn serialize_value(&self) -> ParameterValue {
-        self.value.load(Ordering::Acquire) as _
+        self.plain().hash() as _
     }
 
     fn deserialize_value(&self, value: ParameterValue) -> Result<(), Error> {
-        if T::from_usize(value.round() as _).is_none() {
+        let Some(value) = T::from_hash(value.round() as _) else {
             return Err(Error::ParameterRangeError);
-        }
+        };
 
-        self.value.store(value.round() as usize, Ordering::Release);
+        self.value.store(value.to_usize(), Ordering::Release);
         self.changed();
 
         Ok(())
