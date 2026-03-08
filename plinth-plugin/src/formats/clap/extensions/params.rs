@@ -1,6 +1,6 @@
 use std::{ffi::{c_char, CStr}, marker::PhantomData, sync::atomic::Ordering};
 
-use clap_sys::{events::{clap_input_events, clap_output_events}, ext::params::{CLAP_PARAM_IS_AUTOMATABLE, CLAP_PARAM_IS_BYPASS, CLAP_PARAM_IS_HIDDEN, CLAP_PARAM_IS_MODULATABLE, CLAP_PARAM_IS_STEPPED, CLAP_PARAM_REQUIRES_PROCESS, clap_param_info, clap_plugin_params}, id::clap_id, plugin::clap_plugin};
+use clap_sys::{events::{clap_input_events, clap_output_events}, ext::params::{CLAP_PARAM_IS_AUTOMATABLE, CLAP_PARAM_IS_HIDDEN, CLAP_PARAM_IS_MODULATABLE, CLAP_PARAM_IS_STEPPED, CLAP_PARAM_REQUIRES_PROCESS, clap_param_info, clap_plugin_params}, id::clap_id, plugin::clap_plugin};
 
 use crate::{clap::{event::EventIterator, parameters::{map_parameter_value_from_clap, map_parameter_value_to_clap}, plugin_instance::PluginInstance, ClapPlugin}, processor::Processor, string::copy_str_to_char8, Parameters};
 
@@ -50,7 +50,8 @@ impl<P: ClapPlugin> Params<P> {
             clap_param_info.default_value = map_parameter_value_to_clap(parameter_info, parameter_info.default_normalized_value());
 
             if parameter_info.is_bypass() {
-                clap_param_info.flags |= CLAP_PARAM_IS_BYPASS;
+                // TODO: Disabled until Bitwig displays this correctly
+                // clap_param_info.flags |= CLAP_PARAM_IS_BYPASS;
             }
             if parameter_info.is_output() {
                 clap_param_info.flags |= CLAP_PARAM_REQUIRES_PROCESS;
