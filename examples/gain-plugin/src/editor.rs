@@ -9,6 +9,7 @@ pub struct GainPluginEditor {
     host: Rc<dyn Host>,
     editor_handle: Option<Rc<EditorHandle>>,
     parameters: Rc<GainParameters>,
+    scale: f64,
 }
 
 impl GainPluginEditor {
@@ -17,6 +18,7 @@ impl GainPluginEditor {
             host,
             editor_handle: None,
             parameters,
+            scale: 1.0,
         }
     }
 }
@@ -24,13 +26,21 @@ impl GainPluginEditor {
 impl Editor for GainPluginEditor {
     const DEFAULT_SIZE: (f64, f64) = (400.0, 300.0);
 
+    fn window_size(&self) -> (f64, f64) {
+        (Self::DEFAULT_SIZE.0 * self.scale, Self::DEFAULT_SIZE.1 * self.scale)
+    }
+
+    fn set_scale(&mut self, scale: f64) {
+        self.scale = scale;
+    }
+
     fn open(&mut self, parent: RawWindowHandle) {
         // Drop old editor instance first
         self.close();
 
         let editor_handle = SlintEditor::open(
             parent,
-            WindowAttributes::new(Self::DEFAULT_SIZE.into(), 1.0),
+            WindowAttributes::new(Self::DEFAULT_SIZE.into(), self.scale),
             {
                 let parameters = self.parameters.clone();
                 let host = self.host.clone();
