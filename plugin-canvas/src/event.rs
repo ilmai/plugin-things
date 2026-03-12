@@ -1,6 +1,6 @@
 use crate::{dimensions::LogicalPosition, drag_drop::{DropData, DropOperation}, keyboard::KeyboardModifiers};
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Hash, PartialEq, Eq)]
 pub enum MouseButton {
     Left,
     Right,

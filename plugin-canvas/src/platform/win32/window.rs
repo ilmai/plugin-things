@@ -1,10 +1,12 @@
+use std::collections::HashSet;
 use std::sync::Weak;
-use std::{cell::RefCell, ffi::OsString, mem::{size_of, transmute}, num::NonZeroIsize, os::windows::prelude::OsStringExt, ptr::{null, null_mut}, sync::{atomic::{AtomicBool, AtomicUsize, Ordering}, Arc}, time::Duration};
+use std::{cell::RefCell, ffi::OsString, mem::{size_of, transmute}, num::NonZeroIsize, os::windows::prelude::OsStringExt, ptr::{null, null_mut}, sync::{atomic::{AtomicBool, Ordering}, Arc}, time::Duration};
 
 use cursor_icon::CursorIcon;
 use keyboard_types::Code;
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle, RawWindowHandle, Win32WindowHandle};
 use uuid::Uuid;
+use windows::Win32::UI::WindowsAndMessaging::WM_CANCELMODE;
 use windows::{core::PCWSTR, Win32::UI::Input::KeyboardAndMouse::{VK_LWIN, VK_RWIN}};
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, WPARAM};
 use windows::Win32::Graphics::{Dwm::{DwmFlush, DwmIsCompositionEnabled}, Dxgi::{CreateDXGIFactory, IDXGIFactory, IDXGIOutput}, Gdi::{ClientToScreen, MonitorFromWindow, ScreenToClient, HBRUSH, MONITOR_DEFAULTTOPRIMARY}};
@@ -25,7 +27,8 @@ pub struct OsWindow {
     message_window: Arc<MessageWindow>,
     
     cursors: Cursors,
-    buttons_down: AtomicUsize,
+    buttons_down: RefCell<HashSet<MouseButton>>,
+    last_mouse_position: RefCell<LogicalPosition>,
 
     running: Arc<AtomicBool>,
     moved: Arc<AtomicBool>,
@@ -43,17 +46,26 @@ impl OsWindow {
     }
 
     fn button_down(&self, button: MouseButton, position: LogicalPosition) {
-        if self.buttons_down.fetch_add(1, Ordering::Relaxed) == 0 {
+        let mut buttons_down = self.buttons_down.borrow_mut();
+        if buttons_down.is_empty() {
             unsafe { SetCapture(self.hwnd()); }
         }
 
+        buttons_down.insert(button);
+
+        *self.last_mouse_position.borrow_mut() = position.clone();
         self.send_event(Event::MouseButtonDown { button, position });
     }
 
     fn button_up(&self, button: MouseButton, position: LogicalPosition) {
-        if self.buttons_down.fetch_sub(1, Ordering::Relaxed) == 1 {
+        let mut buttons_down = self.buttons_down.borrow_mut();
+        buttons_down.remove(&button);
+
+        if buttons_down.is_empty() {
             unsafe { SetCapture(HWND(null_mut())); }
         }
+
+        *self.last_mouse_position.borrow_mut() = position.clone();
 
         self.send_event(Event::MouseButtonUp { button, position });    
     }
@@ -186,6 +198,7 @@ impl OsWindowInterface for OsWindow {
 
             cursors: Cursors::new(),
             buttons_down: Default::default(),
+            last_mouse_position: Default::default(),
 
             running,
             moved,
@@ -375,8 +388,12 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
             },
     
             WM_MOUSEMOVE => {
+                let position = window.logical_mouse_position(lparam);
+                *window.last_mouse_position.borrow_mut() = position.clone();
+
                 window.update_modifiers();
-                window.send_event(Event::MouseMoved { position: window.logical_mouse_position(lparam) });
+                window.send_event(Event::MouseMoved { position });
+                
                 LRESULT(0)
             },
     
@@ -436,6 +453,17 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                 LRESULT(0)
             },
     
+            WM_CANCELMODE => {
+                let mut buttons_down = window.buttons_down.borrow_mut();
+                let position = window.last_mouse_position.borrow().clone();
+
+                for button in buttons_down.drain() {
+                    window.send_event(Event::MouseButtonUp { button, position: position.clone() });
+                }
+
+                LRESULT(0)
+            }
+
             _ => unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) },
         }
     } else {
@@ -464,11 +492,11 @@ unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -
             let x: u16 = i16::cast_unsigned(position.x as i16);
             let y: u16 = i16::cast_unsigned(position.y as i16);
 
-            // TODO: Convert modifiers            
             let wparam = WPARAM(mouse_hook_struct.mouseData as usize & 0xFFFF0000);            
             let lparam = LPARAM(usize::cast_signed(x as usize + ((y as usize) << 16)));
             unsafe { PostMessageW(Some(hwnd), WM_MOUSEWHEEL, wparam, lparam).unwrap() };
         },
+
         _ => {},
     }
 
