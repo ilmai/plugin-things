@@ -32,6 +32,13 @@ impl Editor for GainPluginEditor {
 
     fn set_scale(&mut self, scale: f64) {
         self.scale = scale;
+    
+        let size = self.window_size();
+
+        if let Some(editor_handle) = self.editor_handle.as_ref() {
+            editor_handle.set_window_size(size.0, size.1);
+            editor_handle.set_scale(scale);    
+        }
     }
 
     fn open(&mut self, parent: RawWindowHandle) {
