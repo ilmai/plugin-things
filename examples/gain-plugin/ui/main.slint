@@ -20,6 +20,8 @@ export component PluginWindow inherits Window {
         font-size: 40px;
 
         TouchArea {
+            mouse-cursor: grab;
+
             property <float> sensitivity: 0.003;
             property <length> mouse-pos: self.mouse-y;
             property <float> absolute-mouse-pos: (self.height - self.mouse-y) / self.height;
