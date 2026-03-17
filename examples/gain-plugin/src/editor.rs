@@ -1,24 +1,36 @@
-use std::rc::Rc;
+use std::{cell::RefCell, rc::Rc};
 
 use plinth_plugin::{raw_window_handle::RawWindowHandle, Editor, Host};
 use plugin_canvas_slint::{editor::{EditorHandle, SlintEditor}, plugin_canvas::window::WindowAttributes};
 
 use crate::{parameters::GainParameters, view::GainPluginView};
 
+pub struct EditorSettings {
+    pub scale: f64,
+}
+
+impl Default for EditorSettings {
+    fn default() -> Self {
+        Self {
+            scale: 1.0,
+        }
+    }
+}
+
 pub struct GainPluginEditor {
     host: Rc<dyn Host>,
     editor_handle: Option<Rc<EditorHandle>>,
     parameters: Rc<GainParameters>,
-    scale: f64,
+    settings: Rc<RefCell<EditorSettings>>,
 }
 
 impl GainPluginEditor {
-    pub fn new(host: Rc<dyn Host>, parameters: Rc<GainParameters>) -> Self {
+    pub fn new(host: Rc<dyn Host>, parameters: Rc<GainParameters>, settings: Rc<RefCell<EditorSettings>>) -> Self {
         Self {
             host,
             editor_handle: None,
             parameters,
-            scale: 1.0,
+            settings,
         }
     }
 }
@@ -27,11 +39,13 @@ impl Editor for GainPluginEditor {
     const DEFAULT_SIZE: (f64, f64) = (400.0, 300.0);
 
     fn window_size(&self) -> (f64, f64) {
-        (Self::DEFAULT_SIZE.0 * self.scale, Self::DEFAULT_SIZE.1 * self.scale)
+        let scale = self.settings.borrow().scale;
+        
+        (Self::DEFAULT_SIZE.0 * scale, Self::DEFAULT_SIZE.1 * scale)
     }
 
     fn set_scale(&mut self, scale: f64) {
-        self.scale = scale;
+        self.settings.borrow_mut().scale = scale;
     
         let size = self.window_size();
 
@@ -45,9 +59,11 @@ impl Editor for GainPluginEditor {
         // Drop old editor instance first
         self.close();
 
+        let scale = self.settings.borrow().scale;
+
         let editor_handle = SlintEditor::open(
             parent,
-            WindowAttributes::new(Self::DEFAULT_SIZE.into(), self.scale),
+            WindowAttributes::new(Self::DEFAULT_SIZE.into(), scale),
             {
                 let parameters = self.parameters.clone();
                 let host = self.host.clone();

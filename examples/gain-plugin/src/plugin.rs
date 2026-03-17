@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::rc::Rc;
@@ -7,12 +8,13 @@ use plinth_plugin::{export_clap, export_vst3, Event, Host, HostInfo, Parameters,
 use plinth_plugin::clap::ClapPlugin;
 use plinth_plugin::vst3::Vst3Plugin;
 
-use crate::editor::GainPluginEditor;
+use crate::editor::{EditorSettings, GainPluginEditor};
 use crate::{parameters::GainParameters, processor::GainPluginProcessor};
 
 #[derive(Default)]
 struct GainPlugin {
     parameters: Rc<GainParameters>,
+    editor_settings: Rc<RefCell<EditorSettings>>,
 }
 
 impl Plugin for GainPlugin {
@@ -41,7 +43,7 @@ impl Plugin for GainPlugin {
     }
 
     fn create_editor(&mut self, host: Rc<dyn Host>) -> Self::Editor {
-        GainPluginEditor::new(host, self.parameters.clone())
+        GainPluginEditor::new(host, self.parameters.clone(), self.editor_settings.clone())
     }
 
     fn save_state(&self, writer: &mut impl Write) -> Result<(), Error> {        
