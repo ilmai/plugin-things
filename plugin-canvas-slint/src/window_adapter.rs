@@ -20,9 +20,10 @@ thread_local! {
 }
 
 pub struct PluginCanvasWindowAdapter {
+    // renderer needs to be declared first so it's dropped first
+    renderer: SkiaRenderer,
     plugin_canvas_window: Arc<plugin_canvas::Window>,
     slint_window: slint::Window,
-    renderer: SkiaRenderer,
 
     view: RefCell<Option<Box<dyn PluginView>>>,
 
