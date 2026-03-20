@@ -10,13 +10,13 @@ use x11rb::protocol::{xfixes::{hide_cursor, show_cursor}, xproto::{change_window
 use x11rb::xcb_ffi::XCBConnection;
 use xkbcommon::xkb;
 
+use crate::LogicalPosition;
 use crate::platform::locale::get_locales;
-use crate::{dimensions::Size, error::Error, event::{EventCallback, EventResponse}, keyboard::KeyboardModifiers, platform::{interface::OsWindowInterface, os_window_handle::OsWindowHandle}, window::WindowAttributes, Event, MouseButton, PhysicalPosition};
+use crate::{dimensions::Size, error::Error, event::{EventCallback, EventResponse}, keyboard::KeyboardModifiers, platform::{interface::OsWindowInterface, os_window_handle::OsWindowHandle}, window::WindowAttributes, Event, MouseButton};
 
 use super::{cursors::Cursors, keyboard::x11_to_keyboard_types_code};
 
 pub struct OsWindow {
-    window_attributes: WindowAttributes,
     event_callback: Box<EventCallback>,
 
     connection: XCBConnection,
@@ -42,10 +42,10 @@ impl OsWindow {
             x11rb::protocol::Event::ButtonPress(event) => {
                 self.update_modifiers_from_mask(event.state);
 
-                let position = PhysicalPosition {
-                    x: event.event_x as i32,
-                    y: event.event_y as i32,
-                }.to_logical(self.window_attributes.scale);
+                let position = LogicalPosition {
+                    x: event.event_x as _,
+                    y: event.event_y as _,
+                };
 
                 if let Some(button) = Self::mouse_button_from_detail(event.detail) {
                     self.send_event(Event::MouseButtonDown {
@@ -70,10 +70,10 @@ impl OsWindow {
             x11rb::protocol::Event::ButtonRelease(event) => {
                 self.update_modifiers_from_mask(event.state);
 
-                let position = PhysicalPosition {
-                    x: event.event_x as i32,
-                    y: event.event_y as i32,
-                }.to_logical(self.window_attributes.scale);
+                let position = LogicalPosition {
+                    x: event.event_x as _,
+                    y: event.event_y as _,
+                };
 
                 if let Some(button) = Self::mouse_button_from_detail(event.detail) {
                     self.send_event(Event::MouseButtonUp {
@@ -146,10 +146,10 @@ impl OsWindow {
             x11rb::protocol::Event::MotionNotify(event) => {
                 self.update_modifiers_from_mask(event.state);
 
-                let position = PhysicalPosition {
-                    x: event.event_x as i32,
-                    y: event.event_y as i32,
-                }.to_logical(self.window_attributes.scale);
+                let position = LogicalPosition {
+                    x: event.event_x as _,
+                    y: event.event_y as _,
+                };
 
                 self.send_event(Event::MouseMoved { position });
             }
@@ -285,7 +285,6 @@ impl OsWindowInterface for OsWindow {
         let cursors = Cursors::new(&connection, screen as _);
 
         let window = Self {
-            window_attributes,
             event_callback,
 
             connection,
