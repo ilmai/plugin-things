@@ -54,9 +54,9 @@ impl OsWindow {
                     });    
                 } else if [4, 5].contains(&event.detail) {
                     let delta_y = if event.detail == 4 {
-                        -1.0
-                    } else {
                         1.0
+                    } else {
+                        -1.0
                     };
 
                     self.send_event(Event::MouseWheel {
