@@ -9,6 +9,7 @@ pub(super) fn parameter_change_to_event(id: ParamID, value: ParamValue, offset: 
         let semitones = (value - 0.5) * 4.0;
 
         Event::PitchBend {
+            sample_offset: offset,
             channel: channel as _,
             key: -1, // TODO
             note: -1, // TODO

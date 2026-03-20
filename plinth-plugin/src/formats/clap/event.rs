@@ -45,6 +45,7 @@ impl Iterator for EventIterator<'_> {
                     let event = unsafe { &*(header as *const clap_event_note) };
 
                     Event::NoteOn {
+                        sample_offset: event.header.time as _,
                         channel: event.channel,
                         key: event.key,
                         note: event.note_id,
@@ -56,6 +57,7 @@ impl Iterator for EventIterator<'_> {
                     let event = unsafe { &*(header as *const clap_event_note) };
 
                     Event::NoteOff {
+                        sample_offset: event.header.time as _,
                         channel: event.channel,
                         key: event.key,
                         note: event.note_id,
@@ -70,6 +72,7 @@ impl Iterator for EventIterator<'_> {
                     }
 
                     Event::PitchBend {
+                        sample_offset: event.header.time as _,
                         channel: event.channel,
                         key: event.key,
                         note: event.note_id,

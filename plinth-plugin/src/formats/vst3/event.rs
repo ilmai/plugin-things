@@ -39,6 +39,7 @@ impl Iterator for EventIterator<'_> {
         match event.r#type as _ {
             Vst::Event_::EventTypes_::kNoteOnEvent => unsafe {
                 Some(Event::NoteOn {
+                    sample_offset: event.sampleOffset as _,
                     channel: event.__field0.noteOn.channel,
                     key: event.__field0.noteOn.pitch,
                     note: event.__field0.noteOn.noteId,
@@ -48,6 +49,7 @@ impl Iterator for EventIterator<'_> {
 
             Vst::Event_::EventTypes_::kNoteOffEvent => unsafe {
                 Some(Event::NoteOff {
+                    sample_offset: event.sampleOffset as _,
                     channel: event.__field0.noteOff.channel,
                     key: event.__field0.noteOff.pitch,
                     note: event.__field0.noteOn.noteId,

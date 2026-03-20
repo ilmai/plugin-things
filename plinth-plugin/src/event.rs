@@ -10,6 +10,7 @@ use crate::parameters::ParameterId;
 pub enum Event {
     // Note events
     NoteOn {
+        sample_offset: usize,
         channel: i16,
         key: i16,
         note: i32,
@@ -17,6 +18,7 @@ pub enum Event {
     },
 
     NoteOff {
+        sample_offset: usize,
         channel: i16,
         key: i16,
         note: i32,
@@ -24,6 +26,7 @@ pub enum Event {
     },
 
     PitchBend {
+        sample_offset: usize,
         channel: i16,
         key: i16,
         note: i32,
@@ -63,6 +66,9 @@ impl Event {
 
     pub fn sample_offset(&self) -> usize {
         match self {
+            Event::NoteOn { sample_offset, .. } => *sample_offset,
+            Event::NoteOff { sample_offset, .. } => *sample_offset,
+            Event::PitchBend { sample_offset, .. } => *sample_offset,
             Event::ParameterValue { sample_offset, .. } => *sample_offset,
             Event::ParameterModulation { sample_offset, .. } => *sample_offset,
 
