@@ -6,7 +6,8 @@ use cursor_icon::CursorIcon;
 use keyboard_types::Code;
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle, RawWindowHandle, Win32WindowHandle};
 use uuid::Uuid;
-use windows::Win32::UI::WindowsAndMessaging::WM_CANCELMODE;
+use windows::Win32::UI::Input::KeyboardAndMouse::SetFocus;
+use windows::Win32::UI::WindowsAndMessaging::{GetParent, WM_CANCELMODE, WM_SETFOCUS};
 use windows::{core::PCWSTR, Win32::UI::Input::KeyboardAndMouse::{VK_LWIN, VK_RWIN}};
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, WPARAM};
 use windows::Win32::Graphics::{Dwm::{DwmFlush, DwmIsCompositionEnabled}, Dxgi::{CreateDXGIFactory, IDXGIFactory, IDXGIOutput}, Gdi::{ClientToScreen, MonitorFromWindow, ScreenToClient, HBRUSH, MONITOR_DEFAULTTOPRIMARY}};
@@ -345,47 +346,47 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                 window.update_modifiers();
                 window.button_down(MouseButton::Left, window.logical_mouse_position(lparam));
                 LRESULT(0)
-            },
+            }
     
             WM_LBUTTONUP => {
                 window.update_modifiers();
                 window.button_up(MouseButton::Left, window.logical_mouse_position(lparam));
                 LRESULT(0)
-            },
+            }
     
             WM_MBUTTONDOWN => {
                 window.update_modifiers();
                 window.button_down(MouseButton::Middle, window.logical_mouse_position(lparam));
                 LRESULT(0)
-            },
+            }
     
             WM_MBUTTONUP => {
                 window.update_modifiers();
                 window.button_up(MouseButton::Middle, window.logical_mouse_position(lparam));
                 LRESULT(0)
-            },
+            }
     
             WM_RBUTTONDOWN => {
                 window.update_modifiers();
                 window.button_down(MouseButton::Right, window.logical_mouse_position(lparam));
                 LRESULT(0)
-            },
+            }
     
             WM_RBUTTONUP => {
                 window.update_modifiers();
                 window.button_up(MouseButton::Right, window.logical_mouse_position(lparam));
                 LRESULT(0)
-            },
+            }
     
             WM_MOVE => {
                 window.moved.store(true, Ordering::Release);
                 LRESULT(0)
-            },
+            }
     
             WM_MOUSELEAVE => {
                 window.send_event(Event::MouseExited);
                 LRESULT(0)
-            },
+            }
     
             WM_MOUSEMOVE => {
                 let position = window.logical_mouse_position(lparam);
@@ -395,7 +396,7 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                 window.send_event(Event::MouseMoved { position });
                 
                 LRESULT(0)
-            },
+            }
     
             WM_MOUSEWHEEL => {
                 window.update_modifiers();
@@ -415,7 +416,7 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                 });
     
                 LRESULT(0)
-            },
+            }
     
             WM_USER_CHAR => {
                 let string = OsString::from_wide(&[wparam.0 as _]);
@@ -426,7 +427,7 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                 });
 
                 LRESULT(0)
-            },
+            }
     
             WM_USER_KEY_DOWN => {
                 window.send_event(Event::KeyDown {
@@ -435,7 +436,7 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                 });
 
                 LRESULT(0)
-            },
+            }
     
             WM_USER_KEY_UP => {
                 window.send_event(Event::KeyUp {
@@ -444,14 +445,14 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                 });
 
                 LRESULT(0)
-            },
+            }
 
             WM_USER_FRAME_TIMER => {
                 window.update_modifiers();
                 window.send_event(Event::Draw);
 
                 LRESULT(0)
-            },
+            }
     
             WM_CANCELMODE => {
                 let mut buttons_down = window.buttons_down.borrow_mut();
@@ -462,6 +463,18 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                 }
 
                 LRESULT(0)
+            }
+
+            WM_SETFOCUS => {
+                // We don't want keyboard focus thanks since we have the message window, give it to the parent window
+                // This fixes keyboard focus issues in Reaper and possibly other hosts
+                unsafe {
+                    if let Ok(parent) = GetParent(window.hwnd()) {
+                        SetFocus(Some(parent)).unwrap();
+                    }
+
+                    DefWindowProcW(hwnd, msg, wparam, lparam)
+                }
             }
 
             _ => unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) },
