@@ -467,7 +467,7 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
             _ => unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) },
         }
     } else {
-        LRESULT(0)
+        unsafe { DefWindowProcW(hwnd, msg, wparam, lparam) }
     };
 
     // Leak the weak reference so it's not dropped
