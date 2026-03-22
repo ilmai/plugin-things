@@ -169,6 +169,7 @@ impl ParameterPlain for FloatParameter {
     }
 
     fn plain_to_normalized(&self, plain: f64) -> ParameterValue {
+        let plain = self.range.clamp(plain);
         self.range.plain_to_normalized(plain).unwrap()
     }
 }
