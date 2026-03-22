@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::ffi::c_void;
 
 use clap_sys::events::{clap_event_note, clap_event_note_expression, clap_event_param_mod, clap_event_param_value, clap_input_events, CLAP_CORE_EVENT_SPACE_ID, CLAP_EVENT_NOTE_EXPRESSION, CLAP_EVENT_NOTE_OFF, CLAP_EVENT_NOTE_ON, CLAP_EVENT_PARAM_MOD, CLAP_EVENT_PARAM_VALUE, CLAP_NOTE_EXPRESSION_TUNING};
 
@@ -18,6 +19,14 @@ impl<'a> EventIterator<'a> {
             parameter_info,
             events,
             index: 0,
+        }
+    }
+
+    fn parameter_info(&self, parameter_id: u32, cookie: *mut c_void) -> &ParameterInfo {
+        if !cookie.is_null() {
+            unsafe { &*(cookie as *mut ParameterInfo) }
+        } else {
+            self.parameter_info.get(&parameter_id).unwrap()
         }
     }
 }
@@ -82,7 +91,7 @@ impl Iterator for EventIterator<'_> {
 
                 CLAP_EVENT_PARAM_VALUE => {
                     let event = unsafe { &*(header as *const clap_event_param_value) };
-                    let parameter_info = self.parameter_info.get(&event.param_id)?;
+                    let parameter_info = self.parameter_info(event.param_id, event.cookie);
 
                     let value = map_parameter_value_from_clap(parameter_info, event.value);
 
@@ -95,7 +104,7 @@ impl Iterator for EventIterator<'_> {
     
                 CLAP_EVENT_PARAM_MOD => {
                     let event = unsafe { &*(header as *const clap_event_param_mod) };
-                    let parameter_info = self.parameter_info.get(&event.param_id)?;
+                    let parameter_info = self.parameter_info(event.param_id, event.cookie);
 
                     let amount = map_parameter_value_from_clap(parameter_info, event.amount);
 
