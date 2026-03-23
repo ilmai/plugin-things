@@ -303,7 +303,18 @@ impl OsWindowInterface for OsWindow {
         Ok(OsWindowHandle::new(Arc::new(window.into())))
     }
 
+    fn os_screen_scale() -> f64 {
+        if let Ok((connection, screen_num)) = x11rb::connect(None) {
+            let screen = &connection.setup().roots[screen_num];
+            (screen.height_in_pixels as f64 * 25.4 / screen.height_in_millimeters as f64).max(96.0) / 96.0
+        } else {
+            1.0
+        }
+    }
+
     fn os_scale(&self) -> f64 {
+        // os window DPI scaling is not used on Linux: window sizes and positions are treated as logical positions,
+        // custom scaling is applied by scaling the slint window content, using `os_screen_scale` as default.
         1.0
     }
 

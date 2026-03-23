@@ -12,6 +12,7 @@ pub(crate) trait OsWindowInterface: HasDisplayHandle + HasWindowHandle + Sized {
         event_callback: Box<EventCallback>,
     ) -> Result<OsWindowHandle, Error>;
 
+    fn os_screen_scale() -> f64;
     fn os_scale(&self) -> f64;
 
     fn resized(&self, size: LogicalSize);

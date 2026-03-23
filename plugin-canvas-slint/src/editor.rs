@@ -72,6 +72,19 @@ pub struct EditorHandle {
 }
 
 impl EditorHandle {
+    pub fn default_scale() -> f64 {
+       // On macOS the system's window backend scaling gets applied in the OSWindow impl, so there's no need to scale the slint UIs too
+       #[cfg(target_os="macos")]
+       {
+           1.0
+       }
+       // On Windows and Linux the window backends do not use the system's DPI settings, so we scale the slint UIs to match the default screens scaling by default
+       #[cfg(any(target_os="windows", target_os="linux"))]
+       {
+           plugin_canvas::Window::os_screen_scale()
+       }
+    }
+
     pub fn window(&self) -> Option<&plugin_canvas::Window> {
         self.window_adapter()
             .map(|window_adapter| window_adapter.plugin_canvas_window())

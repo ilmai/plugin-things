@@ -6,6 +6,7 @@ use cursor_icon::CursorIcon;
 use keyboard_types::Code;
 use raw_window_handle::{HasDisplayHandle, HasWindowHandle, RawWindowHandle, Win32WindowHandle};
 use uuid::Uuid;
+use windows::Win32::Graphics::Gdi::{GetDC, GetDeviceCaps, LOGPIXELSX, LOGPIXELSY, ReleaseDC};
 use windows::Win32::UI::Input::KeyboardAndMouse::SetFocus;
 use windows::Win32::UI::WindowsAndMessaging::{GetParent, WM_CANCELMODE, WM_SETFOCUS, WM_SETCURSOR};
 use windows::{core::PCWSTR, Win32::UI::Input::KeyboardAndMouse::{VK_LWIN, VK_RWIN}};
@@ -34,6 +35,20 @@ pub struct OsWindow {
     moved: Arc<AtomicBool>,
 
     keyboard_modifiers: RefCell<KeyboardModifiers>,
+}
+
+fn window_scale(hwnd: Option<HWND>) -> f64 {
+    // Could use `GetDpiForWindow` here, but that's available for Windows 10 only
+    unsafe {
+        let hdc = GetDC(hwnd);
+        if !hdc.is_invalid() {
+            let dpi = GetDeviceCaps(Some(hdc), LOGPIXELSX).min(GetDeviceCaps(Some(hdc), LOGPIXELSY));
+            ReleaseDC(hwnd, hdc);
+            dpi.max(96) as f64 / 96.0
+        } else {
+            1.0
+        }
+    }
 }
 
 impl OsWindow {
@@ -75,12 +90,11 @@ impl OsWindow {
     }
 
     fn logical_mouse_position(&self, lparam: LPARAM) -> LogicalPosition {
-        let scale = self.os_scale();
-
+        // see `os_scale`: we don't use DPI scaling on Windows
         PhysicalPosition {
             x: (lparam.0 & 0xFFFF) as i16 as i32,
             y: ((lparam.0 >> 16) & 0xFFFF) as i16 as i32,
-        }.to_logical(scale)
+        }.to_logical(1.0)
     }
 
     fn update_modifiers(&self) {
@@ -216,7 +230,13 @@ impl OsWindowInterface for OsWindow {
         Ok(OsWindowHandle::new(window))
     }
 
+    fn os_screen_scale() -> f64 {
+        window_scale(None)
+    }
+
     fn os_scale(&self) -> f64 {
+        // os window DPI scaling is not used on Window: window sizes and positions are treated as logical positions,
+        // custom scaling is applied by scaling the slint window content, using `os_screen_scale` as default.
         1.0
     }
 
@@ -278,12 +298,9 @@ impl OsWindowInterface for OsWindow {
     }
 
     fn warp_mouse(&self, position: LogicalPosition) {
-        let scale = self.os_scale();
-        let physical_position = position.to_physical(scale);
-
         let mut point = POINT {
-            x: physical_position.x,
-            y: physical_position.y,
+            x: position.x as i32,
+            y: position.y as i32,
         };
 
         unsafe {

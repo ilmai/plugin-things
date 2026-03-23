@@ -6,18 +6,16 @@ use std::ptr::null_mut;
 use std::sync::Weak;
 
 use windows::Win32::Foundation::{POINTL, POINT};
-use windows::Win32::Graphics::Gdi::MapWindowPoints;
+use windows::Win32::Graphics::Gdi::ScreenToClient;
 use windows::Win32::System::Com::{IDataObject, DVASPECT_CONTENT, FORMATETC, TYMED_HGLOBAL};
 use windows::Win32::System::SystemServices::MODIFIERKEYS_FLAGS;
 use windows::Win32::UI::Shell::{DragQueryFileW, HDROP};
 use windows::core::implement;
 use windows::Win32::System::Ole::{IDropTarget, IDropTarget_Impl, DROPEFFECT, CF_HDROP, DROPEFFECT_NONE, DROPEFFECT_COPY, DROPEFFECT_MOVE, DROPEFFECT_LINK};
-use windows::Win32::UI::WindowsAndMessaging::HWND_DESKTOP;
 
 use crate::event::EventResponse;
-use crate::platform::interface::OsWindowInterface;
 use crate::thread_bound::ThreadBound;
-use crate::{LogicalPosition, PhysicalPosition};
+use crate::LogicalPosition;
 use crate::drag_drop::{DropData, DropOperation};
 use super::window::OsWindow;
 
@@ -92,23 +90,14 @@ impl DropTarget {
     }
 
     fn convert_coordinates(&self, point: &POINTL) -> LogicalPosition {
-        let Some(window) = self.window.upgrade() else {
-            return LogicalPosition::default();
-        };
-
-        let scale = window.os_scale();
-
-        // It looks like MapWindowPoints isn't DPI aware (and neither is ScreenToClient),
-        // so we need to pre-scale the point here?
-        // TODO: Find out what's going on
-        let mut points = [POINT { x: (point.x as f64 / scale) as i32, y: (point.y as f64 / scale) as i32 }];
-
-        unsafe { MapWindowPoints(Some(HWND_DESKTOP), Some(window.hwnd()), &mut points); }
-
-        PhysicalPosition {
-            x: points[0].x,
-            y: points[0].y,
-        }.to_logical(1.0)
+        if let Some(window) = self.window.upgrade() {
+            let mut point = POINT { x: point.x, y: point.y };
+            if unsafe { ScreenToClient(window.hwnd(), &mut point).as_bool() } {
+                // see `OsWindow.os_scale`: we don't use DPI scaling on Windows
+                return LogicalPosition { x: point.x as f64, y: point.y as f64 };
+            }
+        }
+        LogicalPosition::default()
     }
 }
 
