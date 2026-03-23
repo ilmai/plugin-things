@@ -4,6 +4,8 @@ use std::rc::Rc;
 use std::sync::atomic::{AtomicBool, Ordering, AtomicUsize};
 use std::sync::Arc;
 
+use crate::platform::CallbackQueue;
+
 use cursor_icon::CursorIcon;
 use i_slint_core::{window::{WindowAdapter, WindowAdapterInternal}, renderer::Renderer, platform::{PlatformError, WindowEvent}};
 use i_slint_renderer_skia::{SkiaRenderer, SkiaSharedContext};
@@ -35,11 +37,12 @@ pub struct PluginCanvasWindowAdapter {
     pending_mouse_exit: AtomicBool,
 
     modifiers: RefCell<KeyboardModifiers>,
+    callback_queue: CallbackQueue,
 }
 
 impl PluginCanvasWindowAdapter {
     #[allow(clippy::new_ret_no_self)]
-    pub fn new() -> Result<Rc<dyn WindowAdapter>, PlatformError> {
+    pub fn new(callback_queue: CallbackQueue) -> Result<Rc<dyn WindowAdapter>, PlatformError> {
         let plugin_canvas_window = WINDOW_TO_SLINT.take().unwrap();
 
         let window_attributes = plugin_canvas_window.attributes();
@@ -80,6 +83,7 @@ impl PluginCanvasWindowAdapter {
                 pending_mouse_exit: Default::default(),
 
                 modifiers: Default::default(),
+                callback_queue,
             }
         });
 
@@ -122,6 +126,9 @@ impl PluginCanvasWindowAdapter {
 
         let built_in_response = match event {
             plugin_canvas::Event::Draw => {
+                let callbacks: Vec<_> = self.callback_queue.lock().unwrap().drain(..).collect();
+                for cb in callbacks { cb(); }
+
                 match self.plugin_canvas_window.poll_events() {
                     Ok(_) => {},
                     Err(e) => {
