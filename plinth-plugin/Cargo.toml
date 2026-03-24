@@ -8,6 +8,9 @@ readme = "README.md"
 repository = "https://github.com/ilmai/plugin-things"
 license = "MIT"
 
+[features]
+standalone = ["dep:cpal", "dep:midir", "dep:winit"]
+
 [dependencies]
 atomic_refcell = "0.1"
 clap-sys = "0.5"
@@ -22,6 +25,10 @@ thiserror = "2"
 vst3 = "0.3"
 widestring = "1"
 xxhash-rust = { version = "0.8", features = ["xxh32"] }
+# standalone features
+winit = { version = "0.30", optional = true }
+cpal = { version = "0.17", optional = true }
+midir = { version = "0.10", optional = true }
 
 [build-dependencies]
 bindgen = "0.72"
