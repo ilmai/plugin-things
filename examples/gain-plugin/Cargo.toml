@@ -9,6 +9,11 @@ standalone = ["plinth-plugin/standalone"]
 [lib]
 crate-type = ["cdylib", "lib", "staticlib"]
 
+[[bin]]
+name = "gain-standalone"
+path = "src/main.rs"
+required-features = ["standalone"]
+
 [dependencies]
 plinth-derive.workspace = true
 plinth-plugin.workspace = true
