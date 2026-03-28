@@ -1,10 +1,9 @@
-use std::{collections::BTreeMap, ffi::{c_char, c_void, CStr}, iter::zip, ptr::{null, null_mut}, sync::{atomic::{AtomicUsize, Ordering}, Arc}};
+use std::{collections::BTreeMap, ffi::{CStr, c_char, c_void}, iter::zip, ptr::{null, null_mut}, sync::{Arc, atomic::{AtomicBool, AtomicUsize, Ordering}}};
 
 use atomic_refcell::AtomicRefCell;
 use clap_sys::{events::clap_input_events, ext::{audio_ports::CLAP_EXT_AUDIO_PORTS, gui::{clap_host_gui, CLAP_EXT_GUI}, latency::CLAP_EXT_LATENCY, note_ports::CLAP_EXT_NOTE_PORTS, params::{clap_host_params, CLAP_EXT_PARAMS}, render::CLAP_EXT_RENDER, state::{clap_host_state, CLAP_EXT_STATE}, tail::{clap_host_tail, CLAP_EXT_TAIL}, timer_support::{clap_host_timer_support, CLAP_EXT_TIMER_SUPPORT}}, host::clap_host, plugin::clap_plugin, process::{clap_process, clap_process_status, CLAP_PROCESS_CONTINUE, CLAP_PROCESS_CONTINUE_IF_NOT_QUIET, CLAP_PROCESS_ERROR, CLAP_PROCESS_TAIL}};
 use log::error;
 use plinth_core::signals::{ptr_signal::{PtrSignal, PtrSignalMut}, signal::SignalMut};
-use portable_atomic::AtomicBool;
 use raw_window_handle::RawWindowHandle;
 
 use crate::{formats::PluginFormat, host::HostInfo, Event, ParameterId, ProcessMode, ProcessState, Processor, ProcessorConfig};
@@ -168,12 +167,12 @@ impl<P: ClapPlugin> PluginInstance<P> {
         for event in events {
             match self.to_plugin_event_sender.push(event) {
                 Ok(_) => {},
-    
+
                 Err(rtrb::PushError::Full(_)) => {
                     error!("Error sending CLAP event from host to processor, queue is full");
                     break;
                 },
-            }    
+            }
         }
     }
 
@@ -303,7 +302,7 @@ impl<P: ClapPlugin> PluginInstance<P> {
         } else {
             None
         };
-        
+
         // If processing out-of-place, copy input to output
         if zip(input.pointers().iter(), output.pointers().iter())
             .any(|(&input_ptr, &output_ptr)| input_ptr != unsafe { &*output_ptr })
@@ -391,6 +390,6 @@ impl<P: ClapPlugin> PluginInstance<P> {
 
         Self::with_plugin_instance(plugin, |instance| {
             instance.process_events_to_plugin();
-        })        
+        })
     }
 }
