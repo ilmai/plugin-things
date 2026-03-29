@@ -10,9 +10,9 @@ crate-type = ["cdylib", "lib", "staticlib"]
 plinth-derive.workspace = true
 plinth-plugin.workspace = true
 plugin-canvas-slint.workspace = true
-serde = "1.0"
-serde_json = "1.0"
-slint = { version = "1.15", default-features = false, features = ["accessibility", "compat-1-2", "std"] }
+serde = "1"
+serde_json = "1"
+slint = { version = "1", default-features = false, features = ["accessibility", "compat-1-2", "std"] }
 
 [build-dependencies]
-slint-build = "1.15"
+slint-build = "1"

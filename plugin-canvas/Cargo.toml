@@ -9,11 +9,11 @@ repository = "https://github.com/ilmai/plugin-things"
 license = "MIT"
 
 [dependencies]
-bitflags = "2.9"
+bitflags = "2"
 cursor-icon.workspace = true
 keyboard-types.workspace = true
 raw-window-handle.workspace = true
-uuid = { version = "1.4", features = ["fast-rng", "v4"] }
+uuid = { version = "1", features = ["fast-rng", "v4"] }
 
 [target.'cfg(target_os="linux")'.dependencies]
 x11rb = { version = "0.13", features = ["allow-unsafe-code", "cursor", "render", "resource_manager", "xfixes", "xkb"] }
@@ -29,10 +29,10 @@ objc2-foundation = { version = "0.3", features = ["NSOperation", "NSRunLoop"] }
 objc2-quartz-core = { version = "0.3", features = ["CADisplayLink"] }
 
 [target.'cfg(target_os="windows")'.dependencies]
-windows-core = "0.61"
+windows-core = "0.62"
 
 [target.'cfg(target_os="windows")'.dependencies.windows]
-version = "0.61"
+version = "0.62"
 features = [
     "Win32_Foundation",
     "Win32_Graphics_Dwm",

@@ -16,11 +16,11 @@ num-derive = "0.4"
 num-traits.workspace = true
 plinth-core.workspace = true
 portable-atomic.workspace = true
-raw-window-handle = "0.6"
+raw-window-handle.workspace = true
 rtrb = "0.3"
-thiserror = "2.0"
+thiserror = "2"
 vst3 = "0.3"
-widestring = "1.1"
+widestring = "1"
 xxhash-rust = { version = "0.8", features = ["xxh3", "xxh32"] }
 
 [build-dependencies]

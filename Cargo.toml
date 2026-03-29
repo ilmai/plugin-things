@@ -17,16 +17,16 @@ plinth-plugin = { path = "plinth-plugin" }
 plugin-canvas = { path = "plugin-canvas" }
 plugin-canvas-slint = { path = "plugin-canvas-slint" }
 
-cursor-icon = "1.1"
-keyboard-types = "0.7"
+cursor-icon = "1"
+keyboard-types = "0.8"
 log = "0.4"
 num-traits = "0.2"
-portable-atomic = { version = "1.10", features = ["float", "serde"] }
+portable-atomic = { version = "1", features = ["float", "serde"] }
 raw-window-handle = "0.6"
-slint = { version = "1.15.1", default-features = false, features = ["accessibility", "compat-1-2", "std"] }
+slint = { version = "^1.15.1", default-features = false, features = ["accessibility", "compat-1-2", "std"] }
 
 # Internal slint crate versions need to be pinned
 # since they don't maintain semver compatibility
-i-slint-common = "1.15.1"
-i-slint-core = "1.15.1"
-i-slint-renderer-skia = { version = "1.15.1", features = ["x11"] }
+i-slint-common = "^1.15.1"
+i-slint-core = "^1.15.1"
+i-slint-renderer-skia = { version = "^1.15.1", features = ["x11"] }
