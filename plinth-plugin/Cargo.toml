@@ -21,7 +21,7 @@ rtrb = "0.3"
 thiserror = "2"
 vst3 = "0.3"
 widestring = "1"
-xxhash-rust = { version = "0.8", features = ["xxh3", "xxh32"] }
+xxhash-rust = { version = "0.8", features = ["xxh32"] }
 
 [build-dependencies]
 bindgen = "0.72"

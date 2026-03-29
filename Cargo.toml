@@ -21,7 +21,7 @@ cursor-icon = "1"
 keyboard-types = "0.8"
 log = "0.4"
 num-traits = "0.2"
-portable-atomic = { version = "1", features = ["float", "serde"] }
+portable-atomic = { version = "1", default-features = false, features = ["float", "serde"] }
 raw-window-handle = "0.6"
 slint = { version = "^1.15.1", default-features = false, features = ["accessibility", "compat-1-2", "std"] }
 
