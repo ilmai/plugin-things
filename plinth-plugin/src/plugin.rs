@@ -6,7 +6,7 @@ pub trait Plugin {
     const NAME: &'static str;
     const VENDOR: &'static str;
     const VERSION: &'static str;
-    
+
     const URL: Option<&'static str> = None;
 
     const HAS_AUX_INPUT: bool = false;
@@ -18,6 +18,7 @@ pub trait Plugin {
     type Parameters: Parameters;
 
     fn new(host_info: HostInfo) -> Self;
+    fn init(&mut self);
 
     fn with_parameters<T>(&self, f: impl FnMut(&Self::Parameters) -> T) -> T;
     fn process_event(&mut self, event: &Event);

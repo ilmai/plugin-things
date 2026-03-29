@@ -193,6 +193,8 @@ impl<P: ClapPlugin> PluginInstance<P> {
             instance.host_ext_state = unsafe { ((*instance.host).get_extension.unwrap())(instance.host, CLAP_EXT_STATE.as_ptr()) as _ };
             instance.host_ext_tail = unsafe { ((*instance.host).get_extension.unwrap())(instance.host, CLAP_EXT_TAIL.as_ptr()) as _ };
             instance.host_ext_timer_support = unsafe { ((*instance.host).get_extension.unwrap())(instance.host, CLAP_EXT_TIMER_SUPPORT.as_ptr()) as _ };
+
+            instance.plugin.as_mut().unwrap().init();
         });
 
         true

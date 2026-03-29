@@ -30,6 +30,9 @@ impl Plugin for GainPlugin {
         Self::default()
     }
 
+    fn init(&mut self) {
+    }
+
     fn with_parameters<T>(&self, mut f: impl FnMut(&Self::Parameters) -> T) -> T {
         f(&self.parameters)
     }
@@ -46,7 +49,7 @@ impl Plugin for GainPlugin {
         GainPluginEditor::new(host, self.parameters.clone(), self.editor_settings.clone())
     }
 
-    fn save_state(&self, writer: &mut impl Write) -> Result<(), Error> {        
+    fn save_state(&self, writer: &mut impl Write) -> Result<(), Error> {
         let serialized_parameters: HashMap<_, _> = self.parameters.serialize().collect();
         let parameters_json = serde_json::to_string(&serialized_parameters)
             .map_err(|_| Error::SerializationError)?;

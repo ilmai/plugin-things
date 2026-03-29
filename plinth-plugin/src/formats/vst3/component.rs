@@ -65,7 +65,7 @@ impl<P: Vst3Plugin + 'static> PluginComponent<P> {
     pub fn new() -> Self {
         Self {
             plugin: Default::default(),
-            
+
             parameter_info: Default::default(),
             parameter_groups: Default::default(),
             pitch_bend_parameter_ids: Default::default(),
@@ -107,7 +107,7 @@ impl<P: Vst3Plugin> IPluginBaseTrait for PluginComponent<P> {
 
         if let Some(context) = unsafe { ComRef::from_raw(context) } && let Some(host_application) = context.cast::<IHostApplication>() {
             let mut name = [0; 128];
-            
+
             if unsafe { host_application.getName(&mut name) == kResultOk } && let Some(name) = char16_to_string(&name) {
                 host_name = Some(name);
             }
@@ -119,8 +119,10 @@ impl<P: Vst3Plugin> IPluginBaseTrait for PluginComponent<P> {
             format: PluginFormat::Vst3,
         };
 
-        let plugin = P::new(host_info);
+        let mut plugin = P::new(host_info);
         assert!(plugin.with_parameters(|parameters| !has_duplicates(parameters.ids())));
+
+        plugin.init();
 
         let mut parameter_infos = self.parameter_info.borrow_mut();
 
@@ -172,8 +174,8 @@ impl<P: Vst3Plugin> IPluginBaseTrait for PluginComponent<P> {
         log::trace!("IPluginBase::terminate");
 
         *self.plugin.borrow_mut() = None;
-        self.parameter_info.borrow_mut().clear();        
-        self.parameter_groups.borrow_mut().clear();        
+        self.parameter_info.borrow_mut().clear();
+        self.parameter_groups.borrow_mut().clear();
 
         kResultOk
     }
@@ -411,7 +413,7 @@ impl<P: Vst3Plugin> IComponentTrait for PluginComponent<P> {
 
         let in_info = unsafe { &*in_info };
         let out_info = unsafe { &mut *out_info };
-        
+
         out_info.mediaType = in_info.mediaType;
         out_info.busIndex = in_info.busIndex;
         out_info.channel = in_info.channel;
@@ -557,8 +559,8 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
 
             let formatted = parameter.normalized_to_string(value_normalized);
             copy_str_to_char16(&formatted, unsafe { &mut *string });
-    
-            kResultOk    
+
+            kResultOk
         })
     }
 
@@ -587,9 +589,9 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
             let Some(value) = parameter.string_to_normalized(&string) else {
                 return kInvalidArgument;
             };
-    
+
             unsafe { *value_normalized = value };
-    
+
             kResultOk
         })
     }
@@ -638,8 +640,8 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
             let Some(handler) = (unsafe { ComRef::from_raw(handler) }) else {
                 return kInvalidArgument;
             };
-            
-            *self.component_handler.borrow_mut() = Some(handler.to_com_ptr());    
+
+            *self.component_handler.borrow_mut() = Some(handler.to_com_ptr());
         }
 
         kResultOk
