@@ -248,7 +248,7 @@ impl<P: Vst3Plugin> vst3::Class for TimerHandler<P> {
 #[cfg(target_os="linux")]
 impl<P: Vst3Plugin> vst3::Steinberg::Linux::ITimerHandlerTrait for TimerHandler<P> {
     unsafe fn onTimer(&self) {
-        if let Some(editor) = self.editor.borrow().as_mut() {
+        if let Some(editor) = self.editor.borrow().as_ref() {
             editor.on_frame();
         }
     }
