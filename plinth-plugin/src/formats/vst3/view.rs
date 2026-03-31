@@ -9,7 +9,7 @@ use super::{host::Vst3Host, Vst3Plugin};
 
 pub struct ViewContext {
     pub(super) frame: Option<ComPtr<IPlugFrame>>,
-    
+
     #[cfg(target_os="linux")]
     timer_handler: Option<ComPtr<vst3::Steinberg::Linux::ITimerHandler>>,
 }
@@ -27,7 +27,7 @@ impl<P: Vst3Plugin + 'static> View<P> {
         let context = ViewContext {
             frame: None,
 
-            #[cfg(target_os="linux")]            
+            #[cfg(target_os="linux")]
             timer_handler: None,
         };
 
@@ -65,10 +65,10 @@ impl<P: Vst3Plugin + 'static> IPlugViewTrait for View<P> {
 
         #[cfg(target_os="windows")]
         let supported = platform_type == unsafe { CStr::from_ptr(vst3::Steinberg::kPlatformTypeHWND) };
-        
+
         #[cfg(target_os="macos")]
         let supported = platform_type == unsafe { CStr::from_ptr(vst3::Steinberg::kPlatformTypeNSView) };
-        
+
         #[cfg(target_os="linux")]
         let supported = platform_type == unsafe { CStr::from_ptr(vst3::Steinberg::kPlatformTypeX11EmbedWindowID) };
 
@@ -86,7 +86,7 @@ impl<P: Vst3Plugin + 'static> IPlugViewTrait for View<P> {
         if unsafe { self.isPlatformTypeSupported(platform_type) } != kResultOk {
             return kInvalidArgument;
         }
-        
+
         let parent = crate::window_handle::from_ptr(parent);
         self.editor.borrow_mut().as_mut().unwrap().open(parent);
 
@@ -248,7 +248,7 @@ impl<P: Vst3Plugin> vst3::Class for TimerHandler<P> {
 #[cfg(target_os="linux")]
 impl<P: Vst3Plugin> vst3::Steinberg::Linux::ITimerHandlerTrait for TimerHandler<P> {
     unsafe fn onTimer(&self) {
-        if let Some(editor) = self.editor.borrow_mut().as_mut() {
+        if let Some(editor) = self.editor.borrow().as_mut() {
             editor.on_frame();
         }
     }

@@ -40,18 +40,18 @@ impl Editor for GainPluginEditor {
 
     fn window_size(&self) -> (f64, f64) {
         let scale = self.settings.borrow().scale;
-        
+
         (Self::DEFAULT_SIZE.0 * scale, Self::DEFAULT_SIZE.1 * scale)
     }
 
     fn set_scale(&mut self, scale: f64) {
         self.settings.borrow_mut().scale = scale;
-    
+
         let size = self.window_size();
 
         if let Some(editor_handle) = self.editor_handle.as_ref() {
             editor_handle.set_window_size(size.0, size.1);
-            editor_handle.set_scale(scale);    
+            editor_handle.set_scale(scale);
         }
     }
 
@@ -67,7 +67,7 @@ impl Editor for GainPluginEditor {
             {
                 let parameters = self.parameters.clone();
                 let host = self.host.clone();
-                
+
                 move |_| {
                     GainPluginView::new(parameters.clone(), host.clone())
                 }
@@ -81,7 +81,7 @@ impl Editor for GainPluginEditor {
         self.editor_handle = None;
     }
 
-    fn on_frame(&mut self) {
+    fn on_frame(&self) {
         if let Some(editor_handle) = self.editor_handle.as_ref() {
             editor_handle.on_frame();
         }

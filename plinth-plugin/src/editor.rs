@@ -13,7 +13,7 @@ pub trait Editor {
     fn window_size(&self) -> (f64, f64) {
         Self::DEFAULT_SIZE
     }
-    
+
     fn can_resize(&self) -> bool {
         false
     }
@@ -31,7 +31,7 @@ pub trait Editor {
     /// Set window scale; this is a suggestion that can be ignored, but it's probably a good default scale for the plugin based on OS DPI
     fn set_scale(&mut self, _scale: f64) {}
 
-    fn on_frame(&mut self);
+    fn on_frame(&self);
 }
 
 pub struct NoEditor;
@@ -42,5 +42,5 @@ impl Editor for NoEditor {
     fn open(&mut self, _parent: RawWindowHandle) {}
     fn close(&mut self) {}
 
-    fn on_frame(&mut self) {}    
+    fn on_frame(&self) {}
 }
