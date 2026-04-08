@@ -17,7 +17,7 @@ use windows::Win32::UI::{Controls::WM_MOUSELEAVE, Input::KeyboardAndMouse::{GetA
 use crate::thread_bound::ThreadBound;
 use crate::{dimensions::Size, error::Error, event::{Event, EventCallback, EventResponse, MouseButton}, keyboard::KeyboardModifiers, platform::{interface::OsWindowInterface, os_window_handle::OsWindowHandle}, window::WindowAttributes, LogicalPosition, LogicalSize, PhysicalPosition};
 
-use super::{cursors::Cursors, drop_target::DropTarget, message_window::MessageWindow, to_wstr, version::is_windows10_or_greater, PLUGIN_HINSTANCE, WM_USER_CHAR, WM_USER_FRAME_TIMER, WM_USER_KEY_DOWN, WM_USER_KEY_UP};
+use super::{cursors::Cursors, drop_target::DropTarget, message_window::MessageWindow, to_wstr, version::is_windows10_or_greater, PLUGIN_HINSTANCE, WM_APP_CHAR, WM_APP_FRAME_TIMER, WM_APP_KEY_DOWN, WM_APP_KEY_UP};
 
 pub struct OsWindow {
     window_class: u16,
@@ -26,7 +26,7 @@ pub struct OsWindow {
     event_callback: Box<EventCallback>,
     drop_target: RefCell<Option<Box<IDropTarget>>>,
     message_window: Arc<MessageWindow>,
-    
+
     cursors: Cursors,
     buttons_down: RefCell<HashSet<MouseButton>>,
     last_mouse_position: RefCell<LogicalPosition>,
@@ -41,7 +41,7 @@ impl OsWindow {
     pub(super) fn send_event(&self, event: Event) -> EventResponse {
         (self.event_callback)(event)
     }
-    
+
     pub(super) fn hwnd(&self) -> HWND {
         HWND(self.window_handle.hwnd.get() as _)
     }
@@ -68,7 +68,7 @@ impl OsWindow {
 
         *self.last_mouse_position.borrow_mut() = position.clone();
 
-        self.send_event(Event::MouseButtonUp { button, position });    
+        self.send_event(Event::MouseButtonUp { button, position });
     }
 
     fn logical_mouse_position(&self, lparam: LPARAM) -> LogicalPosition {
@@ -270,7 +270,7 @@ impl OsWindowInterface for OsWindow {
                 CursorIcon::ZoomOut => self.cursors.size_all, // TODO
                 _ => todo!(),
             };
-    
+
             unsafe {
                 ShowCursor(true);
                 SetCursor(Some(cursor));
@@ -300,7 +300,7 @@ impl OsWindowInterface for OsWindow {
             SetCursorPos(point.x, point.y).unwrap();
         }
     }
-    
+
     fn poll_events(&self) -> Result<(), Error> {
         Ok(())
     }
@@ -347,80 +347,80 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                 window.button_down(MouseButton::Left, window.logical_mouse_position(lparam));
                 LRESULT(0)
             }
-    
+
             WM_LBUTTONUP => {
                 window.update_modifiers();
                 window.button_up(MouseButton::Left, window.logical_mouse_position(lparam));
                 LRESULT(0)
             }
-    
+
             WM_MBUTTONDOWN => {
                 window.update_modifiers();
                 window.button_down(MouseButton::Middle, window.logical_mouse_position(lparam));
                 LRESULT(0)
             }
-    
+
             WM_MBUTTONUP => {
                 window.update_modifiers();
                 window.button_up(MouseButton::Middle, window.logical_mouse_position(lparam));
                 LRESULT(0)
             }
-    
+
             WM_RBUTTONDOWN => {
                 window.update_modifiers();
                 window.button_down(MouseButton::Right, window.logical_mouse_position(lparam));
                 LRESULT(0)
             }
-    
+
             WM_RBUTTONUP => {
                 window.update_modifiers();
                 window.button_up(MouseButton::Right, window.logical_mouse_position(lparam));
                 LRESULT(0)
             }
-    
+
             WM_MOVE => {
                 window.moved.store(true, Ordering::Release);
                 LRESULT(0)
             }
-    
+
             WM_MOUSELEAVE => {
                 window.send_event(Event::MouseExited);
                 LRESULT(0)
             }
-    
+
             WM_MOUSEMOVE => {
                 let position = window.logical_mouse_position(lparam);
                 *window.last_mouse_position.borrow_mut() = position.clone();
 
                 window.update_modifiers();
                 window.send_event(Event::MouseMoved { position });
-                
+
                 LRESULT(0)
             }
-    
+
             WM_MOUSEWHEEL => {
                 window.update_modifiers();
 
                 let wheel_delta: i16 = u16::cast_signed((wparam.0 >> 16) as u16);
                 let x: i16 = u16::cast_signed(((lparam.0 as usize) & 0xFFFF) as u16);
                 let y: i16 = u16::cast_signed(((lparam.0 as usize) >> 16) as u16);
-    
+
                 let mut position = POINT { x: x as i32, y: y as i32 };
                 let result = unsafe { ScreenToClient(hwnd, &mut position) };
                 assert!(result.as_bool());
-    
+
                 window.send_event(Event::MouseWheel {
                     position: LogicalPosition { x: position.x as f64, y: position.y as f64 },
                     delta_x: 0.0,
                     delta_y: wheel_delta as f64 / 120.0,
                 });
-    
+
                 LRESULT(0)
             }
-    
-            WM_USER_CHAR => {
+
+            WM_APP_CHAR => {
                 let string = OsString::from_wide(&[wparam.0 as _]);
-                
+
                 window.send_event(Event::KeyDown {
                     key_code: Code::Unidentified,
                     text: Some(string.to_string_lossy().to_string()),
@@ -428,8 +428,8 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
 
                 LRESULT(0)
             }
-    
-            WM_USER_KEY_DOWN => {
+
+            WM_APP_KEY_DOWN => {
                 window.send_event(Event::KeyDown {
                     key_code: unsafe { transmute::<u8, keyboard_types::Code>(wparam.0 as u8) },
                     text: None,
@@ -437,8 +437,8 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
 
                 LRESULT(0)
             }
-    
-            WM_USER_KEY_UP => {
+
+            WM_APP_KEY_UP => {
                 window.send_event(Event::KeyUp {
                     key_code: unsafe { transmute::<u8, keyboard_types::Code>(wparam.0 as u8) },
                     text: None,
@@ -447,13 +447,13 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
                 LRESULT(0)
             }
 
-            WM_USER_FRAME_TIMER => {
+            WM_APP_FRAME_TIMER => {
                 window.update_modifiers();
                 window.send_event(Event::Draw);
 
                 LRESULT(0)
             }
-    
+
             WM_CANCELMODE => {
                 let mut buttons_down = window.buttons_down.borrow_mut();
                 let position = window.last_mouse_position.borrow().clone();
@@ -505,7 +505,7 @@ unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -
             let x: u16 = i16::cast_unsigned(position.x as i16);
             let y: u16 = i16::cast_unsigned(position.y as i16);
 
-            let wparam = WPARAM(mouse_hook_struct.mouseData as usize & 0xFFFF0000);            
+            let wparam = WPARAM(mouse_hook_struct.mouseData as usize & 0xFFFF0000);
             let lparam = LPARAM(usize::cast_signed(x as usize + ((y as usize) << 16)));
             unsafe { PostMessageW(Some(hwnd), WM_MOUSEWHEEL, wparam, lparam).unwrap() };
         },
@@ -538,7 +538,7 @@ fn frame_pacing_thread(hwnd: usize, running: Arc<AtomicBool>, moved: Arc<AtomicB
             }
 
             // Send draw message
-            SendMessageW(hwnd, WM_USER_FRAME_TIMER, None, None);
+            SendMessageW(hwnd, WM_APP_FRAME_TIMER, None, None);
         }
     }
 }
@@ -548,9 +548,9 @@ fn wait_for_vblank_dxgi(hwnd: HWND, maybe_output: &mut Option<IDXGIOutput>) -> b
         if maybe_output.is_none() {
             let dxgi_factory = CreateDXGIFactory::<IDXGIFactory>().unwrap();
             let monitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTOPRIMARY);
-        
+
             let mut adapter_index = 0;
-    
+
             'outer: while let Ok(adapter) = dxgi_factory.EnumAdapters(adapter_index) {
                 let mut output_index = 0;
                 while let Ok(output) = adapter.EnumOutputs(output_index) {
@@ -559,17 +559,17 @@ fn wait_for_vblank_dxgi(hwnd: HWND, maybe_output: &mut Option<IDXGIOutput>) -> b
                         *maybe_output = Some(output);
                         break 'outer;
                     }
-    
+
                     output_index += 1;
                 }
-    
+
                 adapter_index += 1;
             }
         }
-    
+
         if let Some(output) = maybe_output.as_ref() {
             output.WaitForVBlank().unwrap();
-            true    
+            true
         } else {
             false
         }

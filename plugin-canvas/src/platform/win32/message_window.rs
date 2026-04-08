@@ -1,12 +1,12 @@
 use std::{mem, ptr::{null, null_mut}, sync::{atomic::{AtomicBool, Ordering}, Arc}};
 
 use uuid::Uuid;
-use windows::{Win32::{UI::{WindowsAndMessaging::{WNDCLASSW, CS_OWNDC, DefWindowProcW, HICON, HCURSOR, RegisterClassW, CreateWindowExW, WS_EX_NOACTIVATE, GetMessageW, TranslateMessage, DispatchMessageW, WM_CHAR, PostMessageW, SetWindowLongPtrW, GWLP_USERDATA, GetWindowLongPtrW, DestroyWindow, UnregisterClassW, WS_CHILD, WM_KEYDOWN, WM_KEYUP}, Input::KeyboardAndMouse::{SetFocus, VIRTUAL_KEY}}, Graphics::Gdi::HBRUSH, Foundation::{HWND, WPARAM, LPARAM, LRESULT}}, core::PCWSTR};
+use windows::{Win32::{Foundation::{HWND, LPARAM, LRESULT, WPARAM}, Graphics::Gdi::HBRUSH, UI::{Input::KeyboardAndMouse::{SetFocus, VIRTUAL_KEY}, WindowsAndMessaging::{CS_OWNDC, CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GWLP_USERDATA, GetMessageW, GetWindowLongPtrW, HCURSOR, HICON, PostMessageW, RegisterClassW, SetWindowLongPtrW, TranslateMessage, UnregisterClassW, WM_CHAR, WM_KEYDOWN, WM_KEYUP, WM_KILLFOCUS, WM_SETFOCUS, WNDCLASSW, WS_CHILD, WS_EX_NOACTIVATE}}}, core::PCWSTR};
 use windows_core::BOOL;
 
 use crate::error::Error;
 
-use super::{keyboard::virtual_key_to_keycode, to_wstr, PLUGIN_HINSTANCE, WM_USER_CHAR, WM_USER_KEY_DOWN, WM_USER_KEY_UP};
+use super::{keyboard::virtual_key_to_keycode, to_wstr, PLUGIN_HINSTANCE, WM_APP_CHAR, WM_APP_KEY_DOWN, WM_APP_KEY_UP};
 
 pub struct MessageWindow {
     hwnd: usize,
@@ -82,7 +82,7 @@ impl MessageWindow {
                 // We can ignore the return value
                 let _ = TranslateMessage(&msg);
                 DispatchMessageW(&msg);
-            }    
+            }
         }
     }
 
@@ -112,21 +112,21 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
 
     match msg {
         WM_CHAR => {
-            unsafe { PostMessageW(Some(main_window_hwnd), WM_USER_CHAR, wparam, lparam).unwrap() };
+            unsafe { PostMessageW(Some(main_window_hwnd), WM_APP_CHAR, wparam, lparam).unwrap() };
             LRESULT(0)
-        },
+        }
 
         WM_KEYDOWN => {
             let keycode = virtual_key_to_keycode(VIRTUAL_KEY(wparam.0 as _));
-            unsafe { PostMessageW(Some(main_window_hwnd), WM_USER_KEY_DOWN, WPARAM(keycode as _), LPARAM(0)).unwrap() };
-            
+            unsafe { PostMessageW(Some(main_window_hwnd), WM_APP_KEY_DOWN, WPARAM(keycode as _), LPARAM(0)).unwrap() };
+
             LRESULT(0)
         }
 
         WM_KEYUP => {
             let keycode = virtual_key_to_keycode(VIRTUAL_KEY(wparam.0 as _));
-            unsafe { PostMessageW(Some(main_window_hwnd), WM_USER_KEY_UP, WPARAM(keycode as _), LPARAM(0)).unwrap() };
-            
+            unsafe { PostMessageW(Some(main_window_hwnd), WM_APP_KEY_UP, WPARAM(keycode as _), LPARAM(0)).unwrap() };
+
             LRESULT(0)
         }
 
