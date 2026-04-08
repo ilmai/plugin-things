@@ -534,7 +534,8 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
 
         #[allow(clippy::unnecessary_cast)]
         if parameter_info.is_bypass() {
-            vst3_info.flags |= ParameterInfo_::ParameterFlags_::kIsBypass as i32;
+            vst3_info.flags = ParameterInfo_::ParameterFlags_::kIsBypass as i32;
+            vst3_info.flags |= ParameterInfo_::ParameterFlags_::kCanAutomate as i32;
         } else if !parameter_info.visible() {
             vst3_info.flags = ParameterInfo_::ParameterFlags_::kIsHidden as i32;
         } else {
