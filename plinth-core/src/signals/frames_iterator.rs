@@ -11,13 +11,16 @@ pub struct FramesIterator<'signal, S: Signal + ?Sized> {
 
 impl<S: Signal> FramesIterator<'_, S> {
     pub fn new(signal: &S) -> FramesIterator<'_, S> {
-        let frame_index_back = if signal.is_empty() { 0 } else { signal.len() - 1 };
-
+        let (frame_index_back, finished) = if signal.is_empty() {
+            (0, true)
+        } else {
+            (signal.len() - 1, false)
+        };
         FramesIterator {
             signal,
             frame_index_front: 0,
             frame_index_back,
-            finished: false,
+            finished,
         }
     }
 }
@@ -67,13 +70,16 @@ pub struct FramesIteratorMut<'signal, S: SignalMut + ?Sized> {
 
 impl<S: SignalMut> FramesIteratorMut<'_, S> {
     pub fn new(signal: &mut S) -> FramesIteratorMut<'_, S> {
-        let frame_index_back = if signal.is_empty() { 0 } else { signal.len() - 1 };
-
+        let (frame_index_back, finished) = if signal.is_empty() {
+            (0, true)
+        } else {
+            (signal.len() - 1, false)
+        };
         FramesIteratorMut {
             signal,
             frame_index_front: 0,
             frame_index_back,
-            finished: false,
+            finished,
         }
     }
 }
