@@ -1,7 +1,7 @@
 use std::{mem, ptr::{null, null_mut}, sync::{atomic::{AtomicBool, Ordering}, Arc}};
 
 use uuid::Uuid;
-use windows::{Win32::{Foundation::{HWND, LPARAM, LRESULT, WPARAM}, Graphics::Gdi::HBRUSH, UI::{Input::KeyboardAndMouse::{SetFocus, VIRTUAL_KEY}, WindowsAndMessaging::{CS_OWNDC, CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GWLP_USERDATA, GetMessageW, GetWindowLongPtrW, HCURSOR, HICON, PostMessageW, RegisterClassW, SetWindowLongPtrW, TranslateMessage, UnregisterClassW, WM_CHAR, WM_KEYDOWN, WM_KEYUP, WM_KILLFOCUS, WM_SETFOCUS, WNDCLASSW, WS_CHILD, WS_EX_NOACTIVATE}}}, core::PCWSTR};
+use windows::{Win32::{Foundation::{HWND, LPARAM, LRESULT, WPARAM}, Graphics::Gdi::HBRUSH, UI::{Input::KeyboardAndMouse::{SetFocus, VIRTUAL_KEY}, WindowsAndMessaging::{CS_OWNDC, CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GWLP_USERDATA, GetMessageW, GetWindowLongPtrW, HCURSOR, HICON, PostMessageW, RegisterClassW, SetWindowLongPtrW, TranslateMessage, UnregisterClassW, WM_CHAR, WM_KEYDOWN, WM_KEYUP, WNDCLASSW, WS_CHILD, WS_EX_NOACTIVATE}}}, core::PCWSTR};
 use windows_core::BOOL;
 
 use crate::error::Error;
