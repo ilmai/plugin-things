@@ -18,8 +18,13 @@ impl Buffer {
     pub fn with_capacity(channels: usize, capacity: usize) -> Self {
         assert!(channels > 0);
 
+        let mut samples = vec![Vec::default(); channels];
+        for channel in samples.iter_mut() {
+            channel.reserve(capacity);
+        }
+
         Self {
-            samples: vec![Vec::with_capacity(capacity); channels],
+            samples,
         }
     }
 
@@ -127,7 +132,7 @@ mod tests {
 
         let buffer2_len = buffer2.len();
         buffer2.apply_wrap(1, buffer2_len, |signal, range| buffer1.slice_mut(range).copy_from_signal(signal));
-        
+
         assert_eq!(buffer1.channel(0), &[2.0, 1.0]);
         assert_eq!(buffer1.channel(1), &[4.0, 3.0]);
     }
@@ -142,7 +147,7 @@ mod tests {
 
         let buffer2_len = buffer2.len();
         buffer1.apply_wrap_mut(1, buffer2_len, |signal, range| signal.copy_from_signal(&buffer2.slice(range)));
-        
+
         assert_eq!(buffer1.channel(0), &[2.0, 1.0]);
         assert_eq!(buffer1.channel(1), &[4.0, 3.0]);
     }
