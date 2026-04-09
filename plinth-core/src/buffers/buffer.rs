@@ -42,6 +42,16 @@ impl Buffer {
         self.samples[0].capacity()
     }
 
+    /// Never lowers capacity
+    pub fn ensure_capacity(&mut self, capacity: usize) {
+        if capacity <= self.capacity() {
+            return;
+        }
+
+        let additional = capacity - self.capacity();
+        self.reserve(additional);
+    }
+
     pub fn resize(&mut self, length: usize) {
         for channel in self.samples.iter_mut() {
             channel.resize(length, 0.0);
