@@ -26,10 +26,12 @@ pub trait Editor {
     }
 
     /// Set new window size; should only be called when window is created and after a previous call to check_window_size()
-    fn set_window_size(&mut self, _width: f64, _height: f64) {}
+    // NOTE: This doesn't take a mutable reference because on Linux, if you resize the window from on_frame() we get a RefCell borrow error
+    fn set_window_size(&self, _width: f64, _height: f64) {}
 
     /// Set window scale; this is a suggestion that can be ignored, but it's probably a good default scale for the plugin based on OS DPI
-    fn set_scale(&mut self, _scale: f64) {}
+    // NOTE: This doesn't take a mutable reference because on Linux, if you resize the window from on_frame() we get a RefCell borrow error
+    fn set_scale(&self, _scale: f64) {}
 
     fn on_frame(&self);
 }

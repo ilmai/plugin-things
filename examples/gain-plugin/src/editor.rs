@@ -44,7 +44,7 @@ impl Editor for GainPluginEditor {
         (Self::DEFAULT_SIZE.0 * scale, Self::DEFAULT_SIZE.1 * scale)
     }
 
-    fn set_scale(&mut self, scale: f64) {
+    fn set_scale(&self, scale: f64) {
         self.settings.borrow_mut().scale = scale;
 
         let size = self.window_size();

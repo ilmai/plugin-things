@@ -165,7 +165,7 @@ impl<P: Vst3Plugin + 'static> IPlugViewTrait for View<P> {
             return kResultFalse;
         }
 
-        self.editor.borrow_mut().as_mut().unwrap().set_window_size((right - left) as _, (bottom - top) as _);
+        self.editor.borrow().as_ref().unwrap().set_window_size((right - left) as _, (bottom - top) as _);
 
         kResultOk
     }
@@ -240,7 +240,7 @@ impl<P: Vst3Plugin + 'static> IPlugViewTrait for View<P> {
 impl<P: Vst3Plugin + 'static> IPlugViewContentScaleSupportTrait for View<P> {
     #[allow(unused_variables)]
     unsafe fn setContentScaleFactor(&self, factor: ScaleFactor) -> tresult {
-        self.editor.borrow_mut().as_mut().unwrap().set_scale(factor as _);
+        self.editor.borrow().as_ref().unwrap().set_scale(factor as _);
         kResultOk
     }
 }
