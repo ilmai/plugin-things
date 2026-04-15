@@ -14,7 +14,7 @@ pub struct ViewContext {
     timer_handler: Option<ComPtr<vst3::Steinberg::Linux::ITimerHandler>>,
 }
 
-pub struct View<P: Vst3Plugin> {
+pub struct View<P: Vst3Plugin + 'static> {
     editor: Rc<RefCell<Option<P::Editor>>>,
     context: Rc<RefCell<ViewContext>>,
 }
@@ -51,6 +51,25 @@ impl<P: Vst3Plugin + 'static> View<P> {
         *view.editor.borrow_mut() = Some(plugin.as_mut().unwrap().create_editor(host));
 
         view
+    }
+
+    #[cfg(target_os="linux")]
+    fn unregister_timer(&self) {
+        use vst3::Steinberg::Linux::IRunLoopTrait;
+
+        let mut context = self.context.borrow_mut();
+        let frame = context.frame.as_mut().unwrap();
+
+        if let Some(run_loop) = frame.cast::<vst3::Steinberg::Linux::IRunLoop>() && let Some(timer_handler) = context.timer_handler.take() {
+            unsafe { run_loop.unregisterTimer(timer_handler.as_ptr()) };
+        }
+    }
+}
+
+impl<P: Vst3Plugin + 'static> Drop for View<P> {
+    fn drop(&mut self) {
+        #[cfg(target_os="linux")]
+        self.unregister_timer();
     }
 }
 
@@ -95,16 +114,7 @@ impl<P: Vst3Plugin + 'static> IPlugViewTrait for View<P> {
 
     unsafe fn removed(&self) -> tresult {
         #[cfg(target_os="linux")]
-        {
-            use vst3::Steinberg::Linux::IRunLoopTrait;
-
-            let mut context = self.context.borrow_mut();
-            let frame = context.frame.as_mut().unwrap();
-
-            if let Some(run_loop) = frame.cast::<vst3::Steinberg::Linux::IRunLoop>() && let Some(timer_handler) = context.timer_handler.take() {
-                unsafe { run_loop.unregisterTimer(timer_handler.as_ptr()) };
-            }
-        }
+        self.unregister_timer();
 
         self.editor.borrow_mut().as_mut().unwrap().close();
 
