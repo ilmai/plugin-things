@@ -22,7 +22,7 @@ impl<P: Vst3Plugin + 'static> Factory<P> {
             .to_com_ptr::<IPluginFactory>()
             .unwrap()
             .into_raw() as _
-    }    
+    }
 }
 
 impl<P: Vst3Plugin> vst3::Class for Factory<P> {
@@ -112,10 +112,18 @@ impl<P: Vst3Plugin + 'static> IPluginFactory2Trait for Factory<P> {
 
         copy_u128_to_char8(&P::CLASS_ID, &mut local_info.cid);
         copy_str_to_char8(P::NAME, &mut local_info.name);
+        copy_str_to_char8(P::VENDOR, &mut local_info.vendor);
         copy_str_to_char8(P::VERSION, &mut local_info.version);
 
         copy_str_to_char8("Audio Module Class", &mut local_info.category);
         copy_str_to_char8(unsafe { CStr::from_ptr(SDKVersionString).to_str().unwrap() }, &mut local_info.sdkVersion);
+
+        let subcategory_string = P::SUBCATEGORIES
+            .iter()
+            .map(|subcategory| subcategory.to_str())
+            .collect::<Vec<_>>()
+            .join("|");
+        copy_str_to_char8(&subcategory_string, &mut local_info.subCategories);
 
         // We have to do a workaround like this for FL Studio which is giving us unaligned addresses
         unsafe { std::ptr::write_unaligned(info, local_info) };
@@ -136,6 +144,7 @@ impl<P: Vst3Plugin + 'static> IPluginFactory3Trait for Factory<P> {
 
         copy_u128_to_char8(&P::CLASS_ID, &mut local_info.cid);
         copy_str_to_char16(P::NAME, &mut local_info.name);
+        copy_str_to_char16(P::VENDOR, &mut local_info.vendor);
         copy_str_to_char16(P::VERSION, &mut local_info.version);
 
         copy_str_to_char8("Audio Module Class", &mut local_info.category);
