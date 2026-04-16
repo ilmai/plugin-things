@@ -16,7 +16,7 @@ where
         let mut iterator_array: [Option<I>; MAX_ITERATORS] = Default::default();
 
         let mut iterator_count = 0;
-        for (it, array_it) in zip(iterators.into_iter(), iterator_array.iter_mut()) {
+        for (it, array_it) in zip(iterators, iterator_array.iter_mut()) {
             *array_it = Some(it);
             iterator_count += 1;
         }
@@ -39,7 +39,7 @@ impl<T, I: Iterator<Item = T>> Iterator for InterleaveIterator<T, I> {
 
         let iterator = self.iterators[self.next_iterator_index].as_mut().unwrap();
         let result = iterator.next();
-        
+
         self.next_iterator_index += 1;
         if self.next_iterator_index >= self.iterator_count {
             self.next_iterator_index = 0;
