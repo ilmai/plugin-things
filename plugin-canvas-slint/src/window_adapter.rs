@@ -163,39 +163,18 @@ impl PluginCanvasWindowAdapter {
                     KeyboardModifiers::Meta,
                     KeyboardModifiers::Shift
                 ] {
-                    // TODO: This is mildly janky, could we clean it up?
-                    macro_rules! modifier_to_char {
-                        ($($char:literal # $name:ident # $($_qt:ident)|* # $($_winit:ident $(($_pos:ident))?)|* # $($_xkb:ident)|*;)*) => {
-                            {
-                                if false { unimplemented!() }
-
-                                $(
-                                    else if modifier == KeyboardModifiers::Alt && stringify!($name) == "Alt" {
-                                        $char
-                                    } else if modifier == KeyboardModifiers::Shift && stringify!($name) == "Shift" {
-                                        $char
-                                    } else if cfg!(target_os="macos") && modifier == KeyboardModifiers::Meta && stringify!($name) == "Control" {
-                                        $char
-                                    } else if cfg!(target_os="macos") && modifier == KeyboardModifiers::Control && stringify!($name) == "Meta" {
-                                        $char
-                                    } else if !cfg!(target_os="macos") && modifier == KeyboardModifiers::Control && stringify!($name) == "Control" {
-                                        $char
-                                    } else if !cfg!(target_os="macos") && modifier == KeyboardModifiers::Meta && stringify!($name) == "Meta" {
-                                        $char
-                                    }
-                                )*
-
-                                else {
-                                    unimplemented!()
-                                }
-                            }
-                        }
-                    }
-
                     let was_pressed = my_modifiers.contains(modifier);
                     let pressed = modifiers.contains(modifier);
 
-                    let text = i_slint_common::for_each_special_keys!(modifier_to_char);
+                    let text = match modifier {
+                        KeyboardModifiers::Alt => '\u{0012}',
+                        KeyboardModifiers::Control if cfg!(target_os="macos") => '\u{0017}',
+                        KeyboardModifiers::Control => '\u{0011}',
+                        KeyboardModifiers::Meta if cfg!(target_os="macos") => '\u{0011}',
+                        KeyboardModifiers::Meta => '\u{0017}',
+                        KeyboardModifiers::Shift => '\u{0010}',
+                        _ => unimplemented!()
+                    };
 
                     if !was_pressed && pressed {
                         self.slint_window.dispatch_event(WindowEvent::KeyPressed { text: text.into() });
