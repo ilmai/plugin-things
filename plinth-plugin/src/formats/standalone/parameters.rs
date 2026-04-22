@@ -1,4 +1,4 @@
-use std::collections::{btree_map, BTreeMap};
+use std::collections::{BTreeMap, btree_map};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use portable_atomic::AtomicF64;
@@ -23,7 +23,9 @@ impl StandaloneParameterEventMap {
             parameter_event_info.insert(id, Default::default());
         }
 
-        Self { parameter_event_info }
+        Self {
+            parameter_event_info,
+        }
     }
 
     pub(crate) fn change_parameter_value(&self, id: ParameterId, value: ParameterValue) {
@@ -47,6 +49,8 @@ impl Iterator for StandaloneParameterEventIterator<'_> {
     type Item = Event;
 
     fn next(&mut self) -> Option<Self::Item> {
+        // TODO: this iterates the entire parameter list on every audio callback regardless of how many
+        // parameters actually changed. Should fix this before shipping standalone apps to end users.
         loop {
             let (&id, info) = self.event_info_iterator.next()?;
 
