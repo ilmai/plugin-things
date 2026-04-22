@@ -1,3 +1,2 @@
 [alias]
-xtask-release = "run --package xtask --release --"
-xtask-debug = "run --package xtask --"
+xtask = "run --package xtask --release --"
