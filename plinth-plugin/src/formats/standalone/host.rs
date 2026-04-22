@@ -30,12 +30,9 @@ impl Host for StandaloneHost {
         false
     }
 
-    fn start_parameter_change(&self, id: ParameterId) {
-        let _ = self.to_plugin_sender.send(Event::StartParameterChange { id });
-    }
-
     fn change_parameter_value(&self, id: ParameterId, normalized: ParameterValue) {
-        self.parameter_event_map.change_parameter_value(id, normalized);
+        self.parameter_event_map
+            .change_parameter_value(id, normalized);
 
         let _ = self.to_plugin_sender.send(Event::ParameterValue {
             sample_offset: 0,
@@ -44,9 +41,8 @@ impl Host for StandaloneHost {
         });
     }
 
-    fn end_parameter_change(&self, id: ParameterId) {
-        let _ = self.to_plugin_sender.send(Event::EndParameterChange { id });
-    }
+    fn start_parameter_change(&self, _id: ParameterId) {}
+    fn end_parameter_change(&self, _id: ParameterId) {}
 
     fn reload_parameters(&self) {}
 
