@@ -7,6 +7,26 @@ use super::parameters::StandaloneParameterEventMap;
 use super::plugin::StandalonePlugin;
 use crate::{Event, Processor};
 
+trait EventListPush {
+    type EventType;
+    fn push_event(&mut self, event: Self::EventType);
+}
+
+impl EventListPush for Vec<Event> {
+    type EventType = Event;
+    fn push_event(&mut self, event: Event) {
+        if self.len() == self.capacity() {
+            log::warn!(
+                "Event queue exceeded preallocated capacity of {} - allocating more. \
+                Increase EVENT_QUEUE_LEN to avoid allocation on the audio thread.",
+                self.capacity()
+            );
+            self.reserve(128);
+        }
+        self.push(event);
+    }
+}
+
 pub struct AudioState<P: StandalonePlugin> {
     pub processor: P::Processor,
     pub buffer: Buffer,
@@ -43,17 +63,25 @@ impl<P: StandalonePlugin> AudioState<P> {
         // Drain MIDI events
         self.pending_events.clear();
         while let Ok(event) = self.midi_receiver.try_recv() {
-            self.pending_events.push(event);
+            self.pending_events.push_event(event);
         }
+
+        // Collect pending parameter change events
         for event in self.parameter_event_map.iter_events() {
-            self.pending_events.push(event);
+            self.pending_events.push_event(event);
         }
 
         // Process audio, ensuring we don't call process with more than P::MAX_BLOCK_SIZE frames
+        debug_assert!(
+            self.buffer.capacity() == P::MAX_BLOCK_SIZE,
+            "Buffer must be preallocated to avoid allocation on the saudio thread"
+        );
+
         let mut frame_offset = 0;
         while frame_offset < frame_count {
             let chunk_size = (frame_count - frame_offset).min(P::MAX_BLOCK_SIZE);
 
+            // Truncate or extend buffer to fit the chunk
             if self.buffer.len() != chunk_size {
                 self.buffer.resize(chunk_size);
             }
