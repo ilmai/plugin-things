@@ -126,8 +126,9 @@ impl PluginCanvasWindowAdapter {
 
         let built_in_response = match event {
             plugin_canvas::Event::Draw => {
+                // Note: this may invoke callbacks from other windows as well, not just ours, because the callback queue is owned by PluginCanvasPlatform. Events are added via `slint::invoke_from_event_loop` which has no window context.
                 let callbacks: Vec<_> = self.callback_queue.lock().unwrap().drain(..).collect();
-                for cb in callbacks { cb(); }
+                for callback in callbacks { callback(); }
 
                 match self.plugin_canvas_window.poll_events() {
                     Ok(_) => {},

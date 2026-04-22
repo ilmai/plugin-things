@@ -38,6 +38,7 @@ impl Platform for PluginCanvasPlatform {
     }
 
     fn new_event_loop_proxy(&self) -> Option<Box<dyn EventLoopProxy>> {
+        // Shared with all adapters - see window_adapter.rs draw event handling.
         Some(Box::new(PluginCanvasEventLoopProxy {
             queue: self.callback_queue.clone(),
         }))
