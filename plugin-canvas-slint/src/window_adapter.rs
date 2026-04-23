@@ -284,7 +284,7 @@ impl PluginCanvasWindowAdapter {
     }
 
     fn convert_key(key_code: Code, text: &Option<String>) -> Option<String> {
-        // Slint is using the deprecate keyCode standard, we'll have to convert some control keys
+        // Slint is using the deprecated keyCode standard, we'll have to convert some control keys
         // to its text representation
         match key_code {
             Code::Backspace => Some("\u{0008}".into()),
