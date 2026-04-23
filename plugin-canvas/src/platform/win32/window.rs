@@ -419,12 +419,16 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
             }
 
             WM_APP_CHAR => {
-                let string = OsString::from_wide(&[wparam.0 as _]);
+                let os_string = OsString::from_wide(&[wparam.0 as _]);
+                let string = os_string.to_string_lossy().to_string();
 
-                window.send_event(Event::KeyDown {
-                    key_code: Code::Unidentified,
-                    text: Some(string.to_string_lossy().to_string()),
-                });
+                // Don't send backspace as a character or it will be registered twice
+                if string.as_str() != "\u{0008}" {
+                    window.send_event(Event::KeyDown {
+                        key_code: Code::Unidentified,
+                        text: Some(string),
+                    });
+                }
 
                 LRESULT(0)
             }
