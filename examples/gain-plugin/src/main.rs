@@ -1,3 +1,6 @@
+use plinth_plugin::standalone::run_standalone;
 use gain_plugin::GainPlugin;
 
-plinth_plugin::export_standalone!(GainPlugin);
+fn main() {
+    run_standalone::<GainPlugin>();
+}

@@ -103,7 +103,49 @@ impl<P: StandalonePlugin> ApplicationHandler for StandaloneRunner<P> {
     }
 }
 
-pub fn run_standalone<P: StandalonePlugin + 'static>(
+/// Runs the given plugin as a standalone application using the default audio output device and all available
+/// MIDI input ports (if the plugin has `HAS_NOTE_INPUT` set).
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use plinth_plugin::standalone::run_standalone;
+///
+/// fn main() {
+///     run_standalone::<MyPlugin>();
+/// }
+/// ```
+pub fn run_standalone<P: StandalonePlugin + 'static>() {
+    run_standalone_with_config::<P>(AudioOutputConfig::default(), MidiInputConfig::default());
+}
+
+/// Runs the given plugin as a standalone application with explicit audio and MIDI configuration.
+///
+/// # Example
+///
+/// ```rust,ignore
+/// fn main() {
+///     // Enumerate available audio devices for the default driver
+///     let audio_devices = AudioOutputConfig::available_devices(AudioDeviceDriver::Default)
+///         .expect("Failed to enumerate audio devices");
+///     // Enumerate available MIDI input ports
+///     let midi_ports = MidiInputConfig::available_ports()
+///         .expect("Failed to enumerate MIDI ports");
+///
+///     let audio_config = AudioOutputConfig {
+///         driver: AudioDeviceDriver::Default,
+///         device_id: audio_devices.first().map(|(id, _)| id.clone()),
+///         sample_rate: Some(48000),
+///         buffer_size: Some(512),
+///     };
+///     let midi_config = MidiInputConfig {
+///         port_names: Some(vec!["My MIDI Keyboard".to_string()]),
+///     };
+///
+///     run_standalone_with_config::<MyPlugin>(audio_config, midi_config);
+/// }
+/// ```
+pub fn run_standalone_with_config<P: StandalonePlugin + 'static>(
     audio_config: AudioOutputConfig,
     midi_config: MidiInputConfig,
 ) {
