@@ -2,11 +2,15 @@ use std::sync::mpsc::Sender;
 
 use midir::{MidiInput, MidiInputConnection};
 
+use super::config::MidiInputConfig;
 use crate::Event;
 
-pub fn connect_midi_inputs(sender: Sender<Event>) -> Vec<MidiInputConnection<()>> {
+pub fn connect_inputs(
+    config: &MidiInputConfig,
+    sender: Sender<Event>,
+) -> Vec<MidiInputConnection<()>> {
     let midi_in = match MidiInput::new("plinth-standalone") {
-        Ok(midi_in) => midi_in,
+        Ok(m) => m,
         Err(err) => {
             log::warn!("Failed to create MIDI input: {err}");
             return vec![];
@@ -14,10 +18,25 @@ pub fn connect_midi_inputs(sender: Sender<Event>) -> Vec<MidiInputConnection<()>
     };
 
     let ports = midi_in.ports();
+
+    if ports.is_empty() {
+        log::info!("No MIDI input ports available");
+    } else {
+        for port in &ports {
+            let name = midi_in.port_name(port).unwrap_or_else(|_| port.id());
+            log::info!("Available MIDI input port: '{name}'");
+        }
+    }
+
     let mut connections = Vec::with_capacity(ports.len());
 
     for port in &ports {
         let port_name = midi_in.port_name(port).unwrap_or_else(|_| port.id());
+
+        if config.port_names.as_ref().is_some_and(|names| !names.iter().any(|n| n == &port_name)) {
+            continue;
+        }
+
         let midi_in = match MidiInput::new("plinth-standalone") {
             Ok(m) => m,
             Err(e) => {
@@ -37,8 +56,11 @@ pub fn connect_midi_inputs(sender: Sender<Event>) -> Vec<MidiInputConnection<()>
             },
             (),
         ) {
-            Ok(conn) => connections.push(conn),
-            Err(e) => log::warn!("Failed to connect to MIDI input port '{port_name}': {e}"),
+            Ok(connection) => {
+                log::info!("Connected MIDI input port '{port_name}'");
+                connections.push(connection);
+            }
+            Err(err) => log::warn!("Failed to connect MIDI input port '{port_name}': {err}"),
         }
     }
 

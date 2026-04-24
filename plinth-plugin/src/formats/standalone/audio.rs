@@ -1,12 +1,13 @@
 use std::sync::{Arc, mpsc::Receiver};
 
 use cpal::{FromSample, Sample};
-use plinth_core::{buffers::buffer::Buffer, signals::{signal::{Signal, SignalMut}, signal_base::SignalBase}};
+use plinth_core::{ buffers::buffer::Buffer, signals::{ signal::{Signal, SignalMut}, signal_base::SignalBase } };
 
 use super::parameters::StandaloneParameterEventMap;
 use super::plugin::StandalonePlugin;
 use crate::{Event, Processor};
 
+/// Push events to a event list vec, printing a warning when preallocated memory exceeded.
 trait EventListPush {
     type EventType;
     fn push_event(&mut self, event: Self::EventType);
@@ -27,6 +28,7 @@ impl EventListPush for Vec<Event> {
     }
 }
 
+/// Runs a plinth processor on a CPAL audio stream
 pub struct AudioState<P: StandalonePlugin> {
     pub processor: P::Processor,
     pub buffer: Buffer,

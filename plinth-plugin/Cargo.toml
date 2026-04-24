@@ -27,8 +27,8 @@ widestring = "1"
 xxhash-rust = { version = "0.8", features = ["xxh32"] }
 # standalone features
 winit = { version = "0.30", optional = true }
-cpal = { version = "0.17", optional = true }
-midir = { version = "0.10", optional = true }
+cpal = { version = "0.17", optional = true, features = ["asio", "jack"] }
+midir = { version = "0.11", optional = true }
 
 [build-dependencies]
 bindgen = "0.72"
