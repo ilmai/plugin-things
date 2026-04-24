@@ -21,11 +21,6 @@ pub fn connect_inputs(
 
     if ports.is_empty() {
         log::info!("No MIDI input ports available");
-    } else {
-        for port in &ports {
-            let name = midi_in.port_name(port).unwrap_or_else(|_| port.id());
-            log::info!("Available MIDI input port: '{name}'");
-        }
     }
 
     let mut connections = Vec::with_capacity(ports.len());

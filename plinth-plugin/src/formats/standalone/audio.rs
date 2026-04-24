@@ -76,7 +76,7 @@ impl<P: StandalonePlugin> AudioState<P> {
         // Process audio, ensuring we don't call process with more than P::MAX_BLOCK_SIZE frames
         debug_assert!(
             self.buffer.capacity() == P::MAX_BLOCK_SIZE,
-            "Buffer must be preallocated to avoid allocation on the saudio thread"
+            "Buffer must be preallocated to avoid allocation on the audio thread"
         );
 
         let mut frame_offset = 0;

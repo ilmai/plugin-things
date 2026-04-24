@@ -55,9 +55,6 @@ impl AudioOutputConfig {
     const PREFERRED_SAMPLE_FORMAT: cpal::SampleFormat = cpal::SampleFormat::F32;
 
     /// Returns all audio drivers available on this platform.
-    ///
-    /// Always includes [`AudioDeviceDriver::Default`], followed by any named drivers that are
-    /// currently available (e.g. ASIO, WASAPI on Windows; ALSA, JACK on Linux).
     pub fn available_drivers() -> Vec<AudioDeviceDriver> {
         let hosts = cpal::available_hosts();
         let mut drivers = vec![AudioDeviceDriver::Default];
