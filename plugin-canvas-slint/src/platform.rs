@@ -22,14 +22,9 @@ impl EventLoopProxy for PluginCanvasEventLoopProxy {
     }
 }
 
+#[derive(Default)]
 pub struct PluginCanvasPlatform {
     callback_queue: CallbackQueue,
-}
-
-impl PluginCanvasPlatform {
-    pub fn new() -> Self {
-        Self { callback_queue: Arc::new(Mutex::new(VecDeque::new())) }
-    }
 }
 
 impl Platform for PluginCanvasPlatform {

@@ -35,7 +35,7 @@ impl SlintEditor {
                         return EventResponse::Ignored;
                     }
 
-                    let editor_weak = unsafe { Weak::from_raw(editor_weak_ptr) };                    
+                    let editor_weak = unsafe { Weak::from_raw(editor_weak_ptr) };
                     let response = if let Some(editor_handle) = editor_weak.upgrade() {
                         editor_handle.on_event(&event)
                     } else {
@@ -51,7 +51,7 @@ impl SlintEditor {
         ).unwrap();
 
         // It's ok if this fails as it just means it has already been set
-        slint::platform::set_platform(Box::new(PluginCanvasPlatform::new())).ok();
+        slint::platform::set_platform(Box::new(PluginCanvasPlatform::default())).ok();
 
         let window = Arc::new(window);
         WINDOW_TO_SLINT.set(Some(window.clone()));
@@ -113,7 +113,7 @@ impl EditorHandle {
         } else {
             EventResponse::Ignored
         }
-    } 
+    }
 }
 
 impl Drop for EditorHandle {
