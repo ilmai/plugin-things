@@ -11,8 +11,8 @@ use windows::Win32::UI::WindowsAndMessaging::{GetParent, WM_CANCELMODE, WM_SETFO
 use windows::{core::PCWSTR, Win32::UI::Input::KeyboardAndMouse::{VK_LWIN, VK_RWIN}};
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, WPARAM};
 use windows::Win32::Graphics::{Dwm::{DwmFlush, DwmIsCompositionEnabled}, Dxgi::{CreateDXGIFactory, IDXGIFactory, IDXGIOutput}, Gdi::{ClientToScreen, MonitorFromWindow, ScreenToClient, HBRUSH, MONITOR_DEFAULTTOPRIMARY}};
-use windows::Win32::System::{Ole::{IDropTarget, OleInitialize, RegisterDragDrop, RevokeDragDrop}, Threading::GetCurrentThreadId};
-use windows::Win32::UI::{Controls::WM_MOUSELEAVE, Input::KeyboardAndMouse::{GetAsyncKeyState, SetCapture, TrackMouseEvent, TME_LEAVE, TRACKMOUSEEVENT, VK_CONTROL, VK_MENU, VK_SHIFT}, WindowsAndMessaging::{CallNextHookEx, CreateWindowExW, DefWindowProcW, DestroyWindow, GetWindowLongPtrW, LoadCursorW, MoveWindow, PostMessageW, RegisterClassW, SendMessageW, SetCursor, SetCursorPos, SetWindowLongPtrW, SetWindowsHookExW, ShowCursor, UnhookWindowsHookEx, UnregisterClassW, CS_OWNDC, GWLP_USERDATA, HHOOK, HICON, IDC_ARROW, MOUSEHOOKSTRUCTEX, WH_MOUSE, WINDOW_EX_STYLE, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEMOVE, WM_MOUSEWHEEL, WM_MOVE, WM_RBUTTONDOWN, WM_RBUTTONUP, WNDCLASSW, WS_CHILD, WS_VISIBLE}};
+use windows::Win32::System::Ole::{IDropTarget, OleInitialize, RegisterDragDrop, RevokeDragDrop};
+use windows::Win32::UI::{Controls::WM_MOUSELEAVE, Input::KeyboardAndMouse::{GetAsyncKeyState, SetCapture, TrackMouseEvent, TME_LEAVE, TRACKMOUSEEVENT, VK_CONTROL, VK_MENU, VK_SHIFT}, WindowsAndMessaging::{CreateWindowExW, DefWindowProcW, DestroyWindow, GetWindowLongPtrW, LoadCursorW, MoveWindow, RegisterClassW, SendMessageW, SetCursor, SetCursorPos, SetWindowLongPtrW, ShowCursor, UnregisterClassW, CS_OWNDC, GWLP_USERDATA, HICON, IDC_ARROW, WINDOW_EX_STYLE, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MBUTTONDOWN, WM_MBUTTONUP, WM_MOUSEMOVE, WM_MOUSEWHEEL, WM_MOVE, WM_RBUTTONDOWN, WM_RBUTTONUP, WNDCLASSW, WS_CHILD, WS_VISIBLE}};
 
 use crate::thread_bound::ThreadBound;
 use crate::{dimensions::Size, error::Error, event::{Event, EventCallback, EventResponse, MouseButton}, keyboard::KeyboardModifiers, platform::{interface::OsWindowInterface, os_window_handle::OsWindowHandle}, window::WindowAttributes, LogicalPosition, LogicalSize, PhysicalPosition};
@@ -22,7 +22,6 @@ use super::{cursors::Cursors, drop_target::DropTarget, message_window::MessageWi
 pub struct OsWindow {
     window_class: u16,
     window_handle: Win32WindowHandle,
-    hook_handle: HHOOK,
     event_callback: Box<EventCallback>,
     drop_target: RefCell<Option<Box<IDropTarget>>>,
     message_window: Arc<MessageWindow>,
@@ -163,15 +162,6 @@ impl OsWindowInterface for OsWindow {
         let running: Arc<AtomicBool> = Arc::new(true.into());
         let moved: Arc<AtomicBool> = Arc::new(false.into());
 
-        let hook_handle = unsafe {
-            SetWindowsHookExW(
-                WH_MOUSE,
-                Some(hook_proc),
-                None,
-                GetCurrentThreadId(),
-            ).unwrap()
-        };
-
         std::thread::spawn({
             let hwnd = hwnd.0 as usize;
             let running = running.clone();
@@ -192,7 +182,6 @@ impl OsWindowInterface for OsWindow {
         let window = Self {
             window_class,
             window_handle,
-            hook_handle,
             event_callback,
             drop_target: Default::default(),
             message_window,
@@ -312,7 +301,6 @@ impl Drop for OsWindow {
 
         unsafe {
             SetWindowLongPtrW(self.hwnd(), GWLP_USERDATA, 0);
-            UnhookWindowsHookEx(self.hook_handle).unwrap();
             RevokeDragDrop(self.hwnd()).unwrap();
             DestroyWindow(self.hwnd()).unwrap();
             UnregisterClassW(PCWSTR(self.window_class as _), Some(PLUGIN_HINSTANCE.with(|hinstance| *hinstance))).unwrap();
@@ -491,33 +479,6 @@ unsafe extern "system" fn wnd_proc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam:
     let _ = window_weak.into_raw();
 
     result
-}
-
-unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
-    if code < 0 {
-        return unsafe { CallNextHookEx(None, code, wparam, lparam) };
-    }
-
-    let mouse_hook_struct_ptr: *const MOUSEHOOKSTRUCTEX = lparam.0 as _;
-    let mouse_hook_struct = unsafe { &*mouse_hook_struct_ptr };
-    let hwnd = mouse_hook_struct.Base.hwnd;
-
-    #[expect(clippy::single_match)]
-    match wparam.0 as u32 {
-        WM_MOUSEWHEEL => {
-            let position = &mouse_hook_struct.Base.pt;
-            let x: u16 = i16::cast_unsigned(position.x as i16);
-            let y: u16 = i16::cast_unsigned(position.y as i16);
-
-            let wparam = WPARAM(mouse_hook_struct.mouseData as usize & 0xFFFF0000);
-            let lparam = LPARAM(usize::cast_signed(x as usize + ((y as usize) << 16)));
-            unsafe { PostMessageW(Some(hwnd), WM_MOUSEWHEEL, wparam, lparam).unwrap() };
-        },
-
-        _ => {},
-    }
-
-    unsafe { CallNextHookEx(None, code, wparam, lparam) }
 }
 
 fn frame_pacing_thread(hwnd: usize, running: Arc<AtomicBool>, moved: Arc<AtomicBool>) {
