@@ -118,8 +118,8 @@ impl PluginCanvasWindowAdapter {
     }
 
     pub fn on_event(&self, event: &plugin_canvas::Event) -> EventResponse {
-        let component_response = if let Some(component) = self.view.borrow().as_ref() {
-            component.on_event(event)
+        let view_response = if let Some(view) = self.view.borrow().as_ref() {
+            view.on_event(event)
         } else {
             EventResponse::Ignored
         };
@@ -268,8 +268,8 @@ impl PluginCanvasWindowAdapter {
             },
         };
 
-        if component_response != EventResponse::Ignored {
-            component_response
+        if view_response != EventResponse::Ignored {
+            view_response
         } else {
             built_in_response
         }
