@@ -163,15 +163,13 @@ impl PluginCanvasWindowAdapter {
             },
 
             plugin_canvas::Event::KeyboardModifiers { modifiers } => {
-                let mut my_modifiers = self.modifiers.borrow_mut();
-
                 for modifier in [
                     KeyboardModifiers::Alt,
                     KeyboardModifiers::Control,
                     KeyboardModifiers::Meta,
                     KeyboardModifiers::Shift
                 ] {
-                    let was_pressed = my_modifiers.contains(modifier);
+                    let was_pressed = self.modifiers.borrow().contains(modifier);
                     let pressed = modifiers.contains(modifier);
 
                     let text = match modifier {
@@ -192,7 +190,7 @@ impl PluginCanvasWindowAdapter {
                     }
                 }
 
-                *my_modifiers = *modifiers;
+                *self.modifiers.borrow_mut() = *modifiers;
 
                 EventResponse::Handled
             },
