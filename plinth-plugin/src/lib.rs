@@ -3,6 +3,8 @@ pub use error::Error;
 pub use event::Event;
 pub use host::{Host, HostInfo};
 pub use formats::{clap, vst3};
+#[cfg(feature = "standalone")]
+pub use formats::standalone;
 pub use parameters::{Parameters, ParameterId, ParameterValue};
 pub use parameters::bool::{BoolParameter, BoolFormatter};
 pub use parameters::enums::{Enum, EnumParameter};

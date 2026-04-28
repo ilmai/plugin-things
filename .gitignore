@@ -1,5 +1,6 @@
 .DS_Store
 .vscode
 .zed
+justfile
 Cargo.lock
 target
