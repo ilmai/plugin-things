@@ -12,7 +12,7 @@ use crate::editor::{EditorSettings, GainPluginEditor};
 use crate::{parameters::GainParameters, processor::GainPluginProcessor};
 
 #[derive(Default)]
-struct GainPlugin {
+pub struct GainPlugin {
     parameters: Rc<GainParameters>,
     editor_settings: Rc<RefCell<EditorSettings>>,
 }
@@ -88,3 +88,6 @@ impl Vst3Plugin for GainPlugin {
 
 export_clap!(GainPlugin);
 export_vst3!(GainPlugin);
+
+#[cfg(feature = "standalone")]
+impl plinth_plugin::standalone::StandalonePlugin for GainPlugin {}
