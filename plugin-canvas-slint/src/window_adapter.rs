@@ -38,6 +38,8 @@ pub struct PluginCanvasWindowAdapter {
 
     modifiers: RefCell<KeyboardModifiers>,
     callback_queue: CallbackQueue,
+
+    input_focus: AtomicBool,
 }
 
 impl PluginCanvasWindowAdapter {
@@ -84,6 +86,8 @@ impl PluginCanvasWindowAdapter {
 
                 modifiers: Default::default(),
                 callback_queue,
+
+                input_focus: false.into(),
             }
         });
 
@@ -109,6 +113,10 @@ impl PluginCanvasWindowAdapter {
         self.slint_window.dispatch_event(
             WindowEvent::ScaleFactorChanged { scale_factor: combined_scale as f32 }
         );
+    }
+
+    pub fn has_input_focus(&self) -> bool {
+        self.input_focus.load(Ordering::Acquire)
     }
 
     pub fn close(&self) {
@@ -367,6 +375,7 @@ impl WindowAdapterInternal for PluginCanvasWindowAdapter {
             _ => { return; }
         };
 
+        self.input_focus.store(input_focus, Ordering::Release);
         self.plugin_canvas_window.set_input_focus(input_focus);
     }
 

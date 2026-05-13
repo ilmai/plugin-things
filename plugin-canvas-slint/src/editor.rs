@@ -101,6 +101,14 @@ impl EditorHandle {
         }
     }
 
+    pub fn has_input_focus(&self) -> bool {
+        if let Some(window_adapter) = self.window_adapter() {
+            window_adapter.has_input_focus()
+        } else {
+            false
+        }
+    }
+
     fn new() -> Self {
         Self {
             window_adapter: Default::default(),

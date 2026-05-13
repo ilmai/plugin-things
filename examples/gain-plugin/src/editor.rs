@@ -1,7 +1,7 @@
 use std::{cell::RefCell, rc::Rc};
 
-use plinth_plugin::{raw_window_handle::RawWindowHandle, Editor, Host, keyboard_types};
-use plugin_canvas_slint::{editor::{EditorHandle, SlintEditor}, plugin_canvas::{Event, event::EventResponse, window::WindowAttributes}};
+use plinth_plugin::{raw_window_handle::RawWindowHandle, Editor, Host};
+use plugin_canvas_slint::{editor::{EditorHandle, SlintEditor}, plugin_canvas::window::WindowAttributes};
 
 use crate::{parameters::GainParameters, view::GainPluginView};
 
