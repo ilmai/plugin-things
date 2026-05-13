@@ -6,7 +6,9 @@ pub(super) fn unicode_to_string(unicode: u32) -> Option<String> {
 }
 
 pub(super) fn to_key_code(code: i32) -> keyboard_types::Code {
-    match code {
+    // Cast is needed on MacOS
+    #[allow(clippy::unnecessary_cast)]
+    match code as _ {
         KEY_BACK => keyboard_types::Code::Backspace,
         KEY_TAB => keyboard_types::Code::Tab,
         KEY_RETURN => keyboard_types::Code::Enter,
