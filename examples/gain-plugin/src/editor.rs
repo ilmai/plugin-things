@@ -86,16 +86,4 @@ impl Editor for GainPluginEditor {
             editor_handle.on_frame();
         }
     }
-
-    fn on_key_down(&self, key_code: keyboard_types::Code, text: Option<String>) -> bool {
-        if let Some(editor_handle) = self.editor_handle.as_ref() {
-            match editor_handle.on_event(&Event::KeyDown { key_code, text }) {
-                EventResponse::Handled => true,
-                EventResponse::Ignored => false,
-                _ => unimplemented!()
-            }
-        } else {
-            false
-        }
-    }
 }
