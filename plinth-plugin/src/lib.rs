@@ -22,6 +22,7 @@ pub use transport::Transport;
 pub use formats::auv3;
 
 // Re-exports
+pub use keyboard_types;
 pub use log;
 pub use plinth_core;
 pub use raw_window_handle;

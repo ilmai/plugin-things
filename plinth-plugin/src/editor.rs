@@ -34,6 +34,10 @@ pub trait Editor {
     fn set_scale(&self, _scale: f64) {}
 
     fn on_frame(&self);
+
+    // Return true if key was handled
+    fn on_key_down(&self, _key_code: keyboard_types::Code, _text: Option<String>) -> bool { false }
+    fn on_key_up(&self, _key_code: keyboard_types::Code, _text: Option<String>) -> bool { false }
 }
 
 pub struct NoEditor;

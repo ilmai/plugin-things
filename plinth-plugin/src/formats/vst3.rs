@@ -3,6 +3,7 @@ mod error;
 mod event;
 mod factory;
 mod host;
+mod key_codes;
 mod macros;
 mod parameters;
 mod plugin;

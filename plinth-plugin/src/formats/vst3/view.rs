@@ -3,7 +3,7 @@ use std::{cell::RefCell, ffi::{c_void, CStr}, rc::Rc};
 use vst3::{ComPtr, ComRef, ComWrapper};
 use vst3::Steinberg::{char16, int16, kInvalidArgument, kResultFalse, kResultOk, tresult, FIDString, IPlugFrame, IPlugView, IPlugViewContentScaleSupport, IPlugViewContentScaleSupportTrait, IPlugViewContentScaleSupport_::ScaleFactor, IPlugViewTrait, TBool, ViewRect, Vst::IComponentHandler};
 
-use crate::Editor;
+use crate::{Editor, vst3::key_codes::{to_key_code, unicode_to_string}};
 
 use super::{host::Vst3Host, Vst3Plugin};
 
@@ -122,15 +122,29 @@ impl<P: Vst3Plugin + 'static> IPlugViewTrait for View<P> {
     }
 
     unsafe fn onWheel(&self, _distance: f32) -> tresult {
-        kResultOk
+        kResultFalse
     }
 
-    unsafe fn onKeyDown(&self, _key: char16, _key_code: int16, _modifiers: int16) -> tresult {
-        kResultOk
+    unsafe fn onKeyDown(&self, key: char16, key_code: int16, _modifiers: int16) -> tresult {
+        let text = unicode_to_string(key as _);
+        let key_code = to_key_code(key_code as _);
+
+        if self.editor.borrow().as_ref().unwrap().on_key_down(key_code, text) {
+            kResultOk
+        } else {
+            kResultFalse
+        }
     }
 
-    unsafe fn onKeyUp(&self, _key: char16, _key_code: int16, _modifiers: int16) -> tresult {
-        kResultOk
+    unsafe fn onKeyUp(&self, key: char16, key_code: int16, _modifiers: int16) -> tresult {
+        let text = unicode_to_string(key as _);
+        let key_code = to_key_code(key_code as _);
+
+        if self.editor.borrow().as_ref().unwrap().on_key_up(key_code, text) {
+            kResultOk
+        } else {
+            kResultFalse
+        }
     }
 
     unsafe fn getSize(&self, size: *mut ViewRect) -> tresult {

@@ -14,6 +14,7 @@ standalone = ["dep:cpal", "dep:midir", "dep:winit"]
 [dependencies]
 atomic_refcell = "0.1"
 clap-sys = "0.5"
+keyboard-types.workspace = true
 log.workspace = true
 num-derive = "0.4"
 num-traits.workspace = true

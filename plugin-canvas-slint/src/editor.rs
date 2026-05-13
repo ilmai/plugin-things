@@ -76,6 +76,14 @@ impl EditorHandle {
         self.on_event(&Event::Draw);
     }
 
+    pub fn on_event(&self, event: &Event) -> EventResponse {
+        if let Some(window_adapter) = self.window_adapter() {
+            window_adapter.on_event(event)
+        } else {
+            EventResponse::Ignored
+        }
+    }
+
     pub fn set_window_size(&self, width: f64, height: f64) {
         let size = slint::LogicalSize {
             width: width as _,
@@ -105,14 +113,6 @@ impl EditorHandle {
 
     fn set_window_adapter(&self, window_adapter: Rc<PluginCanvasWindowAdapter>) {
         self.window_adapter.set(window_adapter).unwrap();
-    }
-
-    fn on_event(&self, event: &Event) -> EventResponse {
-        if let Some(window_adapter) = self.window_adapter() {
-            window_adapter.on_event(event)
-        } else {
-            EventResponse::Ignored
-        }
     }
 }
 

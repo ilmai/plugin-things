@@ -1,7 +1,7 @@
 use std::{cell::RefCell, rc::Rc};
 
-use plinth_plugin::{raw_window_handle::RawWindowHandle, Editor, Host};
-use plugin_canvas_slint::{editor::{EditorHandle, SlintEditor}, plugin_canvas::window::WindowAttributes};
+use plinth_plugin::{raw_window_handle::RawWindowHandle, Editor, Host, keyboard_types};
+use plugin_canvas_slint::{editor::{EditorHandle, SlintEditor}, plugin_canvas::{Event, event::EventResponse, window::WindowAttributes}};
 
 use crate::{parameters::GainParameters, view::GainPluginView};
 
@@ -84,6 +84,18 @@ impl Editor for GainPluginEditor {
     fn on_frame(&self) {
         if let Some(editor_handle) = self.editor_handle.as_ref() {
             editor_handle.on_frame();
+        }
+    }
+
+    fn on_key_down(&self, key_code: keyboard_types::Code, text: Option<String>) -> bool {
+        if let Some(editor_handle) = self.editor_handle.as_ref() {
+            match editor_handle.on_event(&Event::KeyDown { key_code, text }) {
+                EventResponse::Handled => true,
+                EventResponse::Ignored => false,
+                _ => unimplemented!()
+            }
+        } else {
+            false
         }
     }
 }
