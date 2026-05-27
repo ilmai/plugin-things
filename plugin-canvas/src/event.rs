@@ -65,6 +65,25 @@ pub enum Event {
     },
 }
 
+impl Event {
+    pub fn with_mapped_position<F>(mut self, map: F) -> Self
+    where
+        F: Fn(&LogicalPosition) -> LogicalPosition,
+    {
+        match &mut self {
+            Event::DragDropped { position, .. } => *position = map(position),
+            Event::DragEntered { position, .. } => *position = map(position),
+            Event::DragMoved { position, .. } => *position = map(position),
+            Event::MouseButtonDown { position, .. } => *position = map(position),
+            Event::MouseButtonUp { position, .. } => *position = map(position),
+            Event::MouseMoved { position, .. } => *position = map(position),
+            Event::MouseWheel { position, .. } => *position = map(position),
+            _ => {}
+        }
+        self
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum EventResponse {
     Handled,

@@ -137,7 +137,13 @@ impl PluginCanvasWindowAdapter {
 
     pub fn on_event(&self, event: &plugin_canvas::Event) -> EventResponse {
         let view_response = if let Some(view) = self.view.borrow().as_ref() {
-            view.on_event(event)
+            view.on_event(&event.clone().with_mapped_position(|position| {
+                let position = self.convert_logical_position(position);
+                plugin_canvas::LogicalPosition {
+                    x: position.x as f64,
+                    y: position.y as f64,
+                }
+            }))
         } else {
             EventResponse::Ignored
         };
