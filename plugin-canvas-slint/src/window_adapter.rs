@@ -24,6 +24,45 @@ thread_local! {
     pub static WINDOW_ADAPTER_FROM_SLINT: RefCell<Option<Rc<PluginCanvasWindowAdapter>>> = Default::default();
 }
 
+#[cfg(any(target_os="linux", target_os="windows"))]
+fn vulkan_available() -> bool {
+    use vulkano::{VulkanLibrary, instance::{Instance, InstanceCreateInfo}};
+
+    // Check that the Vulkan library exists and we can create an instance
+    let library = match VulkanLibrary::new() {
+        Ok(library) => library,
+        Err(e) => {
+            tracing::info!("Vulkan library not available: {e:?}");
+            return false;
+        },
+    };
+
+    let instance = match Instance::new(library, InstanceCreateInfo::application_from_cargo_toml()) {
+        Ok(instance) => instance,
+        Err(e) => {
+            tracing::info!("Can't create Vulkan instance: {e:?}");
+            return false;
+        },
+    };
+
+    // Check that there's at least one Vulkan device available
+    match instance.enumerate_physical_devices() {
+        Ok(devices) => {
+            if devices.len() > 0 {
+                true
+            } else {
+                tracing::info!("No Vulkan devices found");
+                false
+            }
+        },
+
+        Err(e) => {
+            tracing::info!("Failed to enumerate Vulkan devices: {e:?}");
+            false
+        },
+    }
+}
+
 pub struct PluginCanvasWindowAdapter {
     // renderer needs to be declared first so it's dropped first
     renderer: SkiaRenderer,
@@ -78,7 +117,13 @@ impl PluginCanvasWindowAdapter {
         };
 
         #[cfg(target_os="windows")]
-        let renderer = SkiaRenderer::default_direct3d(&skia_context);
+        let renderer = {
+            // if vulkan_available() {
+                SkiaRenderer::default_vulkan(&skia_context)
+            // } else {
+            //     SkiaRenderer::default_direct3d(&skia_context)
+            // }
+        };
 
         renderer.set_window_handle(plugin_canvas_window.clone(), plugin_canvas_window.clone(), slint_size, None)?;
 

@@ -29,4 +29,4 @@ tracing = "0.1"
 # since they don't maintain semver compatibility
 i-slint-common = "^1.17.1"
 i-slint-core = "^1.17.1"
-i-slint-renderer-skia = { version = "^1.16.1", features = ["x11"] }
+i-slint-renderer-skia = { version = "^1.16.1", features = ["opengl", "vulkan", "x11"] }

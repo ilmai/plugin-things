@@ -19,3 +19,9 @@ portable-atomic.workspace = true
 raw-window-handle.workspace = true
 slint.workspace = true
 tracing.workspace = true
+
+[target.'cfg(target_os="linux")'.dependencies]
+vulkano = { version = "0.35", default-features = false, features = ["x11"] }
+
+[target.'cfg(target_os="windows")'.dependencies]
+vulkano = { version = "0.35", default-features = false }
