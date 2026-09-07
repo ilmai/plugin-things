@@ -69,7 +69,7 @@ impl Plugin for GainPlugin {
 
         let serialized_parameters: HashMap<_, _> = serde_json::from_str(&parameters_json)
             .map_err(|_| Error::SerializationError)?;
-        self.parameters.deserialize(serialized_parameters)?;
+        self.parameters.deserialize(serialized_parameters, true)?;
 
         Ok(())
     }

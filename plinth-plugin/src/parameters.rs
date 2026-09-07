@@ -89,8 +89,10 @@ pub trait Parameters {
             })
     }
 
-    fn deserialize(&self, parameters: impl IntoIterator<Item = (ParameterId, ParameterValue)>) -> Result<(), Error> {
-        self.reset();
+    fn deserialize(&self, parameters: impl IntoIterator<Item = (ParameterId, ParameterValue)>, reset: bool) -> Result<(), Error> {
+        if reset {
+            self.reset();
+        }
 
         for (id, value) in parameters.into_iter() {
             let parameter = match self.get(id) {
