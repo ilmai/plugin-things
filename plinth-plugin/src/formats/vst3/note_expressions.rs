@@ -1,6 +1,6 @@
 use vst3::Steinberg::Vst::NoteExpressionTypeIDs_::{kBrightnessTypeID, kExpressionTypeID, kInvalidTypeID, kPanTypeID, kTuningTypeID, kVibratoTypeID, kVolumeTypeID};
 use vst3::Steinberg::Vst::PhysicalUITypeIDs_::{kPUIPressure, kPUIXMovement, kPUIYMovement};
-use vst3::Steinberg::Vst::{INoteExpressionControllerTrait, INoteExpressionPhysicalUIMappingTrait, NoteExpressionTypeID, NoteExpressionTypeInfo, NoteExpressionValue, PhysicalUIMapList, String128, TChar};
+use vst3::Steinberg::Vst::{INoteExpressionControllerTrait, INoteExpressionPhysicalUIMappingTrait, NoteExpressionTypeID, NoteExpressionTypeInfo, NoteExpressionValue, PhysicalUIMapList, PhysicalUITypeIDs, String128, TChar};
 use vst3::Steinberg::{int16, int32, kInvalidArgument, kResultFalse, kResultOk, tresult};
 use widestring::U16CStr;
 
@@ -271,21 +271,21 @@ impl<P: Vst3Plugin> INoteExpressionPhysicalUIMappingTrait for PluginComponent<P>
         for i in 0..list.count as usize {
             let entry = unsafe { &mut *list.map.add(i) };
             #[allow(non_upper_case_globals)]
-            let ne_type = if entry.physicalUITypeID == kPUIXMovement as u32 {
+            let ne_type = if entry.physicalUITypeID as PhysicalUITypeIDs == kPUIXMovement {
                 // Horizontal (slide left/right) -> per-note pitch / tuning
                 if P::NOTE_EXPRESSIONS.tuning() {
                     kTuningTypeID
                 } else {
                     kInvalidTypeID
                 }
-            } else if entry.physicalUITypeID == kPUIYMovement as u32 {
+            } else if entry.physicalUITypeID as PhysicalUITypeIDs == kPUIYMovement {
                 // Vertical (slide up/down) -> brightness / timbre
                 if P::NOTE_EXPRESSIONS.brightness() {
                     kBrightnessTypeID
                 } else {
                     kInvalidTypeID
                 }
-            } else if entry.physicalUITypeID == kPUIPressure as u32 {
+            } else if entry.physicalUITypeID as PhysicalUITypeIDs == kPUIPressure {
                 // Pressure (Z-axis) -> delivered as kPolyPressureEvent, not note expression
                 kInvalidTypeID
             } else {
