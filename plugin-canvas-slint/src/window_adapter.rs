@@ -120,6 +120,10 @@ impl PluginCanvasWindowAdapter {
         *self.view.borrow_mut() = Some(view);
     }
 
+    pub fn scale(&self) -> f64 {
+        self.scale.load(Ordering::Acquire)
+    }
+
     pub fn set_scale(&self, scale: f64) {
         self.scale.store(scale, Ordering::Release);
 

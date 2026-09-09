@@ -100,6 +100,12 @@ impl EditorHandle {
         }
     }
 
+    pub fn scale(&self) -> f64 {
+        self.window_adapter()
+            .map(|window_adapter| window_adapter.scale())
+            .unwrap_or(1.0)
+    }
+
     pub fn set_scale(&self, scale: f64) {
         if let Some(window_adapter) = self.window_adapter() {
             window_adapter.set_scale(scale);
