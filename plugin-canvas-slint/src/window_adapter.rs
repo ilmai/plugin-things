@@ -118,11 +118,11 @@ impl PluginCanvasWindowAdapter {
 
         #[cfg(target_os="windows")]
         let renderer = {
-            // if vulkan_available() {
+            if vulkan_available() {
                 SkiaRenderer::default_vulkan(&skia_context)
-            // } else {
-            //     SkiaRenderer::default_direct3d(&skia_context)
-            // }
+            } else {
+                SkiaRenderer::default_direct3d(&skia_context)
+            }
         };
 
         renderer.set_window_handle(plugin_canvas_window.clone(), plugin_canvas_window.clone(), slint_size, None)?;
