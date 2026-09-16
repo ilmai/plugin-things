@@ -80,7 +80,7 @@ impl PluginCanvasWindowAdapter {
         #[cfg(target_os="windows")]
         let renderer = SkiaRenderer::default_direct3d(&skia_context);
 
-        renderer.set_window_handle(plugin_canvas_window.clone(), plugin_canvas_window.clone(), slint_size, None)?;
+        renderer.set_window_handle(plugin_canvas_window.clone(), plugin_canvas_window.clone(), slint_size, None, false)?;
 
         let self_rc = Rc::new_cyclic(|self_weak| {
             let slint_window = slint::Window::new(self_weak.clone() as _);
@@ -407,37 +407,39 @@ impl WindowAdapterInternal for PluginCanvasWindowAdapter {
         self.plugin_canvas_window.set_input_focus(input_focus);
     }
 
-    fn set_mouse_cursor(&self, cursor: i_slint_core::items::MouseCursor) {
+    fn set_mouse_cursor(&self, cursor: i_slint_core::cursor::MouseCursorInner) {
+        use i_slint_core::{cursor::MouseCursorInner, items::BuiltInMouseCursor};
+
         let cursor = match cursor {
-            i_slint_core::items::MouseCursor::Default => Some(CursorIcon::Default),
-            i_slint_core::items::MouseCursor::None => None,
-            i_slint_core::items::MouseCursor::Help => Some(CursorIcon::Help),
-            i_slint_core::items::MouseCursor::Pointer => Some(CursorIcon::Pointer),
-            i_slint_core::items::MouseCursor::Progress => Some(CursorIcon::Progress),
-            i_slint_core::items::MouseCursor::Wait => Some(CursorIcon::Wait),
-            i_slint_core::items::MouseCursor::Crosshair => Some(CursorIcon::Crosshair),
-            i_slint_core::items::MouseCursor::Text => Some(CursorIcon::Text),
-            i_slint_core::items::MouseCursor::Alias => Some(CursorIcon::Alias),
-            i_slint_core::items::MouseCursor::Copy => Some(CursorIcon::Copy),
-            i_slint_core::items::MouseCursor::Move => Some(CursorIcon::Move),
-            i_slint_core::items::MouseCursor::NoDrop => Some(CursorIcon::NoDrop),
-            i_slint_core::items::MouseCursor::NotAllowed => Some(CursorIcon::NotAllowed),
-            i_slint_core::items::MouseCursor::Grab => Some(CursorIcon::Grab),
-            i_slint_core::items::MouseCursor::Grabbing => Some(CursorIcon::Grabbing),
-            i_slint_core::items::MouseCursor::ColResize => Some(CursorIcon::ColResize),
-            i_slint_core::items::MouseCursor::RowResize => Some(CursorIcon::RowResize),
-            i_slint_core::items::MouseCursor::NResize => Some(CursorIcon::NResize),
-            i_slint_core::items::MouseCursor::EResize => Some(CursorIcon::EResize),
-            i_slint_core::items::MouseCursor::SResize => Some(CursorIcon::SResize),
-            i_slint_core::items::MouseCursor::WResize => Some(CursorIcon::WResize),
-            i_slint_core::items::MouseCursor::NeResize => Some(CursorIcon::NeResize),
-            i_slint_core::items::MouseCursor::NwResize => Some(CursorIcon::NwResize),
-            i_slint_core::items::MouseCursor::SeResize => Some(CursorIcon::SeResize),
-            i_slint_core::items::MouseCursor::SwResize => Some(CursorIcon::SwResize),
-            i_slint_core::items::MouseCursor::EwResize => Some(CursorIcon::EwResize),
-            i_slint_core::items::MouseCursor::NsResize => Some(CursorIcon::NsResize),
-            i_slint_core::items::MouseCursor::NeswResize => Some(CursorIcon::NeswResize),
-            i_slint_core::items::MouseCursor::NwseResize => Some(CursorIcon::NwseResize),
+            MouseCursorInner::BuiltIn(BuiltInMouseCursor::Default) => Some(CursorIcon::Default),
+            MouseCursorInner::BuiltIn(BuiltInMouseCursor::None) => None,
+            MouseCursorInner::BuiltIn(BuiltInMouseCursor::Help) => Some(CursorIcon::Help),
+            MouseCursorInner::BuiltIn(BuiltInMouseCursor::Pointer) => Some(CursorIcon::Pointer),
+            MouseCursorInner::BuiltIn(BuiltInMouseCursor::Progress) => Some(CursorIcon::Progress),
+            MouseCursorInner::BuiltIn(BuiltInMouseCursor::Wait) => Some(CursorIcon::Wait),
+            MouseCursorInner::BuiltIn(BuiltInMouseCursor::Crosshair) => Some(CursorIcon::Crosshair),
+            MouseCursorInner::BuiltIn(BuiltInMouseCursor::Text) => Some(CursorIcon::Text),
+            MouseCursorInner::BuiltIn(BuiltInMouseCursor::Alias) => Some(CursorIcon::Alias),
+            MouseCursorInner::BuiltIn(BuiltInMouseCursor::Copy) => Some(CursorIcon::Copy),
+            MouseCursorInner::BuiltIn(BuiltInMouseCursor::Move) => Some(CursorIcon::Move),
+            MouseCursorInner::BuiltIn(BuiltInMouseCursor::NoDrop) => Some(CursorIcon::NoDrop),
+            MouseCursorInner::BuiltIn(BuiltInMouseCursor::NotAllowed) => Some(CursorIcon::NotAllowed),
+            MouseCursorInner::BuiltIn(BuiltInMouseCursor::Grab) => Some(CursorIcon::Grab),
+            MouseCursorInner::BuiltIn(BuiltInMouseCursor::Grabbing) => Some(CursorIcon::Grabbing),
+            MouseCursorInner::BuiltIn(BuiltInMouseCursor::ColResize) => Some(CursorIcon::ColResize),
+            MouseCursorInner::BuiltIn(BuiltInMouseCursor::RowResize) => Some(CursorIcon::RowResize),
+            MouseCursorInner::BuiltIn(BuiltInMouseCursor::NResize) => Some(CursorIcon::NResize),
+            MouseCursorInner::BuiltIn(BuiltInMouseCursor::EResize) => Some(CursorIcon::EResize),
+            MouseCursorInner::BuiltIn(BuiltInMouseCursor::SResize) => Some(CursorIcon::SResize),
+            MouseCursorInner::BuiltIn(BuiltInMouseCursor::WResize) => Some(CursorIcon::WResize),
+            MouseCursorInner::BuiltIn(BuiltInMouseCursor::NeResize) => Some(CursorIcon::NeResize),
+            MouseCursorInner::BuiltIn(BuiltInMouseCursor::NwResize) => Some(CursorIcon::NwResize),
+            MouseCursorInner::BuiltIn(BuiltInMouseCursor::SeResize) => Some(CursorIcon::SeResize),
+            MouseCursorInner::BuiltIn(BuiltInMouseCursor::SwResize) => Some(CursorIcon::SwResize),
+            MouseCursorInner::BuiltIn(BuiltInMouseCursor::EwResize) => Some(CursorIcon::EwResize),
+            MouseCursorInner::BuiltIn(BuiltInMouseCursor::NsResize) => Some(CursorIcon::NsResize),
+            MouseCursorInner::BuiltIn(BuiltInMouseCursor::NeswResize) => Some(CursorIcon::NeswResize),
+            MouseCursorInner::BuiltIn(BuiltInMouseCursor::NwseResize) => Some(CursorIcon::NwseResize),
             _ => None,
         };
 
