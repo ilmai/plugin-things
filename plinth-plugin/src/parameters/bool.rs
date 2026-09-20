@@ -82,9 +82,9 @@ impl BoolParameter {
     }
 
     pub fn set_value(&self, value: bool) {
-        self.value.store(value, Ordering::Release);
+        let changed = self.value.swap(value, Ordering::AcqRel) != value;
 
-        if let Some(on_value_changed) = self.value_changed.as_ref() {
+        if changed && let Some(on_value_changed) = self.value_changed.as_ref() {
             on_value_changed(self.info.id(), self.plain());
         }
     }
@@ -125,10 +125,9 @@ impl Parameter for BoolParameter {
         self.plain_to_normalized(self.value.load(Ordering::Acquire))
     }
 
-    fn set_normalized_value(&self, normalized: ParameterValue) -> Result<(), Error> {
+    fn set_normalized_value(&self, normalized: ParameterValue) {
         let normalized = f64::clamp(normalized, 0.0, 1.0);
         self.set_value(self.normalized_to_plain(normalized));
-        Ok(())
     }
 
     fn normalized_modulation(&self) -> ParameterValue {
@@ -158,13 +157,14 @@ impl Parameter for BoolParameter {
     }
 
     fn deserialize_value(&self, value: ParameterValue) -> Result<(), Error> {
-        self.set_normalized_value(value)
+        self.set_normalized_value(value);
+        Ok(())
     }
 }
 
 impl ParameterPlain for BoolParameter {
     type Plain = bool;
-    
+
     fn normalized_to_plain(&self, value: ParameterValue) -> bool {
         value >= 0.5
     }
@@ -203,7 +203,7 @@ impl ParameterFormatter<bool> for BoolFormatter {
 
     fn string_to_value(&self, string: &str) -> Option<bool> {
         let string = string.to_lowercase();
-        
+
         if string == self.false_string.to_lowercase() {
             Some(false)
         } else if string == self.true_string.to_lowercase() {

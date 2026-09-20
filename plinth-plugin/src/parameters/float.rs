@@ -7,9 +7,11 @@ use crate::{Parameter, ParameterId};
 
 use super::{formatter::ParameterFormatter, info::ParameterInfo, parameter::ParameterPlain, range::ParameterRange, ModulationChangedCallback, ParameterValue};
 
-pub const DEFAULT_PRECISION: usize = 2;
-
 pub type ValueChangedCallback = Arc<dyn Fn(ParameterId, f64) + Send + Sync>;
+
+const DEFAULT_PRECISION: usize = 2;
+
+const DEFAULT_CHANGE_THRESHOLD: f64 = 0.000001;
 
 pub struct FloatParameter {
     info: ParameterInfo,
@@ -22,6 +24,7 @@ pub struct FloatParameter {
 
     value_changed: Option<ValueChangedCallback>,
     modulation_changed: Option<ModulationChangedCallback>,
+    change_threshold: f64,
 }
 
 impl FloatParameter {
@@ -30,12 +33,16 @@ impl FloatParameter {
 
         Self {
             info: ParameterInfo::new(id.into(), name.into()),
+
             value: value.into(),
             normalized_modulation: 0.0.into(),
+
             range,
             formatter: Arc::new(FloatFormatter::new(DEFAULT_PRECISION, "")),
+
             value_changed: None,
             modulation_changed: None,
+            change_threshold: DEFAULT_CHANGE_THRESHOLD,
         }
     }
 
@@ -66,6 +73,11 @@ impl FloatParameter {
         self
     }
 
+    pub fn with_change_threshold(mut self, threshold: f64) -> Self {
+        self.change_threshold = threshold;
+        self
+    }
+
     pub fn as_output(mut self, output: bool) -> Self {
         self.info = self.info.as_output(output);
         self
@@ -77,9 +89,10 @@ impl FloatParameter {
     }
 
     pub fn set_value(&self, value: f64) {
-        self.value.store(value, Ordering::Release);
+        let old_value = self.value.swap(value, Ordering::AcqRel);
+        let changed = (old_value - value).abs() >= self.change_threshold;
 
-        if let Some(on_value_changed) = self.value_changed.as_ref() {
+        if changed && let Some(on_value_changed) = self.value_changed.as_ref() {
             on_value_changed(self.info.id(), self.plain());
         }
     }
@@ -102,6 +115,7 @@ impl Clone for FloatParameter {
 
             value_changed: self.value_changed.clone(),
             modulation_changed: self.modulation_changed.clone(),
+            change_threshold: self.change_threshold,
         }
     }
 }
@@ -121,10 +135,9 @@ impl Parameter for FloatParameter {
         self.range.plain_to_normalized(self.value.load(Ordering::Acquire)).unwrap()
     }
 
-    fn set_normalized_value(&self, normalized: ParameterValue) -> Result<(), Error> {
+    fn set_normalized_value(&self, normalized: ParameterValue) {
         let normalized = f64::clamp(normalized, 0.0, 1.0);
         self.set_value(self.range.normalized_to_plain(normalized));
-        Ok(())
     }
 
     fn normalized_modulation(&self) -> ParameterValue {
@@ -145,7 +158,7 @@ impl Parameter for FloatParameter {
     }
 
     fn string_to_normalized(&self, string: &str) -> Option<ParameterValue> {
-        let plain = self.formatter.string_to_value(string)?;        
+        let plain = self.formatter.string_to_value(string)?;
         self.range.plain_to_normalized(plain)
     }
 
@@ -162,7 +175,7 @@ impl Parameter for FloatParameter {
 
 impl ParameterPlain for FloatParameter {
     type Plain = f64;
-    
+
     fn normalized_to_plain(&self, normalized: ParameterValue) -> f64 {
         let normalized = normalized.clamp(0.0, 1.0);
         self.range.normalized_to_plain(normalized)
@@ -183,7 +196,7 @@ pub struct LinearFloatRange {
 impl LinearFloatRange {
     pub fn new(min: f64, max: f64) -> Self {
         assert!(min < max);
-        
+
         Self {
             min,
             max,
@@ -229,7 +242,7 @@ impl LogFloatRange {
             max,
             k,
         }
-    }    
+    }
 }
 
 impl ParameterRange<f64> for LogFloatRange {
@@ -272,7 +285,7 @@ impl PowFloatRange {
             max,
             k,
         }
-    }    
+    }
 }
 
 impl ParameterRange<f64> for PowFloatRange {
@@ -324,7 +337,7 @@ impl ParameterFormatter<f64> for FloatFormatter {
         } else {
             value
         };
-    
+
         format!("{value:.precision$}{}", self.unit)
     }
 
@@ -355,7 +368,7 @@ impl ParameterFormatter<f64> for HzFormatter {
         } else {
             (value / 1000.0, self.khz_precision, "kHz")
         };
-        
+
         format!("{value:.precision$}{}", unit, precision = precision)
     }
 
@@ -395,7 +408,7 @@ impl ParameterFormatter<f64> for SecondsFormatter {
         } else {
             (value, self.s_precision, "s")
         };
-        
+
         format!("{value:.precision$}{}", unit, precision = precision)
     }
 

@@ -10,10 +10,10 @@ pub type ValueChangedCallback<T> = Arc<dyn Fn(ParameterId, T) + Send + Sync>;
 
 pub trait Enum: Clone + Copy + Default + Send + Sync + 'static {
     const COUNT: usize;
-    
+
     fn from_hash(hash: u32) -> Option<Self>;
     fn from_usize(value: usize) -> Option<Self>;
-    fn from_string(string: &str) -> Option<Self>;    
+    fn from_string(string: &str) -> Option<Self>;
 
     fn hash(&self) -> u32;
     fn to_usize(&self) -> usize;
@@ -90,17 +90,17 @@ impl<T: Enum> EnumParameter<T> {
 
     pub fn set_value(&self, value: T) {
         self.value.store(value.to_usize(), Ordering::Release);
-        self.changed();
+
+        let value = value.to_usize();
+        let changed = self.value.swap(value, Ordering::AcqRel) != value;
+
+        if changed && let Some(on_value_changed) = self.value_changed.as_ref() {
+            on_value_changed(self.info.id(), self.plain());
+        }
     }
 
     pub fn default_value(&self) -> i64 {
         self.range.normalized_to_plain(self.info.default_normalized_value())
-    }
-
-    fn changed(&self) {
-        if let Some(on_value_changed) = self.value_changed.as_ref() {
-            on_value_changed(self.info.id(), self.plain());
-        }
     }
 }
 
@@ -135,10 +135,9 @@ impl<T: Enum> Parameter for EnumParameter<T> {
         self.range.plain_to_normalized(self.value.load(Ordering::Acquire) as i64).unwrap()
     }
 
-    fn set_normalized_value(&self, normalized: ParameterValue) -> Result<(), Error> {
+    fn set_normalized_value(&self, normalized: ParameterValue) {
         let normalized = f64::clamp(normalized, 0.0, 1.0);
         self.set_value(self.normalized_to_plain(normalized));
-        Ok(())
     }
 
     fn normalized_modulation(&self) -> ParameterValue {
@@ -157,8 +156,8 @@ impl<T: Enum> Parameter for EnumParameter<T> {
         self.normalized_to_plain(value).to_string()
     }
 
-    fn string_to_normalized(&self, string: &str) -> Option<ParameterValue> {        
-        let plain = T::from_string(string)?;        
+    fn string_to_normalized(&self, string: &str) -> Option<ParameterValue> {
+        let plain = T::from_string(string)?;
         self.range.plain_to_normalized(plain.to_usize() as i64)
     }
 
@@ -171,8 +170,7 @@ impl<T: Enum> Parameter for EnumParameter<T> {
             return Err(Error::ParameterRangeError);
         };
 
-        self.value.store(value.to_usize(), Ordering::Release);
-        self.changed();
+        self.set_value(value);
 
         Ok(())
     }
@@ -180,7 +178,7 @@ impl<T: Enum> Parameter for EnumParameter<T> {
 
 impl<T: Enum> ParameterPlain for EnumParameter<T> {
     type Plain = T;
-    
+
     fn normalized_to_plain(&self, normalized: ParameterValue) -> T {
         let value = self.range.normalized_to_plain(normalized);
         let value = value.clamp(0, T::COUNT as i64);

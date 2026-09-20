@@ -77,9 +77,9 @@ impl IntParameter {
 
     pub fn set_value(&self, value: i64) {
         let value = self.range.clamp(value);
-        self.value.store(value, Ordering::Release);
+        let changed = self.value.swap(value, Ordering::AcqRel) != value;
 
-        if let Some(on_value_changed) = self.value_changed.as_ref() {
+        if changed && let Some(on_value_changed) = self.value_changed.as_ref() {
             on_value_changed(self.info.id(), self.plain());
         }
     }
@@ -121,10 +121,9 @@ impl Parameter for IntParameter {
         self.range.plain_to_normalized(self.value.load(Ordering::Acquire)).unwrap()
     }
 
-    fn set_normalized_value(&self, normalized: ParameterValue) -> Result<(), Error> {
+    fn set_normalized_value(&self, normalized: ParameterValue) {
         let normalized = f64::clamp(normalized, 0.0, 1.0);
         self.set_value(self.range.normalized_to_plain(normalized));
-        Ok(())
     }
 
     fn normalized_modulation(&self) -> ParameterValue {
@@ -145,7 +144,7 @@ impl Parameter for IntParameter {
     }
 
     fn string_to_normalized(&self, string: &str) -> Option<ParameterValue> {
-        let plain = self.formatter.string_to_value(string)?;        
+        let plain = self.formatter.string_to_value(string)?;
         self.range.plain_to_normalized(plain)
     }
 
@@ -161,7 +160,7 @@ impl Parameter for IntParameter {
 
 impl ParameterPlain for IntParameter {
     type Plain = i64;
-    
+
     fn normalized_to_plain(&self, normalized: ParameterValue) -> i64 {
         let normalized = normalized.clamp(0.0, 1.0);
         self.range.normalized_to_plain(normalized)
