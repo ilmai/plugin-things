@@ -1,4 +1,4 @@
-use std::{ptr::null, sync::{Arc, atomic::Ordering}};
+use std::{ptr::null, sync::Arc};
 
 use clap_sys::{ext::{draft::undo::clap_host_undo, gui::clap_host_gui, params::clap_host_params, state::clap_host_state}, host::clap_host};
 
@@ -51,7 +51,7 @@ impl Host for ClapHost {
     }
 
     fn start_parameter_change(&self, id: ParameterId) {
-        self.parameter_event_map.parameter_event_info(id).change_started.store(true, Ordering::Release);
+        self.parameter_event_map.start_parameter_change(id);
 
         if !self.host_ext_params.is_null() {
             unsafe { ((*self.host_ext_params).request_flush.unwrap())(self.raw) };
@@ -59,10 +59,7 @@ impl Host for ClapHost {
     }
 
     fn change_parameter_value(&self, id: ParameterId, normalized: ParameterValue) {
-        let parameter_event_info = self.parameter_event_map.parameter_event_info(id);
-
-        parameter_event_info.value.store(normalized, Ordering::Release);
-        parameter_event_info.changed.store(true, Ordering::Release);
+        self.parameter_event_map.change_parameter_value(id, normalized);
 
         if !self.host_ext_params.is_null() {
             unsafe { ((*self.host_ext_params).request_flush.unwrap())(self.raw) };
@@ -70,7 +67,7 @@ impl Host for ClapHost {
     }
 
     fn end_parameter_change(&self, id: ParameterId) {
-        self.parameter_event_map.parameter_event_info(id).change_ended.store(true, Ordering::Release);
+        self.parameter_event_map.end_parameter_change(id);
 
         if !self.host_ext_params.is_null() {
             unsafe { ((*self.host_ext_params).request_flush.unwrap())(self.raw) };

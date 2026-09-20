@@ -57,7 +57,7 @@ pub trait Parameters {
                     return Err(Error::ParameterIdError(*id));
                 };
 
-                parameter.set_normalized_value(*value).unwrap();
+                parameter.set_normalized_value(*value);
             },
 
             Event::ParameterModulation { id, amount, .. } => {
@@ -77,7 +77,7 @@ pub trait Parameters {
     fn reset(&self) {
         for id in self.ids().iter().copied() {
             let parameter = self.get(id).unwrap();
-            parameter.set_normalized_value(parameter.info().default_normalized_value()).unwrap();
+            parameter.set_normalized_value(parameter.info().default_normalized_value());
         }
     }
 

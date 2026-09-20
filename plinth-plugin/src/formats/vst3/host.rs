@@ -66,11 +66,11 @@ impl<P: Plugin> Host for Vst3Host<P> {
 
             plugin.with_parameters(|parameters| {
                 let parameter = parameters.get(id).unwrap();
-                parameter.set_normalized_value(normalized).unwrap();
+                parameter.set_normalized_value(normalized);
             });
-            
+
             // release plugin.borrow before calling performEdit
-        } 
+        }
 
         if let Some(handler) = self.component_handler.borrow_mut().as_mut() {
             unsafe { handler.performEdit(id, normalized) };
@@ -82,14 +82,14 @@ impl<P: Plugin> Host for Vst3Host<P> {
             unsafe { handler.endEdit(id) };
         }
     }
-    
+
     fn reload_parameters(&self) {
         if let Some(handler) = self.component_handler.borrow_mut().as_mut() {
             unsafe { handler.restartComponent(kParamValuesChanged as _) };
-        }        
+        }
     }
 
-    fn mark_state_dirty(&self) {        
+    fn mark_state_dirty(&self) {
         if let Some(handler) = self.component_handler.borrow_mut().as_mut() && let Some(handler2) = handler.cast::<IComponentHandler2>() {
             unsafe { handler2.setDirty(1) };
         }

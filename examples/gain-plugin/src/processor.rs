@@ -38,7 +38,7 @@ impl Processor for GainPluginProcessor {
             }
         }
 
-        let gain_db = self.parameters.value::<FloatParameter>(GainParameter::Gain);
+        let gain_db = self.parameters.modulated_value::<FloatParameter>(GainParameter::Gain);
         let gain = db_to_amplitude(gain_db as _);
 
         for channel in buffer.iter_channels_mut() {

@@ -140,10 +140,8 @@ impl<P: ClapPlugin> Params<P> {
 
     unsafe extern "C" fn flush(plugin: *const clap_plugin, in_events: *const clap_input_events, out_events: *const clap_output_events) {
         PluginInstance::with_plugin_instance(plugin, |instance: &mut PluginInstance<P>| {
-            instance.process_events_to_plugin();
-
             let host_events = EventIterator::new(&instance.parameter_info, unsafe { &*in_events }, P::MIDI_CAPABILITIES, P::NOTE_EXPRESSIONS);
-            let editor_events = instance.parameter_event_map.iter_and_send_to_host(&instance.parameter_info, out_events);
+            let editor_events = instance.to_host_parameter_events.iter_and_send(&instance.parameter_info, out_events);
             let all_events = host_events.chain(editor_events);
 
             if instance.audio_thread_state.active.load(Ordering::Acquire) {
@@ -163,7 +161,7 @@ impl<P: ClapPlugin> Params<P> {
                 processor.process_events(all_events);
                 drop(processor_ref);
 
-                // Also send them to the main thread through the queue
+                // Also send them to the main thread
                 instance.send_events_to_plugin(in_events);
 
                 // Send a callback request so the main thread can process them
@@ -171,9 +169,11 @@ impl<P: ClapPlugin> Params<P> {
             } else {
                 // When we don't have a processor, this is called from the main thread so we can process events directly
                 for event in all_events {
-                    instance.plugin.as_mut().unwrap().process_event(&event);
+                    instance.process_plugin_event(&event);
                 }
             }
+
+            instance.process_events_to_plugin();
         })
     }
 }

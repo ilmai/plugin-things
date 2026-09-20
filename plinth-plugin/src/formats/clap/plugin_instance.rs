@@ -1,11 +1,10 @@
 use std::{collections::BTreeMap, ffi::{CStr, c_char, c_void}, iter::zip, ptr::{null, null_mut}, sync::{Arc, atomic::{AtomicBool, AtomicUsize, Ordering}}};
 
 use clap_sys::{events::clap_input_events, ext::{audio_ports::CLAP_EXT_AUDIO_PORTS, draft::undo::{CLAP_EXT_UNDO, clap_host_undo}, gui::{CLAP_EXT_GUI, clap_host_gui}, latency::CLAP_EXT_LATENCY, note_ports::CLAP_EXT_NOTE_PORTS, params::{CLAP_EXT_PARAMS, clap_host_params}, render::CLAP_EXT_RENDER, state::{CLAP_EXT_STATE, clap_host_state}, tail::{CLAP_EXT_TAIL, clap_host_tail}, timer_support::{CLAP_EXT_TIMER_SUPPORT, clap_host_timer_support}}, host::clap_host, plugin::clap_plugin, process::{CLAP_PROCESS_CONTINUE, CLAP_PROCESS_CONTINUE_IF_NOT_QUIET, CLAP_PROCESS_ERROR, CLAP_PROCESS_TAIL, clap_process, clap_process_status}};
-use tracing::error;
 use plinth_core::signals::{ptr_signal::{PtrSignal, PtrSignalMut}, signal::SignalMut};
 use raw_window_handle::RawWindowHandle;
 
-use crate::{formats::PluginFormat, host::HostInfo, Event, ParameterId, ProcessMode, ProcessState, Processor, ProcessorConfig};
+use crate::{Event, ParameterId, ProcessMode, ProcessState, Processor, ProcessorConfig, formats::PluginFormat, host::HostInfo};
 use crate::clap::{event::EventIterator, transport::convert_transport};
 use crate::parameters::{info::ParameterInfo, has_duplicates, Parameters};
 
@@ -46,9 +45,8 @@ pub struct PluginInstance<P: ClapPlugin> {
     pub(super) timer_id: Option<u32>,
     pub(super) process_mode: ProcessMode,
 
-    pub(super) to_plugin_event_sender: rtrb::Producer<Event>,
-    to_plugin_event_receiver: rtrb::Consumer<Event>,
-    pub(super) parameter_event_map: Arc<ParameterEventMap>,
+    pub(super) to_host_parameter_events: Arc<ParameterEventMap>,
+    pub(super) to_plugin_parameter_events: Arc<ParameterEventMap>,
 
     pub(super) audio_thread_state: AudioThreadState<P>,
 
@@ -88,12 +86,10 @@ impl<P: ClapPlugin> PluginInstance<P> {
         let plugin = P::new(host_info);
         assert!(plugin.with_parameters(|parameters| !has_duplicates(parameters.ids())));
 
-        let (to_plugin_event_sender, to_plugin_event_receiver) = rtrb::RingBuffer::new(P::EVENT_QUEUE_LEN);
-
         let mut parameter_info = BTreeMap::new();
 
         // Store parameter info and verify parameters
-        let parameter_event_map = plugin.with_parameters(|parameters| {
+        let to_host_parameter_events = plugin.with_parameters(|parameters| {
             assert!(
                 parameters.ids().iter()
                     .copied()
@@ -107,8 +103,10 @@ impl<P: ClapPlugin> PluginInstance<P> {
                 parameter_info.insert(id, info.clone());
             }
 
-            Arc::new(ParameterEventMap::new(parameters))
+            ParameterEventMap::new(parameters)
         });
+
+        let to_plugin_parameter_events = to_host_parameter_events.clone();
 
         Self {
             raw: clap_plugin {
@@ -137,9 +135,8 @@ impl<P: ClapPlugin> PluginInstance<P> {
             timer_id: None,
             process_mode: Default::default(),
 
-            to_plugin_event_sender,
-            to_plugin_event_receiver,
-            parameter_event_map,
+            to_host_parameter_events: to_host_parameter_events.into(),
+            to_plugin_parameter_events: to_plugin_parameter_events.into(),
 
             audio_thread_state: Default::default(),
 
@@ -166,23 +163,37 @@ impl<P: ClapPlugin> PluginInstance<P> {
         let events = EventIterator::new(&self.parameter_info, unsafe { &*in_events }, P::MIDI_CAPABILITIES, P::NOTE_EXPRESSIONS);
 
         for event in events {
-            match self.to_plugin_event_sender.push(event) {
-                Ok(_) => {},
-
-                Err(rtrb::PushError::Full(_)) => {
-                    error!("Error sending CLAP event from host to processor, queue is full");
-                    break;
-                },
+            match event {
+                crate::Event::ParameterValue { id, value, .. } => self.to_plugin_parameter_events.change_parameter_value(id, value),
+                crate::Event::ParameterModulation { id, amount, .. } => self.to_plugin_parameter_events.change_parameter_modulation(id, amount),
+                _ => {},
             }
         }
     }
 
     pub(super) fn process_events_to_plugin(&mut self) {
-        while let Ok(event) = self.to_plugin_event_receiver.pop() {
-            self.plugin.as_mut().unwrap().process_event(&event);
+        for event in self.to_plugin_parameter_events.iter_and_send(&self.parameter_info, null()) {
+            self.process_plugin_event(&event);
         }
     }
 
+    pub(super) fn process_plugin_event(&self, event: &Event) {
+        match event {
+            Event::ParameterValue { id, value, .. } => {
+                self.plugin.as_ref().unwrap().with_parameters(|parameters| {
+                    parameters.get(*id).unwrap().set_normalized_value(*value);
+                });
+            },
+
+            Event::ParameterModulation { id, amount, .. } => {
+                self.plugin.as_ref().unwrap().with_parameters(|parameters| {
+                    parameters.get(*id).unwrap().set_normalized_modulation(*amount);
+                });
+            }
+
+            _ => {}
+        }
+    }
 
     unsafe extern "C" fn init(plugin: *const clap_plugin) -> bool {
         tracing::trace!("plugin::init");
@@ -324,7 +335,7 @@ impl<P: ClapPlugin> PluginInstance<P> {
             };
 
             // Send events from editor to host
-            let editor_events = instance.parameter_event_map.iter_and_send_to_host(&instance.parameter_info, process.out_events);
+            let editor_events = instance.to_host_parameter_events.iter_and_send(&instance.parameter_info, process.out_events);
 
             // Send a callback request so the main thread can process them
             unsafe { ((*instance.host).request_callback.unwrap())(instance.host); }

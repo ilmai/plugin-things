@@ -1,6 +1,6 @@
 use std::{io::{Read, Write}, rc::Rc};
 
-use crate::{error::Error, host::HostInfo, midi_capabilities::MidiCapabilities, note_expressions::NoteExpressions, processor::ProcessorConfig, Editor, Event, Host, Parameters, Processor};
+use crate::{error::Error, host::HostInfo, midi_capabilities::MidiCapabilities, note_expressions::NoteExpressions, processor::ProcessorConfig, Editor, Host, Parameters, Processor};
 
 pub trait Plugin {
     const NAME: &'static str;
@@ -27,7 +27,6 @@ pub trait Plugin {
     fn init(&mut self);
 
     fn with_parameters<T>(&self, f: impl FnMut(&Self::Parameters) -> T) -> T;
-    fn process_event(&mut self, event: &Event);
 
     fn create_processor(&self, config: ProcessorConfig) -> Self::Processor;
     fn create_editor(&self, host: Rc<dyn Host>) -> Self::Editor;

@@ -238,15 +238,6 @@ pub enum Event {
     },
 
     // Parameter events
-
-    StartParameterChange {
-        id: ParameterId,
-    },
-
-    EndParameterChange {
-        id: ParameterId,
-    },
-
     ParameterValue {
         sample_offset: usize,
         id: ParameterId,
@@ -287,8 +278,6 @@ impl Event {
             Event::MidiControlChange { sample_offset, .. } => *sample_offset,
             Event::ParameterValue { sample_offset, .. } => *sample_offset,
             Event::ParameterModulation { sample_offset, .. } => *sample_offset,
-
-            _ => 0
         }
     }
 }

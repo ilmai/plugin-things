@@ -93,7 +93,7 @@ impl<P: ClapPlugin> Gui<P> {
                 instance.host_ext_params,
                 instance.host_ext_state,
                 instance.host_ext_undo,
-                instance.parameter_event_map.clone(),
+                instance.to_host_parameter_events.clone(),
             ));
 
             instance.editor = Some(instance.plugin.as_ref().unwrap().create_editor(host));

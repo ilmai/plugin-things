@@ -10,6 +10,4 @@ pub trait ClapPlugin : Plugin {
     const MANUAL_URL: Option<&'static str> = None;
     const SUPPORT_URL: Option<&'static str> = None;
     const DESCRIPTION: Option<&'static str> = None;
-
-    const EVENT_QUEUE_LEN: usize = 1024;
 }

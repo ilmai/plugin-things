@@ -8,7 +8,7 @@ pub trait Parameter : Any + Send + Sync {
     fn info(&self) -> &ParameterInfo;
 
     fn normalized_value(&self) -> ParameterValue;
-    fn set_normalized_value(&self, normalized: ParameterValue) -> Result<(), Error> ;
+    fn set_normalized_value(&self, normalized: ParameterValue);
 
     fn normalized_modulation(&self) -> ParameterValue;
     fn set_normalized_modulation(&self, amount: ParameterValue);
@@ -17,7 +17,7 @@ pub trait Parameter : Any + Send + Sync {
     fn string_to_normalized(&self, string: &str) -> Option<ParameterValue>;
 
     fn serialize_value(&self) -> ParameterValue;
-    fn deserialize_value(&self, value: ParameterValue) -> Result<(), Error> ;
+    fn deserialize_value(&self, value: ParameterValue) -> Result<(), Error>;
 }
 
 pub trait ParameterPlain : Parameter {

@@ -19,7 +19,7 @@ use widestring::U16CStr;
 use crate::formats::PluginFormat;
 use crate::host::HostInfo;
 use crate::vst3::parameters::{MidiParameter, MidiParameters};
-use crate::{Parameters, ProcessMode, ProcessState, Processor, ProcessorConfig};
+use crate::{Event, Parameters, ProcessMode, ProcessState, Processor, ProcessorConfig};
 use crate::editor::NoEditor;
 use crate::parameters::{group::{self, ParameterGroupRef}, has_duplicates, info::ParameterInfo};
 use crate::string::{char16_to_string, copy_str_to_char16};
@@ -654,7 +654,10 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
         };
 
         let event = self.midi_parameters.borrow().parameter_change_to_event(id, value, 0);
-        plugin.process_event(&event);
+
+        if let Event::ParameterValue { id, value, .. } = event {
+            plugin.with_parameters(|parameters| parameters.get(id).unwrap().set_normalized_value(value));
+        }
 
         kResultOk
     }
