@@ -29,9 +29,12 @@ impl StandaloneParameterEventMap {
     }
 
     pub(crate) fn change_parameter_value(&self, id: ParameterId, value: ParameterValue) {
-        let info = self.parameter_event_info.get(&id).unwrap();
-        info.value.store(value, Ordering::Release);
-        info.changed.store(true, Ordering::Release);
+        if let Some(info) = self.parameter_event_info.get(&id) {
+            info.value.store(value, Ordering::Release);
+            info.changed.store(true, Ordering::Release);
+        } else {
+            tracing::warn!("Received parameter value change for an unknown parameter: {id}");
+        }
     }
 
     pub(crate) fn iter_events(&self) -> StandaloneParameterEventIterator<'_> {

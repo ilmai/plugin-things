@@ -10,9 +10,10 @@ use super::{parameters::StandaloneParameterEventMap, audio::AudioState, config::
 use crate::{Editor, Event, Host, HostInfo, ProcessMode, Processor, ProcessorConfig, formats::PluginFormat};
 
 struct StandaloneRunner<P: StandalonePlugin> {
-    plugin: P,
+    // Keep the plugin alive (alongside the editor)
+    #[allow(unused)]
+    plugin: Rc<P>,
     editor: P::Editor,
-    to_plugin_receiver: mpsc::Receiver<Event>,
     title: &'static str,
     window: Option<Window>,
     last_frame: Instant,
@@ -103,9 +104,6 @@ impl<P: StandalonePlugin> ApplicationHandler for StandaloneRunner<P> {
         let frame_interval = Duration::from_millis(16);
 
         if now >= self.last_frame + frame_interval {
-            while let Ok(event) = self.to_plugin_receiver.try_recv() {
-                self.plugin.process_event(&event);
-            }
             self.editor.on_frame();
             self.last_frame = now;
         }
@@ -165,7 +163,7 @@ pub fn run_standalone_with_config<P: StandalonePlugin + 'static>(
         format: PluginFormat::Standalone,
     };
 
-    let plugin = P::new(host_info);
+    let plugin = Rc::new(P::new(host_info));
 
     // Parameter event map (shared between host and audio thread)
     let parameter_event_map =
@@ -173,7 +171,6 @@ pub fn run_standalone_with_config<P: StandalonePlugin + 'static>(
 
     // Channels
     let (midi_sender, midi_receiver) = mpsc::channel::<Event>();
-    let (to_plugin_sender, to_plugin_receiver) = mpsc::channel::<Event>();
 
     // Open MIDI connections if plugin accepts note inputs
     let midi_connections = if P::HAS_NOTE_INPUT {
@@ -267,7 +264,7 @@ pub fn run_standalone_with_config<P: StandalonePlugin + 'static>(
     .expect("Failed to build audio output stream");
 
     // Create host and editor
-    let host = Rc::new(StandaloneHost::new(parameter_event_map, to_plugin_sender));
+    let host = Rc::new(StandaloneHost::new(plugin.clone(), parameter_event_map));
     let editor = plugin.create_editor(host as Rc<dyn Host>);
 
     // Create winit event loop
@@ -277,7 +274,6 @@ pub fn run_standalone_with_config<P: StandalonePlugin + 'static>(
     let mut runner = StandaloneRunner {
         plugin,
         editor,
-        to_plugin_receiver,
         title: P::NAME,
         window: None,
         last_frame: Instant::now(),
