@@ -20,9 +20,6 @@ pub use plugin::Plugin;
 pub use processor::{Processor, ProcessorConfig, ProcessState, ProcessMode};
 pub use transport::Transport;
 
-#[cfg(target_os="macos")]
-pub use formats::auv3;
-
 // Re-exports
 pub use keyboard_types;
 pub use plinth_core;
