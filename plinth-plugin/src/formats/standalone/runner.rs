@@ -10,15 +10,32 @@ use super::{parameters::StandaloneParameterEventMap, audio::AudioState, config::
 use crate::{Editor, Event, Host, HostInfo, ProcessMode, Processor, ProcessorConfig, formats::PluginFormat};
 
 struct StandaloneRunner<P: StandalonePlugin> {
-    // Keep the plugin alive (alongside the editor)
-    #[allow(unused)]
-    plugin: Rc<P>,
+    _plugin: Rc<P>, // Just keep the plugin alive (alongside the editor)
     editor: P::Editor,
     title: &'static str,
     window: Option<Window>,
     last_frame: Instant,
     audio_stream: Stream,
     midi_connections: Vec<MidiInputConnection<()>>,
+}
+
+impl<P: StandalonePlugin> StandaloneRunner<P> {
+    fn new(
+        plugin: Rc<P>,
+        editor: P::Editor,
+        audio_stream: Stream,
+        midi_connections: Vec<MidiInputConnection<()>>,
+    ) -> Self {
+        Self {
+            _plugin: plugin,
+            editor,
+            title: P::NAME,
+            window: None,
+            last_frame: Instant::now(),
+            audio_stream,
+            midi_connections,
+        }
+    }
 }
 
 impl<P: StandalonePlugin> Drop for StandaloneRunner<P> {
@@ -271,15 +288,7 @@ pub fn run_standalone_with_config<P: StandalonePlugin + 'static>(
     let event_loop = EventLoop::new().expect("Failed to create event loop");
 
     // Run winit event loop (blocks until window is closed)
-    let mut runner = StandaloneRunner {
-        plugin,
-        editor,
-        title: P::NAME,
-        window: None,
-        last_frame: Instant::now(),
-        audio_stream,
-        midi_connections,
-    };
+    let mut runner = StandaloneRunner::new(plugin, editor, audio_stream, midi_connections);
 
     event_loop.run_app(&mut runner).expect("Event loop error");
 }
