@@ -89,8 +89,6 @@ impl<T: Enum> EnumParameter<T> {
     }
 
     pub fn set_value(&self, value: T) {
-        self.value.store(value.to_usize(), Ordering::Release);
-
         let value = value.to_usize();
         let changed = self.value.swap(value, Ordering::AcqRel) != value;
 
