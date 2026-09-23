@@ -10,14 +10,32 @@ use super::{parameters::StandaloneParameterEventMap, audio::AudioState, config::
 use crate::{Editor, Event, Host, HostInfo, ProcessMode, Processor, ProcessorConfig, formats::PluginFormat};
 
 struct StandaloneRunner<P: StandalonePlugin> {
-    plugin: P,
+    _plugin: Rc<P>, // Just keep the plugin alive (alongside the editor)
     editor: P::Editor,
-    to_plugin_receiver: mpsc::Receiver<Event>,
     title: &'static str,
     window: Option<Window>,
     last_frame: Instant,
     audio_stream: Stream,
     midi_connections: Vec<MidiInputConnection<()>>,
+}
+
+impl<P: StandalonePlugin> StandaloneRunner<P> {
+    fn new(
+        plugin: Rc<P>,
+        editor: P::Editor,
+        audio_stream: Stream,
+        midi_connections: Vec<MidiInputConnection<()>>,
+    ) -> Self {
+        Self {
+            _plugin: plugin,
+            editor,
+            title: P::NAME,
+            window: None,
+            last_frame: Instant::now(),
+            audio_stream,
+            midi_connections,
+        }
+    }
 }
 
 impl<P: StandalonePlugin> Drop for StandaloneRunner<P> {
@@ -103,9 +121,6 @@ impl<P: StandalonePlugin> ApplicationHandler for StandaloneRunner<P> {
         let frame_interval = Duration::from_millis(16);
 
         if now >= self.last_frame + frame_interval {
-            while let Ok(event) = self.to_plugin_receiver.try_recv() {
-                self.plugin.process_event(&event);
-            }
             self.editor.on_frame();
             self.last_frame = now;
         }
@@ -165,7 +180,7 @@ pub fn run_standalone_with_config<P: StandalonePlugin + 'static>(
         format: PluginFormat::Standalone,
     };
 
-    let plugin = P::new(host_info);
+    let plugin = Rc::new(P::new(host_info));
 
     // Parameter event map (shared between host and audio thread)
     let parameter_event_map =
@@ -173,7 +188,6 @@ pub fn run_standalone_with_config<P: StandalonePlugin + 'static>(
 
     // Channels
     let (midi_sender, midi_receiver) = mpsc::channel::<Event>();
-    let (to_plugin_sender, to_plugin_receiver) = mpsc::channel::<Event>();
 
     // Open MIDI connections if plugin accepts note inputs
     let midi_connections = if P::HAS_NOTE_INPUT {
@@ -267,23 +281,14 @@ pub fn run_standalone_with_config<P: StandalonePlugin + 'static>(
     .expect("Failed to build audio output stream");
 
     // Create host and editor
-    let host = Rc::new(StandaloneHost::new(parameter_event_map, to_plugin_sender));
+    let host = Rc::new(StandaloneHost::new(plugin.clone(), parameter_event_map));
     let editor = plugin.create_editor(host as Rc<dyn Host>);
 
     // Create winit event loop
     let event_loop = EventLoop::new().expect("Failed to create event loop");
 
     // Run winit event loop (blocks until window is closed)
-    let mut runner = StandaloneRunner {
-        plugin,
-        editor,
-        to_plugin_receiver,
-        title: P::NAME,
-        window: None,
-        last_frame: Instant::now(),
-        audio_stream,
-        midi_connections,
-    };
+    let mut runner = StandaloneRunner::new(plugin, editor, audio_stream, midi_connections);
 
     event_loop.run_app(&mut runner).expect("Event loop error");
 }
