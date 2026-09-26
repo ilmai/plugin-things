@@ -3,7 +3,8 @@ macro_rules! export_clap {
     ($plugin:ty) => {
         static FACTORY: ::std::sync::Mutex<Option<::plinth_plugin::clap::Factory::<$plugin>>> = ::std::sync::Mutex::new(None);
 
-        unsafe extern "C" fn init(_plugin_path: *const ::std::ffi::c_char) -> bool {
+        #[unsafe(no_mangle)]
+        unsafe extern "C" fn clap_entry_init(_plugin_path: *const ::std::ffi::c_char) -> bool {
             let mut factory = FACTORY.lock().unwrap();
 
             match factory.as_mut() {
@@ -19,7 +20,8 @@ macro_rules! export_clap {
             true
         }
 
-        unsafe extern "C" fn deinit() {
+        #[unsafe(no_mangle)]
+        unsafe extern "C" fn clap_entry_deinit() {
             let mut maybe_factory = FACTORY.lock().unwrap();
 
             match maybe_factory.as_mut() {
@@ -36,7 +38,8 @@ macro_rules! export_clap {
             }
         }
 
-        unsafe extern "C" fn get_factory(factory_id: *const ::std::ffi::c_char) -> *const ::std::ffi::c_void {
+        #[unsafe(no_mangle)]
+        unsafe extern "C" fn clap_entry_get_factory(factory_id: *const ::std::ffi::c_char) -> *const ::std::ffi::c_void {
             if unsafe { !::plinth_plugin::clap::Factory::<$plugin>::is_valid_factory_id(factory_id) } {
                 return ::std::ptr::null();
             }
@@ -52,6 +55,10 @@ macro_rules! export_clap {
         #[unsafe(no_mangle)]
         #[allow(non_snake_case)]
         #[allow(non_upper_case_globals)]
-        static clap_entry: ::plinth_plugin::clap::EntryPoint = ::plinth_plugin::clap::EntryPoint::new(init, deinit, get_factory);
+        static clap_entry: ::plinth_plugin::clap::EntryPoint = ::plinth_plugin::clap::EntryPoint::new(
+            clap_entry_init,
+            clap_entry_deinit,
+            clap_entry_get_factory,
+        );
     };
 }
