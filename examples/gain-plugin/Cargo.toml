@@ -3,8 +3,18 @@ name = "gain-plugin"
 version = "0.1.0"
 edition = "2024"
 
+[package.metadata.bundle]
+name = "Gain Example"
+vendor = "Viiri Audio"
+clap-id = "viiri-audio.gain-example"
+vst3-class-id = "00000000-0000-0000-E844-10DB1788DC81"
+bundle-id-prefix = "com.viiri-audio.gain-example"
+
 [features]
+clap = []
+vst3 = []
 standalone = ["plinth-plugin/standalone"]
+default = ["clap", "vst3"]
 
 [lib]
 crate-type = ["cdylib", "lib", "staticlib"]

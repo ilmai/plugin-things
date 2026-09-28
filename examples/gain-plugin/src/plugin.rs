@@ -4,12 +4,17 @@ use std::io::{Read, Write};
 use std::rc::Rc;
 
 use plinth_plugin::error::Error;
-use plinth_plugin::{Host, HostInfo, Parameters, Plugin, ProcessorConfig, export_clap, export_vst3};
+use plinth_plugin::{Host, HostInfo, Parameters, Plugin, ProcessorConfig};
 use plinth_plugin::clap::ClapPlugin;
 use plinth_plugin::vst3::Vst3Plugin;
 
 use crate::editor::{EditorSettings, GainPluginEditor};
 use crate::{parameters::GainParameters, processor::GainPluginProcessor};
+
+mod metadata {
+    // consts from Cargo.toml [package.metadata.bundle]
+    plinth_derive::bundle_metadata!();
+}
 
 #[derive(Default)]
 pub struct GainPlugin {
@@ -18,9 +23,9 @@ pub struct GainPlugin {
 }
 
 impl Plugin for GainPlugin {
-    const NAME: &'static str = "Gain Example";
-    const VENDOR: &'static str = "Viiri Audio";
-    const VERSION: &'static str = "0.1";
+    const NAME: &'static str = metadata::NAME;
+    const VENDOR: &'static str = metadata::VENDOR;
+    const VERSION: &'static str = metadata::VERSION;
 
     type Processor = GainPluginProcessor;
     type Editor = GainPluginEditor;
@@ -67,7 +72,7 @@ impl Plugin for GainPlugin {
 }
 
 impl ClapPlugin for GainPlugin {
-    const CLAP_ID: &'static str = "viiri-audio.gain-example";
+    const CLAP_ID: &'static str = metadata::CLAP_ID;
     const FEATURES: &'static [plinth_plugin::clap::Feature] = &[
         plinth_plugin::clap::Feature::AudioEffect,
         plinth_plugin::clap::Feature::Stereo,
@@ -75,15 +80,17 @@ impl ClapPlugin for GainPlugin {
 }
 
 impl Vst3Plugin for GainPlugin {
-    const CLASS_ID: u128 = 0xE84410DB1788DC81;
+    const CLASS_ID: u128 = metadata::VST3_CLASS_ID;
     const SUBCATEGORIES: &'static [plinth_plugin::vst3::Subcategory] = &[
         plinth_plugin::vst3::Subcategory::Fx,
         plinth_plugin::vst3::Subcategory::Stereo,
     ];
 }
 
-export_clap!(GainPlugin);
-export_vst3!(GainPlugin);
+#[cfg(feature = "clap")]
+plinth_plugin::export_clap!(GainPlugin);
+#[cfg(feature = "vst3")]
+plinth_plugin::export_vst3!(GainPlugin);
 
 #[cfg(feature = "standalone")]
 impl plinth_plugin::standalone::StandalonePlugin for GainPlugin {}

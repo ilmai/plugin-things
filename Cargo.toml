@@ -7,6 +7,7 @@ members = [
     "plinth-plugin",
     "plugin-canvas",
     "plugin-canvas-slint",
+    "plinth-bundler",
     "xtask",
 ]
 
@@ -16,6 +17,7 @@ plinth-derive = { path = "plinth-derive" }
 plinth-plugin = { path = "plinth-plugin" }
 plugin-canvas = { path = "plugin-canvas" }
 plugin-canvas-slint = { path = "plugin-canvas-slint" }
+plinth-bundler = { path = "plinth-bundler" }
 
 cursor-icon = "1"
 keyboard-types = "0.8"
