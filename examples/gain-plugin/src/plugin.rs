@@ -26,7 +26,6 @@ impl Plugin for GainPlugin {
     const NAME: &'static str = metadata::NAME;
     const VENDOR: &'static str = metadata::VENDOR;
     const VERSION: &'static str = metadata::VERSION;
-
     type Processor = GainPluginProcessor;
     type Editor = GainPluginEditor;
     type Parameters = GainParameters;
@@ -91,6 +90,8 @@ impl Vst3Plugin for GainPlugin {
 plinth_plugin::export_clap!(GainPlugin);
 #[cfg(feature = "vst3")]
 plinth_plugin::export_vst3!(GainPlugin);
+#[cfg(all(target_os = "macos", feature = "auv2"))]
+clap_wrapper::export_auv2!();
 
 #[cfg(feature = "standalone")]
 impl plinth_plugin::standalone::StandalonePlugin for GainPlugin {}

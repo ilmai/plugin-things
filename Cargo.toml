@@ -32,3 +32,11 @@ tracing = "0.1"
 i-slint-common = "~1.17.1"
 i-slint-core = "~1.17.1"
 i-slint-renderer-skia = { version = "~1.17.1", features = ["x11"] }
+
+[patch.crates-io]
+# Unreleased fix: auto-generated ObjC class name, so plugin binaries in one process can share it.
+# Remove once released: https://github.com/rust-windowing/raw-window-metal/pull/34
+raw-window-metal = {
+    git = "https://github.com/rust-windowing/raw-window-metal",
+    rev = "499424f616d72fd9d096461473e77a34350b68c8"
+}
