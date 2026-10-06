@@ -239,14 +239,19 @@ impl<P: Vst3Plugin + 'static> IPlugViewTrait for View<P> {
             return kResultFalse;
         }
 
-        let supported_size = self.editor.borrow().as_ref().unwrap()
-            .check_window_size(((right - left) as _, (bottom - top) as _))
-            .unwrap_or(P::Editor::DEFAULT_SIZE);
+        let editor = self.editor.borrow();
 
-        rect.right = supported_size.0 as i32 - left;
-        rect.bottom = supported_size.1 as i32 - top;
+        let suggested_size = ((right - left) as f64, (bottom - top) as f64);
+        let (result, supported_size) = match editor.as_ref().unwrap().check_window_size(suggested_size) {
+            Some(size) => (kResultOk, size),
+            // Always constrain the rect in case hosts ignore the result
+            None => (kResultFalse, editor.as_ref().unwrap().window_size()),
+        };
 
-        kResultOk
+        rect.right = left + supported_size.0 as i32;
+        rect.bottom = top + supported_size.1 as i32;
+
+        result
     }
 }
 
