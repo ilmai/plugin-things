@@ -3,8 +3,20 @@ name = "gain-plugin"
 version = "0.1.0"
 edition = "2024"
 
+[package.metadata.bundle]
+name = "Gain Example"
+vendor = "Viiri Audio"
+clap-id = "viiri-audio.gain-example"
+vst3-class-id = "00000000-0000-0000-E844-10DB1788DC81"
+auv2-id = "aufx:exgn:ViAu"
+bundle-id-prefix = "com.viiri-audio.gain-example"
+
 [features]
+clap = []
+vst3 = []
+auv2 = ["clap", "dep:clap-wrapper"]
 standalone = ["plinth-plugin/standalone"]
+default = ["clap", "vst3"]
 
 [lib]
 crate-type = ["cdylib", "lib", "staticlib"]
@@ -21,6 +33,12 @@ plugin-canvas-slint.workspace = true
 serde = "1"
 serde_json = "1"
 slint = { version = "1", default-features = false, features = ["accessibility", "compat-1-2", "std"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+clap-wrapper = { version = "0.3", default-features = false, features = [
+    "auv2",
+    "parallel",
+], optional = true }
 
 [build-dependencies]
 slint-build = "1"
