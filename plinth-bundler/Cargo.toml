@@ -3,7 +3,7 @@ name = "plinth-bundler"
 version = "0.1.0"
 edition = "2024"
 
-authors = ["Jussi Viiri <jussi@viiri-audio.com>"]
+authors = ["Jussi Viiri <jussi@viiri-audio.com>", "Eduard Müller <mail@emuell.net>"]
 repository = "https://github.com/ilmai/plugin-things"
 license = "MIT"
 
