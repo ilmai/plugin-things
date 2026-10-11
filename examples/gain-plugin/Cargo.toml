@@ -6,9 +6,9 @@ edition = "2024"
 [package.metadata.bundle]
 name = "Gain Example"
 vendor = "Viiri Audio"
-clap-id = "viiri-audio.gain-example"
+clap-id = "com.viiri-audio.gain-example"
 vst3-class-id = "00000000-0000-0000-E844-10DB1788DC81"
-auv2-id = "aufx:exgn:ViAu"
+auv2-id = "aufx:exgn:Viir"
 bundle-id-prefix = "com.viiri-audio.gain-example"
 
 [features]
