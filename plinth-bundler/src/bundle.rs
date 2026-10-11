@@ -306,7 +306,8 @@ fn create_windows_bundles(
         &desktop_ini,
         "[.ShellClassInfo]\r\nIconResource=PlugIn.ico,0\r\n",
     )?;
-    fs::write(&icon, include_bytes!("../PlugIn.ico"))?;
+    // MIT licensed, see icons/README.md
+    fs::write(&icon, include_bytes!("../icons/VST_Logo_Steinberg.ico"))?;
 
     // `attrib` only exists on Windows: when cross-building, the installer has to set them
     if cfg!(windows) {
