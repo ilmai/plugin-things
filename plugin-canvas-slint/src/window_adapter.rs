@@ -7,6 +7,7 @@ use std::sync::Arc;
 use crate::platform::CallbackQueue;
 
 use cursor_icon::CursorIcon;
+use i_slint_core::renderer::DrawOutcome;
 use i_slint_core::{window::{WindowAdapter, WindowAdapterInternal}, renderer::Renderer, platform::{PlatformError, WindowEvent}};
 use i_slint_renderer_skia::{SkiaRenderer, SkiaSharedContext};
 use keyboard_types::Code;
@@ -169,9 +170,19 @@ impl PluginCanvasWindowAdapter {
 
                 i_slint_core::platform::update_timers_and_animations();
 
-                if self.pending_draw.swap(false, Ordering::Relaxed) {
-                    // Ignore the draw outcome as we're constantly drawing anyway
-                    let _ = self.renderer.render().unwrap();
+                if self.pending_draw.swap(false, Ordering::Acquire) {
+                    match self.renderer.render() {
+                        Ok(DrawOutcome::Success) => {},
+
+                        Ok(_) => {
+                            self.pending_draw.store(true, Ordering::Release);
+                        }
+
+                        Err(e) => {
+                            tracing::error!("Render error: {e:?}");
+                            self.pending_draw.store(true, Ordering::Release);
+                        },
+                    }
                 }
 
                 EventResponse::Handled
