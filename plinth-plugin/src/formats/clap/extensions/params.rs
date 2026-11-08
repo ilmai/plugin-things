@@ -38,6 +38,10 @@ impl<P: ClapPlugin> Params<P> {
     }
 
     unsafe extern "C" fn get_info(plugin: *const clap_plugin, param_index: u32, param_info: *mut clap_param_info) -> bool {
+        if param_info.is_null() {
+            return false;
+        }
+
         PluginInstance::with_plugin_instance(plugin, |instance: &mut PluginInstance<P>| {
             let Some(parameter_info) = instance.parameter_info.values().nth(param_index as usize) else {
                 return false;
@@ -79,6 +83,10 @@ impl<P: ClapPlugin> Params<P> {
     }
 
     unsafe extern "C" fn get_value(plugin: *const clap_plugin, param_id: clap_id, out_value: *mut f64) -> bool {
+        if out_value.is_null() {
+            return false;
+        }
+
         PluginInstance::with_plugin_instance(plugin, |instance: &mut PluginInstance<P>| {
             instance.process_events_to_plugin();
 
@@ -117,6 +125,10 @@ impl<P: ClapPlugin> Params<P> {
     }
 
     unsafe extern "C" fn text_to_value(plugin: *const clap_plugin, param_id: clap_id, param_value_text: *const c_char, out_value: *mut f64) -> bool {
+        if param_value_text.is_null() || out_value.is_null() {
+            return false;
+        }
+
         PluginInstance::with_plugin_instance(plugin, |instance: &mut PluginInstance<P>| {
             instance.plugin.as_ref().unwrap().with_parameters(|parameters| {
                 let Some(parameter) = parameters.get(param_id) else {

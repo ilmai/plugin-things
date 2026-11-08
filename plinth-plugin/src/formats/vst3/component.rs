@@ -537,7 +537,7 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
     unsafe fn getParameterInfo(&self, param_index: int32, info: *mut vst3::Steinberg::Vst::ParameterInfo) -> tresult {
         tracing::trace!("IEditController::getParameterInfo");
 
-        if param_index < 0 {
+        if param_index < 0 || info.is_null() {
             return kInvalidArgument;
         }
 
@@ -551,6 +551,8 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
         vst3_info.id = parameter_info.id();
         copy_str_to_char16(parameter_info.name(), &mut vst3_info.title);
         // TODO: info.shortTitle
+        copy_str_to_char16("", &mut vst3_info.shortTitle);
+        copy_str_to_char16("", &mut vst3_info.units);
         vst3_info.stepCount = parameter_info.steps() as _;
         vst3_info.defaultNormalizedValue = parameter_info.default_normalized_value();
         vst3_info.unitId = self.parameter_group_id(parameter_info);
@@ -570,6 +572,10 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
 
     unsafe fn getParamStringByValue(&self, id: ParamID, value_normalized: ParamValue, string: *mut String128) -> tresult {
         tracing::trace!("IEditController::getParamStringByValue");
+
+        if string.is_null() {
+            return kInvalidArgument;
+        }
 
         let plugin = self.plugin.borrow();
         let Some(plugin) = plugin.as_ref() else {
@@ -591,7 +597,7 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
     unsafe fn getParamValueByString(&self, id: ParamID, string: *mut TChar, value_normalized: *mut ParamValue) -> tresult {
         tracing::trace!("IEditController::getParamValueByString");
 
-        if string.is_null() {
+        if string.is_null() || value_normalized.is_null() {
             return kInvalidArgument;
         }
 
@@ -783,7 +789,7 @@ impl<P: Vst3Plugin> IUnitInfoTrait for PluginComponent<P> {
         let parameter_groups = self.parameter_groups.borrow();
         let unit_count = parameter_groups.len() + 1; // +1 for the root unit
 
-        if unit_index < 0 {
+        if unit_index < 0 || info.is_null() {
             return kInvalidArgument;
         }
         if unit_index as usize >= unit_count {
