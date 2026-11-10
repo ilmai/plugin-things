@@ -18,7 +18,7 @@ pub use parameters::parameter::Parameter;
 pub use parameters::range::ParameterRange;
 pub use plugin::Plugin;
 pub use processor::{Processor, ProcessorConfig, ProcessState, ProcessMode};
-pub use transport::Transport;
+pub use transport::{TimeSignature, Transport};
 
 // Re-exports
 pub use keyboard_types;
