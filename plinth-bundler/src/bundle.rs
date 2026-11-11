@@ -16,7 +16,19 @@ Builds <package> and bundles it as CLAP, VST3 and (macOS only, with an auv2-id) 
 target/bundled. Builds for the host target, or for --target, or, with --universal, as a
 universal x86_64 + arm64 macOS binary.";
 
+const PLUGIN_FORMATS: &[&str] = &["auv2", "clap", "vst3"];
+
+fn plugin_format_name(plugin_format: &str) -> &'static str {
+    match plugin_format {
+        "auv2" => "AUv2",
+        "clap" => "CLAP",
+        "vst3" => "VST3",
+        _ => unimplemented!()
+    }
+}
+
 pub fn main() -> Result<()> {
+    // TODO: We might want more elegant command line handling?
     let mut args = std::env::args().skip(1);
     let (Some("bundle"), Some(package_name)) = (args.next().as_deref(), args.next()) else {
         bail!(USAGE);
@@ -28,6 +40,25 @@ pub fn main() -> Result<()> {
             true
         }
         None => false,
+    };
+    let features = match cargo_args.iter().position(|arg| arg == "--features") {
+        Some(index) => {
+            if cargo_args.len() < index + 2 {
+                bail!("Missing list of features after --features");
+            }
+
+            let default_features: Vec<_> = cargo_args[index + 1]
+                .split(",")
+                .map(String::from)
+                .collect();
+
+            cargo_args.remove(index);
+            cargo_args.remove(index);
+
+            default_features
+        }
+
+        None => Default::default(),
     };
 
     let package = Package::load(&package_name)?;
@@ -44,10 +75,28 @@ pub fn main() -> Result<()> {
         bail!("--universal is only supported on macOS");
     }
 
+    // Combine command line and default features
+    let mut features: Vec<_> = features
+        .iter()
+        .cloned()
+        .chain(package.default_features.iter().cloned())
+        .collect();
+    features.sort();
+    features.dedup();
+
+    // Collect plugin format features
+    let mut build_plugin_formats = Vec::new();
+    for &plugin_format in PLUGIN_FORMATS {
+        if features.iter().find(|feature| feature.as_str() == plugin_format).is_some() {
+            build_plugin_formats.push(plugin_format);
+        }
+    }
+    features.retain(|feature| !PLUGIN_FORMATS.contains(&feature.as_str()));
+
     let bundle_dir = package.target_dir.join("bundled");
     fs::create_dir_all(&bundle_dir)?;
 
-    let build = |features| build_plugin_library(&package, features, universal, &cargo_args);
+    let build = |plugin_format| build_plugin_library(&package, plugin_format, &features, universal, &cargo_args);
 
     match platform {
         Platform::MacOS => {
@@ -55,34 +104,54 @@ pub fn main() -> Result<()> {
                 package.config.bundle_id_prefix.as_deref().context(
                     "[package.metadata.bundle] needs a bundle-id-prefix for macOS bundles",
                 )?;
-            let audio_components = (package.config.auv2_id.as_deref())
-                .map(|auv2_id| audio_components_plist(&package, auv2_id))
-                .transpose()?;
 
-            let library = build("clap,vst3")?;
-            let bundle = |extension, library, extra_plist_keys| {
+            for &plugin_format in build_plugin_formats.iter() {
+                eprintln!("Building {}", plugin_format_name(plugin_format));
+
+                let library = build(plugin_format)?;
+
+                let (extension, extra_plist_keys) = match plugin_format {
+                    "auv2" => {
+                        let audio_components = (package.config.auv2_id.as_deref())
+                            .map(|auv2_id| audio_components_plist(&package, auv2_id))
+                            .transpose()?
+                            .expect("Trying to build AUv2 but plugin metadata doesn't have an AUv2 ID");
+
+                        ("component", audio_components)
+                    }
+
+                    _ => (plugin_format, Default::default())
+                };
+
                 create_macos_bundle(
                     &package,
                     bundle_id_prefix,
                     &bundle_dir,
                     extension,
-                    library,
-                    extra_plist_keys,
-                )
-            };
-            bundle("clap", &library, "")?;
-            bundle("vst3", &library, "")?;
-            if let Some(audio_components) = audio_components {
-                // AUv2 bundle gets built as a separate binary, with *only* the `auv2` feature enabled:
-                // Hosts crash when clap-wrapper's static ObjC classes also exist in a loaded CLAP or VST3.
-                bundle("component", &build("auv2")?, &audio_components)?;
+                    &library,
+                    &extra_plist_keys,
+                )?;
             }
         }
         Platform::Windows { vst3_arch } => {
-            create_windows_bundles(&package, &bundle_dir, &build("clap,vst3")?, vst3_arch)?;
+            for &plugin_format in build_plugin_formats.iter() {
+                if plugin_format == "auv2" {
+                    continue;
+                }
+
+                eprintln!("Building {}", plugin_format_name(plugin_format));
+                create_windows_bundle(&package, plugin_format, &bundle_dir, &build(plugin_format)?, vst3_arch)?;
+            }
         }
         Platform::Linux { vst3_arch } => {
-            create_linux_bundles(&package, &bundle_dir, &build("clap,vst3")?, vst3_arch)?;
+            for &plugin_format in build_plugin_formats.iter() {
+                if plugin_format == "auv2" {
+                    continue;
+                }
+
+                eprintln!("Building {}", plugin_format_name(plugin_format));
+                create_linux_bundle(&package, plugin_format, &bundle_dir, &build(plugin_format)?, vst3_arch)?;
+            }
         }
     }
 
@@ -95,6 +164,7 @@ struct Package {
     version: Version,
     config: BundleConfig,
     target_dir: PathBuf,
+    default_features: Vec<String>,
 }
 
 impl Package {
@@ -112,12 +182,14 @@ impl Package {
             package.metadata.get("bundle").cloned().with_context(|| {
                 format!("Cargo.toml of '{name}' has no [package.metadata.bundle]")
             })?;
+        let default_features = package.features.get("default").cloned().unwrap_or_default();
 
         Ok(Self {
             name: name.to_string(),
             version: package.version,
             target_dir: metadata.target_directory.into_std_path_buf(),
             config: serde_json::from_value(config).context("Invalid [package.metadata.bundle]")?,
+            default_features,
         })
     }
 }
@@ -182,7 +254,8 @@ fn target_triple_argument(cargo_args: &[String]) -> Option<&str> {
 /// When `universal` is true, both macOS architectures are built and merged via lipo.
 fn build_plugin_library(
     package: &Package,
-    features: &str,
+    plugin_format: &str,
+    features: &[String],
     universal: bool,
     cargo_args: &[String],
 ) -> Result<PathBuf> {
@@ -191,7 +264,7 @@ fn build_plugin_library(
         for triple in ["x86_64-apple-darwin", "aarch64-apple-darwin"] {
             let mut cargo_args = cargo_args.to_vec();
             cargo_args.push(format!("--target={triple}"));
-            libraries.push(cargo_build(package, features, &cargo_args)?);
+            libraries.push(cargo_build(package, plugin_format, features, &cargo_args)?);
         }
         let universal_library = package
             .target_dir
@@ -207,15 +280,21 @@ fn build_plugin_library(
         )?;
         Ok(universal_library)
     } else {
-        cargo_build(package, features, cargo_args)
+        cargo_build(package, plugin_format, features, cargo_args)
     }
 }
 
 /// Runs `cargo build` and returns the path of the built library.
-fn cargo_build(package: &Package, features: &str, cargo_args: &[String]) -> Result<PathBuf> {
+fn cargo_build(
+    package: &Package,
+    plugin_format: &str,
+    features: &[String],
+    cargo_args: &[String],
+) -> Result<PathBuf> {
+    let features = format!("{plugin_format},{}", features.join(","));
     let mut cargo = Command::new(std::env::var("CARGO").unwrap_or_else(|_| "cargo".into()))
         .args(["build", "--lib", "--package", &package.name])
-        .args(["--no-default-features", "--features", features])
+        .args(["--no-default-features", "--features", &features])
         .arg("--message-format=json-render-diagnostics")
         .args(cargo_args)
         .stdout(Stdio::piped())
@@ -279,75 +358,89 @@ fn create_macos_bundle(
 
 /// Creates a plain `.clap` library file and a `.vst3` folder with the library in its architecture
 /// subfolder and a `desktop.ini` + `PlugIn.ico` as Explorer icon.
-fn create_windows_bundles(
+fn create_windows_bundle(
     package: &Package,
+    plugin_format: &str,
     bundle_dir: &Path,
     library: &Path,
     vst3_arch: &str,
 ) -> Result<()> {
     let name = &package.config.name;
 
-    // CLAP
-    let clap = bundle_dir.join(format!("{name}.clap"));
-    copy_file(library, &clap)?;
-    eprintln!("Created '{}'", clap.display());
+    match plugin_format {
+        "clap" => {
+            let clap = bundle_dir.join(format!("{name}.clap"));
+            copy_file(library, &clap)?;
+            eprintln!("Created '{}'", clap.display());
+        }
 
-    // VST3
-    let vst3 = bundle_dir.join(format!("{name}.vst3"));
-    let vst3_library = vst3
-        .join("Contents")
-        .join(vst3_arch)
-        .join(format!("{name}.vst3"));
-    let desktop_ini = vst3.join("desktop.ini");
-    let icon = vst3.join("PlugIn.ico");
-    remove_dir(&vst3)?;
-    copy_file(library, &vst3_library)?;
-    fs::write(
-        &desktop_ini,
-        "[.ShellClassInfo]\r\nIconResource=PlugIn.ico,0\r\n",
-    )?;
-    // MIT licensed, see icons/README.md
-    fs::write(&icon, include_bytes!("../icons/VST_Logo_Steinberg.ico"))?;
+        "vst3" => {
+            let vst3 = bundle_dir.join(format!("{name}.vst3"));
+            let vst3_library = vst3
+                .join("Contents")
+                .join(vst3_arch)
+                .join(format!("{name}.vst3"));
+            let desktop_ini = vst3.join("desktop.ini");
+            let icon = vst3.join("PlugIn.ico");
+            remove_dir(&vst3)?;
+            copy_file(library, &vst3_library)?;
+            fs::write(
+                &desktop_ini,
+                "[.ShellClassInfo]\r\nIconResource=PlugIn.ico,0\r\n",
+            )?;
+            // MIT licensed, see icons/README.md
+            fs::write(&icon, include_bytes!("../icons/VST_Logo_Steinberg.ico"))?;
 
-    // `attrib` only exists on Windows: when cross-building, the installer has to set them
-    if cfg!(windows) {
-        run_command(
-            Command::new("attrib")
-                .args(["+s", "+r", "+h"])
-                .arg(&desktop_ini),
-        )?;
-        run_command(Command::new("attrib").args(["+r", "+h"]).arg(&icon))?;
-        run_command(Command::new("attrib").arg("+s").arg(&vst3))?;
+            // `attrib` only exists on Windows: when cross-building, the installer has to set them
+            if cfg!(windows) {
+                run_command(
+                    Command::new("attrib")
+                        .args(["+s", "+r", "+h"])
+                        .arg(&desktop_ini),
+                )?;
+                run_command(Command::new("attrib").args(["+r", "+h"]).arg(&icon))?;
+                run_command(Command::new("attrib").arg("+s").arg(&vst3))?;
+            }
+            eprintln!("Created '{}'", vst3.display());
+        }
+
+        _ => unimplemented!()
     }
-    eprintln!("Created '{}'", vst3.display());
 
     Ok(())
 }
 
 /// Creates a plain `.clap` library file and a `.vst3` folder with the library in its architecture
 /// subfolder.
-fn create_linux_bundles(
+fn create_linux_bundle(
     package: &Package,
+    plugin_format: &str,
     bundle_dir: &Path,
     library: &Path,
     vst3_arch: &str,
 ) -> Result<()> {
     let name = &package.config.name;
 
-    // CLAP
-    let clap = bundle_dir.join(format!("{name}.clap"));
-    copy_file(library, &clap)?;
-    eprintln!("Created '{}'", clap.display());
+    match plugin_format {
+        "clap" => {
+            let clap = bundle_dir.join(format!("{name}.clap"));
+            copy_file(library, &clap)?;
+            eprintln!("Created '{}'", clap.display());
+        }
 
-    // VST3
-    let vst3 = bundle_dir.join(format!("{name}.vst3"));
-    let vst3_library = vst3
-        .join("Contents")
-        .join(vst3_arch)
-        .join(format!("{name}.so"));
-    remove_dir(&vst3)?;
-    copy_file(library, &vst3_library)?;
-    eprintln!("Created '{}'", vst3.display());
+        "vst3" => {
+            let vst3 = bundle_dir.join(format!("{name}.vst3"));
+            let vst3_library = vst3
+                .join("Contents")
+                .join(vst3_arch)
+                .join(format!("{name}.so"));
+            remove_dir(&vst3)?;
+            copy_file(library, &vst3_library)?;
+            eprintln!("Created '{}'", vst3.display());
+        }
+
+        _ => unimplemented!()
+    }
 
     Ok(())
 }

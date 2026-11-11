@@ -16,7 +16,7 @@ clap = []
 vst3 = []
 auv2 = ["clap", "dep:clap-wrapper"]
 standalone = ["plinth-plugin/standalone"]
-default = ["clap", "vst3"]
+default = ["auv2", "clap", "vst3"]
 
 [lib]
 crate-type = ["cdylib", "lib", "staticlib"]
