@@ -286,14 +286,16 @@ impl<P: ClapPlugin> PluginInstance<P> {
 
         let process = unsafe { &*process };
 
+        if process.audio_outputs_count == 0 {
+            return CLAP_PROCESS_ERROR;
+        }
         if process.audio_inputs.is_null() || process.audio_outputs.is_null() {
             return CLAP_PROCESS_ERROR;
         }
         if unsafe { any_null::<f32>(process.audio_inputs as _, process.audio_inputs_count as _) } {
             return CLAP_PROCESS_ERROR;
         }
-
-        if process.audio_outputs_count == 0 {
+        if unsafe { any_null::<f32>(process.audio_outputs as _, process.audio_outputs_count as _) } {
             return CLAP_PROCESS_ERROR;
         }
 
