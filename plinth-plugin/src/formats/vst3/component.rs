@@ -9,6 +9,7 @@ use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use atomic_refcell::AtomicRefCell;
 use plinth_core::signals::ptr_signal::{PtrSignal, PtrSignalMut};
 use plinth_core::signals::signal::SignalMut;
+use plinth_core::util::ptr::any_null;
 use vst3::Steinberg::Vst::ControllerNumbers_::{kAfterTouch, kCtrlProgramChange, kPitchBend};
 use vst3::Steinberg::Vst::{CtrlNumber, IMidiMapping, IMidiMappingTrait, INoteExpressionController, INoteExpressionPhysicalUIMapping};
 use vst3::{ComPtr, ComRef};
@@ -295,12 +296,28 @@ impl<P: Vst3Plugin> IAudioProcessorTrait for PluginComponent<P> {
             let inputs = unsafe { std::slice::from_raw_parts(data.inputs, data.numInputs as _) };
             let outputs = unsafe { std::slice::from_raw_parts(data.outputs, data.numOutputs as _) };
             let main_input = inputs[0];
+            if unsafe { any_null::<f32>(main_input.__field0.channelBuffers32 as _, main_input.numChannels as _) } {
+                return kResultFalse;
+            }
+
             let main_output = outputs[0];
-            assert_eq!(main_input.numChannels, main_output.numChannels);
+            if unsafe { any_null::<f32>(main_output.__field0.channelBuffers32 as _, main_output.numChannels as _) } {
+                return kResultFalse;
+            }
+            if main_input.numChannels != main_output.numChannels {
+                return kResultFalse;
+            }
 
             let aux_input = if P::HAS_AUX_INPUT && self.audio_thread_state.aux_active.load(Ordering::Acquire) {
-                assert_eq!(data.numInputs, 2);
+                if data.numInputs != 2 {
+                    return kResultFalse;
+                }
+
                 let aux_input = inputs[1];
+                if unsafe { any_null::<f32>(aux_input.__field0.channelBuffers32 as _, aux_input.numChannels as _) } {
+                    return kResultFalse;
+                }
+
                 Some(unsafe { PtrSignal::from_pointers(aux_input.numChannels as usize, data.numSamples as usize, aux_input.__field0.channelBuffers32 as _) })
             } else {
                 None

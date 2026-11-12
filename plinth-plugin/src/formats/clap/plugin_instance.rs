@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, ffi::{CStr, c_char, c_void}, iter::zip, ptr::{null, null_mut}, sync::{Arc, atomic::{AtomicBool, AtomicUsize, Ordering}}};
 
 use clap_sys::{events::clap_input_events, ext::{audio_ports::CLAP_EXT_AUDIO_PORTS, draft::undo::{CLAP_EXT_UNDO, clap_host_undo}, gui::{CLAP_EXT_GUI, clap_host_gui}, latency::CLAP_EXT_LATENCY, note_ports::CLAP_EXT_NOTE_PORTS, params::{CLAP_EXT_PARAMS, clap_host_params}, render::CLAP_EXT_RENDER, state::{CLAP_EXT_STATE, clap_host_state}, tail::{CLAP_EXT_TAIL, clap_host_tail}, timer_support::{CLAP_EXT_TIMER_SUPPORT, clap_host_timer_support}}, host::clap_host, plugin::clap_plugin, process::{CLAP_PROCESS_CONTINUE, CLAP_PROCESS_CONTINUE_IF_NOT_QUIET, CLAP_PROCESS_ERROR, CLAP_PROCESS_TAIL, clap_process, clap_process_status}};
-use plinth_core::signals::{ptr_signal::{PtrSignal, PtrSignalMut}, signal::SignalMut};
+use plinth_core::{signals::{ptr_signal::{PtrSignal, PtrSignalMut}, signal::SignalMut}, util::ptr::any_null};
 use raw_window_handle::RawWindowHandle;
 
 use crate::{Event, ParameterId, ProcessMode, ProcessState, Processor, ProcessorConfig, formats::PluginFormat, host::HostInfo};
@@ -289,24 +289,41 @@ impl<P: ClapPlugin> PluginInstance<P> {
         if process.audio_inputs.is_null() || process.audio_outputs.is_null() {
             return CLAP_PROCESS_ERROR;
         }
+        if unsafe { any_null::<f32>(process.audio_inputs as _, process.audio_inputs_count as _) } {
+            return CLAP_PROCESS_ERROR;
+        }
 
-        assert!(process.audio_outputs_count >= 1);
+        if process.audio_outputs_count == 0 {
+            return CLAP_PROCESS_ERROR;
+        }
 
         let input_buffers = unsafe { std::slice::from_raw_parts(process.audio_inputs, process.audio_inputs_count as usize) };
         let output_buffers = unsafe { std::slice::from_raw_parts(process.audio_outputs, process.audio_outputs_count as usize) };
 
         let input_buffer = input_buffers[0];
-        assert_eq!(input_buffer.channel_count, 2);
+        if input_buffer.channel_count != 2 {
+            return CLAP_PROCESS_ERROR;
+        }
+        if unsafe { any_null::<f32>(input_buffer.data32 as _, input_buffer.channel_count as _) } {
+            return CLAP_PROCESS_ERROR;
+        }
 
         let output_buffer = output_buffers[0];
-        assert_eq!(output_buffer.channel_count, 2);
+        if output_buffer.channel_count != 2 {
+            return CLAP_PROCESS_ERROR;
+        }
+        if unsafe { any_null::<f32>(output_buffer.data32 as _, output_buffer.channel_count as _) } {
+            return CLAP_PROCESS_ERROR;
+        }
 
         let input = unsafe { PtrSignal::from_pointers(input_buffer.channel_count as usize, process.frames_count as usize, input_buffer.data32 as _) };
         let mut output = unsafe { PtrSignalMut::from_pointers(output_buffer.channel_count as usize, process.frames_count as usize, output_buffer.data32) };
 
         let aux = if P::HAS_AUX_INPUT && process.audio_inputs_count >= 2 {
             let aux_buffer = input_buffers[1];
-            assert_eq!(aux_buffer.channel_count, 2);
+            if aux_buffer.channel_count != 2 {
+                return CLAP_PROCESS_ERROR;
+            }
 
             Some(unsafe { PtrSignal::from_pointers(aux_buffer.channel_count as usize, process.frames_count as usize, aux_buffer.data32 as _) })
         } else {
