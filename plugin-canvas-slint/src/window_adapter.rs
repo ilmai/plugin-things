@@ -14,7 +14,6 @@ use keyboard_types::Code;
 #[cfg(target_os="macos")]
 use plugin_canvas::is_macos_version_at_least;
 use plugin_canvas::keyboard::KeyboardModifiers;
-use plugin_canvas::screen::screen_scale;
 use plugin_canvas::{event::EventResponse, LogicalSize};
 use portable_atomic::AtomicF64;
 
@@ -35,6 +34,7 @@ pub struct PluginCanvasWindowAdapter {
 
     physical_size: RefCell<slint::PhysicalSize>,
     scale: AtomicF64,
+    backing_scale: AtomicF64,
 
     pending_draw: AtomicBool,
     buttons_down: AtomicUsize,
@@ -54,10 +54,8 @@ impl PluginCanvasWindowAdapter {
         let window_attributes = plugin_canvas_window.attributes();
 
         let scale = window_attributes.scale();
-        let mut combined_scale = scale;
-        if cfg!(target_os = "macos") {
-            combined_scale *= screen_scale();
-        }
+        let backing_scale = plugin_canvas_window.backing_scale();
+        let combined_scale = scale * backing_scale;
 
         let plugin_canvas_size = window_attributes.size() * combined_scale;
 
@@ -95,6 +93,7 @@ impl PluginCanvasWindowAdapter {
 
                 physical_size: slint_size.into(),
                 scale: scale.into(),
+                backing_scale: backing_scale.into(),
 
                 pending_draw: AtomicBool::new(true),
                 buttons_down: Default::default(),
@@ -126,16 +125,9 @@ impl PluginCanvasWindowAdapter {
     }
 
     pub fn set_scale(&self, scale: f64) {
-        self.scale.store(scale, Ordering::Release);
-
-        let mut combined_scale = scale;
-        if cfg!(target_os = "macos") {
-            combined_scale *= screen_scale();
+        if self.scale.swap(scale, Ordering::AcqRel) != scale {
+            self.scale_factor_changed();
         }
-
-        self.slint_window.dispatch_event(
-            WindowEvent::ScaleFactorChanged { scale_factor: combined_scale as f32 }
-        );
     }
 
     pub fn has_input_focus(&self) -> bool {
@@ -185,6 +177,19 @@ impl PluginCanvasWindowAdapter {
                     }
                 }
 
+                EventResponse::Handled
+            },
+
+            plugin_canvas::Event::BackingScaleChanged => {
+                let backing_scale = self.plugin_canvas_window.backing_scale();
+                let old_backing_scale = self.backing_scale.swap(backing_scale, Ordering::AcqRel);
+                if backing_scale != old_backing_scale {
+                    self.scale_factor_changed();
+                    // Keep the size in host coordinates, so only the physical size changes
+                    let size = self.physical_size.borrow().to_logical(old_backing_scale as _);
+                    self.set_size(size.into());
+                    self.request_redraw(); 
+                }
                 EventResponse::Handled
             },
 
@@ -319,6 +324,13 @@ impl PluginCanvasWindowAdapter {
         &self.plugin_canvas_window
     }
 
+    fn scale_factor_changed(&self) {
+        let combined_scale = self.scale.load(Ordering::Acquire) * self.backing_scale.load(Ordering::Acquire);
+        self.slint_window.dispatch_event(
+            WindowEvent::ScaleFactorChanged { scale_factor: combined_scale as f32 }
+        );
+    }
+
     fn convert_button(button: &plugin_canvas::MouseButton) -> i_slint_core::platform::PointerEventButton {
         match button {
             plugin_canvas::MouseButton::Left => i_slint_core::platform::PointerEventButton::Left,
@@ -355,6 +367,7 @@ impl Debug for PluginCanvasWindowAdapter {
         f.debug_struct("PluginCanvasWindowAdapter")
             .field("physical_size", &self.physical_size)
             .field("scale", &self.scale)
+            .field("backing_scale", &self.backing_scale)
             .field("pending_draw", &self.pending_draw)
             .field("buttons_down", &self.buttons_down)
             .field("pending_mouse_exit", &self.pending_mouse_exit)
@@ -373,14 +386,10 @@ impl WindowAdapter for PluginCanvasWindowAdapter {
 
     fn set_size(&self, size: slint::WindowSize) {
         let scale = self.scale.load(Ordering::Acquire);
-        let screen_scale = if cfg!(target_os = "macos") {
-            screen_scale()
-        } else {
-            1.0
-        };
+        let backing_scale = self.backing_scale.load(Ordering::Acquire);
 
-        let physical_size = size.to_physical(screen_scale as _);
-        let mut logical_size = size.to_logical(screen_scale as _);
+        let physical_size = size.to_physical(backing_scale as _);
+        let mut logical_size = size.to_logical(backing_scale as _);
 
         *self.physical_size.borrow_mut() = physical_size;
         self.plugin_canvas_window.resized(LogicalSize::new(logical_size.width as _, logical_size.height as _), scale);

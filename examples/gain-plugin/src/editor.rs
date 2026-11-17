@@ -1,7 +1,7 @@
 use std::{cell::RefCell, rc::Rc};
 
 use plinth_plugin::{raw_window_handle::RawWindowHandle, Editor, Host};
-use plugin_canvas_slint::{editor::{EditorHandle, SlintEditor}, plugin_canvas::{Window, window::WindowAttributes}};
+use plugin_canvas_slint::{editor::{EditorHandle, SlintEditor}, plugin_canvas::window::WindowAttributes};
 
 use crate::{parameters::GainParameters, view::GainPluginView};
 
@@ -12,7 +12,7 @@ pub struct EditorSettings {
 impl Default for EditorSettings {
     fn default() -> Self {
         Self {
-            scale: Window::default_scale(),
+            scale: WindowAttributes::default_scale(),
         }
     }
 }
@@ -53,6 +53,10 @@ impl Editor for GainPluginEditor {
             editor_handle.set_window_size(size.0, size.1);
             editor_handle.set_scale(scale);
         }
+    }
+
+    fn is_open(&self) -> bool {
+        self.editor_handle.is_some()
     }
 
     fn open(&mut self, parent: RawWindowHandle) {
