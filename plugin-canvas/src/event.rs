@@ -11,6 +11,8 @@ pub enum MouseButton {
 pub enum Event {
     Draw,
 
+    BackingScaleChanged,
+
     KeyDown {
         key_code: keyboard_types::Code,
         text: Option<String>,

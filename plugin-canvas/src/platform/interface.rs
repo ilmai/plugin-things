@@ -6,6 +6,9 @@ use crate::{error::Error, event::EventCallback, window::WindowAttributes, Logica
 use super::os_window_handle::OsWindowHandle;
 
 pub(crate) trait OsWindowInterface: HasDisplayHandle + HasWindowHandle + Sized {
+    /// Only macOS tracks the backing scale, other platforms work in physical pixels.
+    fn backing_scale(&self) -> f64 { 1.0 }
+
     fn open(
         parent_window_handle: RawWindowHandle,
         window_attributes: WindowAttributes,

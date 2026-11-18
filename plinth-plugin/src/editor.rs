@@ -6,6 +6,7 @@ pub(crate) const FRAME_TIMER_MILLISECONDS: u64 = 16;
 pub trait Editor {
     const DEFAULT_SIZE: (f64, f64);
 
+    fn is_open(&self) -> bool;
     fn open(&mut self, parent: RawWindowHandle);
     fn close(&mut self);
 
@@ -45,6 +46,7 @@ pub struct NoEditor;
 impl Editor for NoEditor {
     const DEFAULT_SIZE: (f64, f64) = (0.0, 0.0);
 
+    fn is_open(&self) -> bool { false }
     fn open(&mut self, _parent: RawWindowHandle) {}
     fn close(&mut self) {}
 

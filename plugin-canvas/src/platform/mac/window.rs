@@ -14,6 +14,7 @@ use crate::error::Error;
 use crate::event::{EventCallback, EventResponse};
 use crate::platform::interface::OsWindowInterface;
 use crate::window::WindowAttributes;
+use crate::screen;
 
 use super::view::OsWindowView;
 
@@ -138,6 +139,13 @@ impl OsWindowInterface for OsWindow {
 
         self.view().setFrameSize(cg_size);
         self.view().set_scale(scale);
+    }
+
+    fn backing_scale(&self) -> f64 {
+        match self.view().window() {
+            Some(window) => window.backingScaleFactor(),
+            None => screen::screen_scale(),
+        }
     }
 
     fn set_cursor(&self, cursor: Option<CursorIcon>) {

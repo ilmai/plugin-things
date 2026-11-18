@@ -131,7 +131,14 @@ impl<P: ClapPlugin> Gui<P> {
                 return false;
             };
 
+            let old_size = editor.window_size();
             editor.set_scale(scale);
+            let new_size = editor.window_size();
+
+            if new_size != old_size && editor.is_open() && !instance.host_ext_gui.is_null() {
+                unsafe { ((*instance.host_ext_gui).request_resize.unwrap())(instance.host, new_size.0 as _, new_size.1 as _) };
+            }
+
             true
         })
     }

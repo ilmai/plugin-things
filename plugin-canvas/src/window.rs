@@ -16,6 +16,16 @@ pub struct WindowAttributes {
 }
 
 impl WindowAttributes {
+    // Returns a reasonable default scale for the window based on the platform
+    pub fn default_scale() -> f64 {
+        if cfg!(target_os = "macos") {
+            // Mac window sizes are in logical coordinates so no need to scale
+            1.0
+        } else {
+            screen_scale()
+        }
+    }
+
     pub fn new(size: LogicalSize, scale: f64) -> Self {
         Self {
             size,
@@ -46,14 +56,10 @@ pub struct Window {
 }
 
 impl Window {
-    // Returns a reasonable default scale for the window based on the platform
-    pub fn default_scale() -> f64 {
-        if cfg!(target_os = "macos") {
-            // Mac window sizes are in logical coordinates so no need to scale
-            1.0
-        } else {
-            screen_scale()
-        }
+    /// Returns the backing scale of the host window the view is in. Only relevant
+    /// for macOS, where the editor scale is updated manually when it changes.
+    pub fn backing_scale(&self) -> f64 {
+        self.os_window_handle.backing_scale()
     }
 
     pub fn open(

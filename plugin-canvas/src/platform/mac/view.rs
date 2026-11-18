@@ -75,6 +75,7 @@ impl OsWindowView {
             builder.add_method(sel!(mouseExited:), Self::mouse_exited as unsafe extern "C" fn(_, _, _) -> _);
             builder.add_method(sel!(scrollWheel:), Self::scroll_wheel as unsafe extern "C" fn(_, _, _) -> _);
             builder.add_method(sel!(drawRect:), Self::draw_rect as unsafe extern "C" fn(_, _, _) -> _);
+            builder.add_method(sel!(viewDidChangeBackingProperties), Self::view_did_change_backing_properties as unsafe extern "C" fn(_, _) -> _);
 
             // NSDraggingDestination
             builder.add_method(sel!(wantsPeriodicDraggingUpdates), Self::wants_periodic_dragging_updates as unsafe extern "C" fn(_, _) -> _);
@@ -409,6 +410,11 @@ impl OsWindowView {
 
     unsafe extern "C" fn draw_rect(&self, _cmd: Sel, _rect: NSRect) {
         self.send_event(Event::Draw);
+    }
+
+    unsafe extern "C" fn view_did_change_backing_properties(&self, _cmd: Sel) {
+        unsafe { msg_send![super(self, NSView::class()), viewDidChangeBackingProperties] }
+        self.send_event(Event::BackingScaleChanged);
     }
 
     // NSDraggingDestination

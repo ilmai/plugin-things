@@ -1,9 +1,9 @@
-use std::{cell::RefCell, ffi::{c_void, CStr}, rc::Rc};
+use std::{cell::{OnceCell, RefCell}, ffi::{c_void, CStr}, rc::{Rc, Weak}};
 
 use vst3::{ComPtr, ComRef, ComWrapper};
 use vst3::Steinberg::{char16, int16, kInvalidArgument, kResultFalse, kResultOk, tresult, FIDString, IPlugFrame, IPlugView, IPlugViewContentScaleSupport, IPlugViewContentScaleSupportTrait, IPlugViewContentScaleSupport_::ScaleFactor, IPlugViewTrait, TBool, ViewRect, Vst::IComponentHandler};
 
-use crate::{Editor, vst3::key_codes::{to_key_code, unicode_to_string}};
+use crate::{Editor, Host, vst3::key_codes::{to_key_code, unicode_to_string}};
 
 use super::{host::Vst3Host, Vst3Plugin};
 
@@ -17,6 +17,7 @@ pub struct ViewContext {
 pub struct View<P: Vst3Plugin + 'static> {
     editor: Rc<RefCell<Option<P::Editor>>>,
     context: Rc<RefCell<ViewContext>>,
+    host: OnceCell<Weak<Vst3Host<P>>>,
 }
 
 impl<P: Vst3Plugin + 'static> View<P> {
@@ -37,6 +38,7 @@ impl<P: Vst3Plugin + 'static> View<P> {
         let view = ComWrapper::new(Self {
             editor: Default::default(),
             context: context.clone(),
+            host: OnceCell::new(),
         });
 
         let host = Rc::new(Vst3Host::new(
@@ -46,8 +48,9 @@ impl<P: Vst3Plugin + 'static> View<P> {
             context,
         ));
 
-        let plugin = plugin.borrow();
+        view.host.set(Rc::downgrade(&host)).expect("failed to set host weak ptr to its view");
 
+        let plugin = plugin.borrow();
         *view.editor.borrow_mut() = Some(plugin.as_ref().unwrap().create_editor(host));
 
         view
@@ -259,7 +262,17 @@ impl<P: Vst3Plugin + 'static> IPlugViewTrait for View<P> {
 impl<P: Vst3Plugin + 'static> IPlugViewContentScaleSupportTrait for View<P> {
     #[allow(unused_variables)]
     unsafe fn setContentScaleFactor(&self, factor: ScaleFactor) -> tresult {
-        self.editor.borrow().as_ref().unwrap().set_scale(factor as _);
+        let editor = self.editor.borrow();
+        let editor = editor.as_ref().unwrap();
+
+        let old_size = editor.window_size();
+        editor.set_scale(factor as _);
+        let new_size = editor.window_size();
+
+        if new_size != old_size && editor.is_open() && let Some(host) = self.host.get().and_then(Weak::upgrade) {
+            host.resize_view(new_size.0, new_size.1);
+        }
+
         kResultOk
     }
 }
