@@ -31,8 +31,5 @@ winit = { version = "0.30", optional = true }
 cpal = { version = "0.17", optional = true, features = ["asio", "jack"] }
 midir = { version = "0.11", optional = true }
 
-[build-dependencies]
-bindgen = "0.72"
-
 [dev-dependencies]
 approx = "0.5"
