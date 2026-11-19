@@ -188,7 +188,7 @@ impl PluginCanvasWindowAdapter {
                     // Keep the size in host coordinates, so only the physical size changes
                     let size = self.physical_size.borrow().to_logical(old_backing_scale as _);
                     self.set_size(size.into());
-                    self.request_redraw(); 
+                    self.request_redraw();
                 }
                 EventResponse::Handled
             },
@@ -427,7 +427,7 @@ impl WindowAdapterInternal for PluginCanvasWindowAdapter {
         self.plugin_canvas_window.set_input_focus(input_focus);
     }
 
-    fn set_mouse_cursor(&self, cursor: i_slint_core::cursor::MouseCursorInner) {
+    fn set_mouse_cursor(&self, cursor: i_slint_core::cursor::MouseCursorInner) -> i_slint_core::cursor::MouseCursorHandling {
         use i_slint_core::cursor::MouseCursorInner;
         use i_slint_core::items::BuiltInMouseCursor;
 
@@ -465,5 +465,7 @@ impl WindowAdapterInternal for PluginCanvasWindowAdapter {
         };
 
         self.plugin_canvas_window.set_cursor(cursor);
+
+        i_slint_core::cursor::MouseCursorHandling::Platform
     }
 }
