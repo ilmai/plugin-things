@@ -1,6 +1,6 @@
 use std::{io::{Read, Write}, rc::Rc};
 
-use crate::{error::Error, host::HostInfo, midi_capabilities::MidiCapabilities, note_expressions::NoteExpressions, processor::ProcessorConfig, Editor, Host, Parameters, Processor};
+use crate::{Editor, Event, Host, Parameters, Processor, error::Error, host::HostInfo, midi_capabilities::MidiCapabilities, note_expressions::NoteExpressions, processor::ProcessorConfig};
 
 pub trait Plugin {
     const NAME: &'static str;
@@ -37,4 +37,6 @@ pub trait Plugin {
     fn latency(&self) -> u32 {
         0
     }
+
+    fn process_event(&self, _event: &Event) {}
 }

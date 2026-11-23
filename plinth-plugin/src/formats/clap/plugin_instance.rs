@@ -4,7 +4,7 @@ use clap_sys::{events::clap_input_events, ext::{audio_ports::CLAP_EXT_AUDIO_PORT
 use plinth_core::{signals::{ptr_signal::{PtrSignal, PtrSignalMut}, signal::SignalMut}, util::ptr::any_null};
 use raw_window_handle::RawWindowHandle;
 
-use crate::{Event, ParameterId, ProcessMode, ProcessState, Processor, ProcessorConfig, formats::PluginFormat, host::HostInfo};
+use crate::{Event, ParameterId, Plugin, ProcessMode, ProcessState, Processor, ProcessorConfig, formats::PluginFormat, host::HostInfo};
 use crate::clap::{event::EventIterator, transport::convert_transport};
 use crate::parameters::{info::ParameterInfo, has_duplicates, Parameters};
 
@@ -178,15 +178,18 @@ impl<P: ClapPlugin> PluginInstance<P> {
     }
 
     pub(super) fn process_plugin_event(&self, event: &Event) {
+        let plugin = self.plugin.as_ref().unwrap();
+        Plugin::process_event(plugin, event);
+
         match event {
             Event::ParameterValue { id, value, .. } => {
-                self.plugin.as_ref().unwrap().with_parameters(|parameters| {
+                plugin.with_parameters(|parameters| {
                     parameters.get(*id).unwrap().set_normalized_value(*value);
                 });
             },
 
             Event::ParameterModulation { id, amount, .. } => {
-                self.plugin.as_ref().unwrap().with_parameters(|parameters| {
+                plugin.with_parameters(|parameters| {
                     parameters.get(*id).unwrap().set_normalized_modulation(*amount);
                 });
             }

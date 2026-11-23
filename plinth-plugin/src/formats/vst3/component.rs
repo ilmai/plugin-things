@@ -678,6 +678,8 @@ impl<P: Vst3Plugin + 'static> IEditControllerTrait for PluginComponent<P> {
 
         let event = self.midi_parameters.borrow().parameter_change_to_event(id, value, 0);
 
+        plugin.process_event(&event);
+
         if let Event::ParameterValue { id, value, .. } = event {
             plugin.with_parameters(|parameters| parameters.get(id).unwrap().set_normalized_value(value));
         }

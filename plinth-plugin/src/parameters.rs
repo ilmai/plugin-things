@@ -51,27 +51,7 @@ pub trait Parameters {
     }
 
     fn process_event(&self, event: &Event) -> Result<(), Error> {
-        match event {
-            Event::ParameterValue { id, value, .. } => {
-                let Some(parameter) = self.get(*id) else {
-                    return Err(Error::ParameterIdError(*id));
-                };
-
-                parameter.set_normalized_value(*value);
-            },
-
-            Event::ParameterModulation { id, amount, .. } => {
-                let Some(parameter) = self.get(*id) else {
-                    return Err(Error::ParameterIdError(*id));
-                };
-
-                parameter.set_normalized_modulation(*amount);
-            },
-
-            _ => {},
-        }
-
-        Ok(())
+        self.process_event_impl(event)
     }
 
     fn reset(&self) {
@@ -103,6 +83,31 @@ pub trait Parameters {
             };
 
             parameter.deserialize_value(value)?;
+        }
+
+        Ok(())
+    }
+
+    // Types should call this if they override process_event()
+    fn process_event_impl(&self, event: &Event) -> Result<(), Error> {
+        match event {
+            Event::ParameterValue { id, value, .. } => {
+                let Some(parameter) = self.get(*id) else {
+                    return Err(Error::ParameterIdError(*id));
+                };
+
+                parameter.set_normalized_value(*value);
+            },
+
+            Event::ParameterModulation { id, amount, .. } => {
+                let Some(parameter) = self.get(*id) else {
+                    return Err(Error::ParameterIdError(*id));
+                };
+
+                parameter.set_normalized_modulation(*amount);
+            },
+
+            _ => {},
         }
 
         Ok(())
